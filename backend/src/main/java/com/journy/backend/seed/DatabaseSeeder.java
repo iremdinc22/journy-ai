@@ -141,7 +141,23 @@ public class DatabaseSeeder implements CommandLineRunner {
                 new Place("Quiet Cup De Pijp", "Amsterdam", PlaceCategory.COFFEE, "A soft-paced cafe for planning the next stop.", "Lean", 4.7, "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=700&q=85"),
                 new Place("Canal Roast Bar", "Amsterdam", PlaceCategory.COFFEE, "Good espresso without a long detour.", "Mid", 4.6, "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=700&q=85"),
                 new Place("Golden Hour Canal Loop", "Amsterdam", PlaceCategory.FREE, "A scenic walking loop with no reservation needed.", "Free", 4.8, "https://images.unsplash.com/photo-1584003564911-a7a321c84e1c?auto=format&fit=crop&w=700&q=85"),
-                new Place("Neighborhood Market", "Amsterdam", PlaceCategory.FREE, "Low-cost local browsing and quick bites.", "Free", 4.5, "https://images.unsplash.com/photo-1525968902-070804c45d6b?auto=format&fit=crop&w=700&q=85")
+                new Place("Neighborhood Market", "Amsterdam", PlaceCategory.FREE, "Low-cost local browsing and quick bites.", "Free", 4.5, "https://images.unsplash.com/photo-1525968902-070804c45d6b?auto=format&fit=crop&w=700&q=85"),
+                new Place("Jordaan Slow Walk", "Amsterdam", PlaceCategory.WALKING, "A quiet canal-side walking window with local streets and small shops.", "Free", 4.7, "https://images.unsplash.com/photo-1584003564911-a7a321c84e1c?auto=format&fit=crop&w=700&q=85"),
+
+                new Place("Left Bank Museum Window", "Paris", PlaceCategory.CULTURE, "A focused culture stop that pairs well with a river walk.", "Mid", 4.8, "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=700&q=85"),
+                new Place("Saint-Germain Coffee Pause", "Paris", PlaceCategory.COFFEE, "A calm cafe break between gallery streets and the Seine.", "Mid", 4.7, "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=700&q=85"),
+                new Place("Canal Bakery Stop", "Paris", PlaceCategory.FOOD, "Morning pastry stop that keeps the route light and local.", "Lean", 4.6, "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=700&q=85"),
+                new Place("Seine Golden Hour Walk", "Paris", PlaceCategory.WALKING, "A free scenic route for sunset without adding reservations.", "Free", 4.8, "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=700&q=85"),
+
+                new Place("Monti Gallery Morning", "Rome", PlaceCategory.CULTURE, "Compact culture before lunch, close to food streets.", "Lean", 4.7, "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=700&q=85"),
+                new Place("Testaccio Table", "Rome", PlaceCategory.FOOD, "Local plates in a neighborhood built for food-first days.", "Mid", 4.8, "https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?auto=format&fit=crop&w=700&q=85"),
+                new Place("Central Espresso Bar", "Rome", PlaceCategory.COFFEE, "A short espresso break between historic anchors.", "Lean", 4.6, "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=700&q=85"),
+                new Place("Trastevere Evening Walk", "Rome", PlaceCategory.WALKING, "Low-effort streets for dinner and a flexible evening.", "Free", 4.7, "https://images.unsplash.com/photo-1529260830199-42c24126f198?auto=format&fit=crop&w=700&q=85"),
+
+                new Place("Born Design Route", "Barcelona", PlaceCategory.CULTURE, "Independent galleries and design shops grouped into one area.", "Lean", 4.6, "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=700&q=85"),
+                new Place("Gracia Coffee Corner", "Barcelona", PlaceCategory.COFFEE, "A softer cafe stop away from the busiest tourist streets.", "Lean", 4.7, "https://images.unsplash.com/photo-1511920170033-f8396924c348?auto=format&fit=crop&w=700&q=85"),
+                new Place("Tapas Street Window", "Barcelona", PlaceCategory.FOOD, "Easy dinner zone with short transfers after the final stop.", "Mid", 4.8, "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=700&q=85"),
+                new Place("Gothic Quarter Drift", "Barcelona", PlaceCategory.FREE, "Free wandering through small lanes, plazas and local corners.", "Free", 4.6, "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&w=700&q=85")
         ));
     }
 

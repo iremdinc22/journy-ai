@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radius, spacing, typography } from '../theme/colors';
 import { exploreApi } from '../api/journyApi';
 import type { PlaceResponse } from '../api/types';
+import { useAppTheme } from '../theme/ThemeContext';
+import { InlineError, InlineLoading } from '../components/StateViews';
 
 type Category = 'For you' | 'Food' | 'Culture' | 'Coffee' | 'Free';
 
@@ -142,36 +143,36 @@ const placeGroups: Record<Category, Array<{
 };
 
 export default function ExploreScreen() {
+  const { isDark, theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors } = theme;
   const [activeCategory, setActiveCategory] = useState<Category>('For you');
   const [apiPlaces, setApiPlaces] = useState<PlaceResponse[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const places = useMemo(() => apiPlaces ?? placeGroups[activeCategory], [activeCategory, apiPlaces]);
 
-  useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
-      try {
-        const response = await exploreApi.places(activeCategory);
-        if (mounted) {
-          setApiPlaces(response);
-        }
-      } catch {
-        if (mounted) {
-          setApiPlaces(null);
-        }
-      }
-    };
-
-    load();
-
-    return () => {
-      mounted = false;
-    };
+  const loadPlaces = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const response = await exploreApi.places(activeCategory);
+      setApiPlaces(response);
+    } catch {
+      setApiPlaces(null);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [activeCategory]);
+
+  useEffect(() => {
+    loadPlaces();
+  }, [loadPlaces]);
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>Explore</Text>
         <Text style={styles.title}>Local picks across every city.</Text>
@@ -197,6 +198,15 @@ export default function ExploreScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {loading ? <InlineLoading label="Finding local picks..." /> : null}
+        {error ? (
+          <InlineError
+            title="Explore is using preview picks"
+            description="Backend places could not be loaded. Retry to refresh recommendations."
+            onRetry={loadPlaces}
+          />
+        ) : null}
 
         {places.map((place, index) => {
           const normalized = normalizePlace(place, activeCategory);
@@ -296,7 +306,10 @@ function hashSeed(value: string) {
   return hash;
 }
 
-const styles = StyleSheet.create({
+type Theme = ReturnType<typeof useAppTheme>['theme'];
+
+function createStyles({ colors, radius, spacing, typography }: Theme) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { padding: spacing.lg, paddingBottom: 132 },
   eyebrow: {
@@ -371,3 +384,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
 });
+}

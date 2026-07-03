@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { colors, radius, spacing, typography } from '../theme/colors';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { tripApi } from '../api/journyApi';
+import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LoadingPlan'>;
 
@@ -17,12 +17,30 @@ const steps = [
 ];
 
 export default function LoadingPlanScreen({ navigation, route }: Props) {
+  const { isDark, theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors } = theme;
   const [error, setError] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  const createPlan = useCallback(async () => {
+    setCreating(true);
+    setError(false);
+    try {
+      const trip = await tripApi.create(route.params.tripDraft);
+      await tripApi.generate(trip.id);
+      navigation.replace('MainTabs', { screen: 'Itinerary' });
+    } catch {
+      setError(true);
+    } finally {
+      setCreating(false);
+    }
+  }, [navigation, route.params.tripDraft]);
 
   useEffect(() => {
     let cancelled = false;
 
-    const createPlan = async () => {
+    const run = async () => {
       try {
         const trip = await tripApi.create(route.params.tripDraft);
         await tripApi.generate(trip.id);
@@ -33,12 +51,16 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
       } catch {
         if (!cancelled) {
           setError(true);
-          Alert.alert('Plan could not be created', 'Please make sure you are signed in and the backend is running.');
+        }
+      } finally {
+        if (!cancelled) {
+          setCreating(false);
         }
       }
     };
 
-    createPlan();
+    setCreating(true);
+    run();
 
     return () => {
       cancelled = true;
@@ -47,7 +69,7 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
 
       <View style={styles.content}>
         <View style={styles.aiCircle}>
@@ -79,16 +101,28 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
         </View>
 
         {error ? (
-          <TouchableOpacity style={styles.retryButton} activeOpacity={0.88} onPress={() => navigation.replace('TripSetup')}>
-            <Text style={styles.retryText}>Back to setup</Text>
-          </TouchableOpacity>
+          <View style={styles.errorCard}>
+            <Text style={styles.errorTitle}>Plan could not be created</Text>
+            <Text style={styles.errorText}>Make sure the backend is running, then try again.</Text>
+            <View style={styles.errorActions}>
+              <TouchableOpacity style={styles.retryButton} activeOpacity={0.88} onPress={createPlan} disabled={creating}>
+                <Text style={styles.retryText}>{creating ? 'Retrying...' : 'Retry'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.88} onPress={() => navigation.replace('TripSetup')}>
+                <Text style={styles.secondaryText}>Edit setup</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         ) : null}
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+type Theme = ReturnType<typeof useAppTheme>['theme'];
+
+function createStyles({ colors, radius, spacing, typography }: Theme) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: {
     flex: 1,
@@ -164,13 +198,43 @@ const styles = StyleSheet.create({
     backgroundColor: colors.teal,
   },
   retryButton: {
+    backgroundColor: colors.midnight,
+    borderColor: colors.midnight,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  retryText: { color: colors.surface, fontSize: typography.small, fontWeight: '900', textAlign: 'center' },
+  errorCard: {
     backgroundColor: colors.surface,
     borderColor: colors.mist,
     borderRadius: radius.lg,
     borderWidth: 1,
     marginTop: spacing.lg,
+    padding: spacing.md,
+    width: '100%',
+  },
+  errorTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900', textAlign: 'center' },
+  errorText: {
+    color: colors.slate,
+    fontSize: typography.tiny,
+    fontWeight: '700',
+    lineHeight: 17,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
+  errorActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  secondaryButton: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flex: 1,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  retryText: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
+  secondaryText: { color: colors.midnight, fontSize: typography.small, fontWeight: '900', textAlign: 'center' },
 });
+}

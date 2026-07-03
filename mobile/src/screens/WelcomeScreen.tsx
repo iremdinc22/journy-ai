@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,9 +18,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { colors, radius, spacing, typography } from '../theme/colors';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { authApi } from '../api/journyApi';
+import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 type AuthMode = 'login' | 'register';
@@ -32,6 +32,9 @@ const featurePills = [
 ] as const;
 
 export default function WelcomeScreen({ navigation }: Props) {
+  const { isDark, theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  const { colors } = theme;
   const [sheetMode, setSheetMode] = useState<AuthMode | null>(null);
   const [email, setEmail] = useState('admin@journy.app');
   const [password, setPassword] = useState('admin123');
@@ -72,7 +75,7 @@ export default function WelcomeScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
       <View style={styles.screen}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -173,15 +176,17 @@ export default function WelcomeScreen({ navigation }: Props) {
 
               <View style={styles.sheetForm}>
                 {sheetMode === 'register' ? (
-                  <AuthInput icon="person-outline" placeholder="Full name" value={name} onChangeText={setName} />
+                  <AuthInput icon="person-outline" placeholder="Full name" value={name} onChangeText={setName} colors={colors} styles={styles} />
                 ) : null}
-                <AuthInput icon="mail-outline" placeholder="Email" value={email} onChangeText={setEmail} />
+                <AuthInput icon="mail-outline" placeholder="Email" value={email} onChangeText={setEmail} colors={colors} styles={styles} />
                 <AuthInput
                   icon="lock-closed-outline"
                   placeholder="Password"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
+                  colors={colors}
+                  styles={styles}
                 />
 
                 <TouchableOpacity
@@ -237,12 +242,16 @@ function AuthInput({
   value,
   onChangeText,
   secureTextEntry,
+  colors,
+  styles,
 }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   placeholder: string;
   value: string;
   onChangeText: (text: string) => void;
   secureTextEntry?: boolean;
+  colors: Theme['colors'];
+  styles: WelcomeStyles;
 }) {
   return (
     <View style={styles.authInputRow}>
@@ -259,7 +268,11 @@ function AuthInput({
   );
 }
 
-const styles = StyleSheet.create({
+type Theme = ReturnType<typeof useAppTheme>['theme'];
+type WelcomeStyles = ReturnType<typeof createStyles>;
+
+function createStyles({ colors, radius, spacing, typography }: Theme, isDark: boolean) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   screen: {
     flex: 1,
@@ -412,7 +425,7 @@ const styles = StyleSheet.create({
   },
   sheetBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(78,95,99,0.22)',
+    backgroundColor: isDark ? 'rgba(0,0,0,0.44)' : 'rgba(78,95,99,0.22)',
   },
   sheet: {
     backgroundColor: colors.ivory,
@@ -533,3 +546,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   ImageBackground,
@@ -14,10 +14,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
-import { colors, radius, spacing, typography } from '../theme/colors';
 import { tripApi } from '../api/journyApi';
 import { session } from '../api/session';
 import type { ItineraryResponse, TripResponse } from '../api/types';
+import { useAppTheme } from '../theme/ThemeContext';
+import { InlineError, InlineLoading } from '../components/StateViews';
 
 const journyLogo = require('../../assets/images/journy-logo.png');
 
@@ -43,9 +44,30 @@ const visualPicks = [
 ];
 
 export default function HomeScreen() {
+  const { isDark, theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors } = theme;
   const navigation = useNavigation<any>();
   const [trip, setTrip] = useState<TripResponse | undefined>(() => session.getCurrentTrip());
   const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null);
+  const [loading, setLoading] = useState(!session.getCurrentTrip());
+  const [error, setError] = useState(false);
+
+  const loadHome = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const current = await tripApi.current();
+      session.setCurrentTrip(current);
+      const route = await tripApi.itinerary(current.id);
+      setTrip(current);
+      setItinerary(route);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -60,7 +82,13 @@ export default function HomeScreen() {
           setItinerary(route);
         }
       } catch {
-        // Keep the polished fallback UI if the API is temporarily unavailable.
+        if (mounted) {
+          setError(true);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -80,7 +108,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.brandBlock}>
@@ -122,10 +150,19 @@ export default function HomeScreen() {
         </ImageBackground>
 
         <View style={styles.routeSummary}>
-          <SummaryItem icon="walk-outline" value={`${walkKm.toFixed(1)} km`} label="walk" />
-          <SummaryItem icon="location-outline" value={`${stopCount}`} label="stops" />
-          <SummaryItem icon="time-outline" value={formatEnum(trip?.pace ?? 'Easy')} label="pace" />
+          <SummaryItem icon="walk-outline" value={`${walkKm.toFixed(1)} km`} label="walk" colors={colors} styles={styles} />
+          <SummaryItem icon="location-outline" value={`${stopCount}`} label="stops" colors={colors} styles={styles} />
+          <SummaryItem icon="time-outline" value={formatEnum(trip?.pace ?? 'Easy')} label="pace" colors={colors} styles={styles} />
         </View>
+
+        {loading ? <InlineLoading label="Loading your current trip..." /> : null}
+        {error ? (
+          <InlineError
+            title="Backend connection needs a retry"
+            description="Showing the local preview for now. Retry when the API is running."
+            onRetry={loadHome}
+          />
+        ) : null}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Next in your route</Text>
@@ -168,10 +205,14 @@ function SummaryItem({
   icon,
   value,
   label,
+  colors,
+  styles,
 }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   value: string;
   label: string;
+  colors: Theme['colors'];
+  styles: HomeStyles;
 }) {
   return (
     <View style={styles.summaryItem}>
@@ -182,7 +223,11 @@ function SummaryItem({
   );
 }
 
-const styles = StyleSheet.create({
+type Theme = ReturnType<typeof useAppTheme>['theme'];
+type HomeStyles = ReturnType<typeof createStyles>;
+
+function createStyles({ colors, radius, spacing, typography }: Theme) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { padding: spacing.lg, paddingBottom: 132 },
   header: {
@@ -294,3 +339,4 @@ const styles = StyleSheet.create({
   },
   primaryActionText: { color: colors.surface, fontSize: typography.body, fontWeight: '900' },
 });
+}

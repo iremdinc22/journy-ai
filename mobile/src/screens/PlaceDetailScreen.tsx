@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ImageBackground,
   SafeAreaView,
@@ -13,12 +13,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { colors, radius, spacing, typography } from '../theme/colors';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PlaceDetail'>;
 
 export default function PlaceDetailScreen({ navigation }: Props) {
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors } = theme;
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={colors.midnight} />
@@ -52,9 +56,9 @@ export default function PlaceDetailScreen({ navigation }: Props) {
 
         <View style={styles.sheet}>
           <View style={styles.statsRow}>
-            <Stat icon="star" value="4.8" label="Rating" />
-            <Stat icon="walk-outline" value="6 min" label="Walk" />
-            <Stat icon="cash-outline" value="Mid" label="Budget" />
+            <Stat icon="star" value="4.8" label="Rating" colors={colors} styles={styles} />
+            <Stat icon="walk-outline" value="6 min" label="Walk" colors={colors} styles={styles} />
+            <Stat icon="cash-outline" value="Mid" label="Budget" colors={colors} styles={styles} />
           </View>
 
           <View style={styles.section}>
@@ -90,10 +94,14 @@ function Stat({
   icon,
   value,
   label,
+  colors,
+  styles,
 }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   value: string;
   label: string;
+  colors: Theme['colors'];
+  styles: PlaceDetailStyles;
 }) {
   return (
     <View style={styles.stat}>
@@ -104,7 +112,11 @@ function Stat({
   );
 }
 
-const styles = StyleSheet.create({
+type Theme = ReturnType<typeof useAppTheme>['theme'];
+type PlaceDetailStyles = ReturnType<typeof createStyles>;
+
+function createStyles({ colors, radius, spacing, typography }: Theme) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { paddingBottom: spacing.xxl },
   hero: { height: 430 },
@@ -228,3 +240,4 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 });
+}

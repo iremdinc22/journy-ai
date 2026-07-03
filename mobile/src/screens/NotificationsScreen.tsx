@@ -4,9 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import { colors, radius, spacing, typography } from '../theme/colors';
 import { notificationApi } from '../api/journyApi';
 import type { NotificationResponse } from '../api/types';
+import { useAppTheme } from '../theme/ThemeContext';
+import { InlineError, InlineLoading } from '../components/StateViews';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -48,8 +49,13 @@ const notifications: Array<{
 ];
 
 export default function NotificationsScreen({ navigation }: Props) {
+  const { isDark, theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors } = theme;
   const [activeFilter, setActiveFilter] = useState<Filter>('All');
   const [apiNotifications, setApiNotifications] = useState<NotificationResponse[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const displayNotifications = useMemo(
     () => apiNotifications?.map(normalizeNotification) ?? notifications,
     [apiNotifications],
@@ -62,13 +68,21 @@ export default function NotificationsScreen({ navigation }: Props) {
     let mounted = true;
 
     const load = async () => {
+      setLoading(true);
+      setError(false);
       try {
         const response = await notificationApi.list();
         if (mounted) {
           setApiNotifications(response);
         }
       } catch {
-        // Keep local notification preview if API is unavailable.
+        if (mounted) {
+          setError(true);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -81,7 +95,7 @@ export default function NotificationsScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <TouchableOpacity
@@ -106,11 +120,11 @@ export default function NotificationsScreen({ navigation }: Props) {
           <Text style={styles.subtitle}>Only route changes, timing shifts and useful local suggestions.</Text>
 
           <View style={styles.summaryRow}>
-            <SummaryItem value={`${unreadCount}`} label="new" />
+            <SummaryItem value={`${unreadCount}`} label="new" styles={styles} />
             <View style={styles.summaryDivider} />
-            <SummaryItem value="0" label="urgent" />
+            <SummaryItem value="0" label="urgent" styles={styles} />
             <View style={styles.summaryDivider} />
-            <SummaryItem value={`${displayNotifications.length}`} label="today" />
+            <SummaryItem value={`${displayNotifications.length}`} label="today" styles={styles} />
           </View>
         </View>
 
@@ -126,6 +140,23 @@ export default function NotificationsScreen({ navigation }: Props) {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {loading ? <InlineLoading label="Loading notifications..." /> : null}
+        {error ? (
+          <InlineError
+            title="Notifications are using preview data"
+            description="Retry to load fresh route and food updates."
+            onRetry={() => {
+              setApiNotifications(null);
+              setLoading(true);
+              setError(false);
+              notificationApi.list()
+                .then(setApiNotifications)
+                .catch(() => setError(true))
+                .finally(() => setLoading(false));
+            }}
+          />
+        ) : null}
 
         <View style={styles.stack}>
           {visibleNotifications.map((item) => (
@@ -190,7 +221,10 @@ function formatTime(value: string) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-function SummaryItem({ value, label }: { value: string; label: string }) {
+type Theme = ReturnType<typeof useAppTheme>['theme'];
+type NotificationStyles = ReturnType<typeof createStyles>;
+
+function SummaryItem({ value, label, styles }: { value: string; label: string; styles: NotificationStyles }) {
   return (
     <View style={styles.summaryItem}>
       <Text style={styles.summaryValue}>{value}</Text>
@@ -199,7 +233,8 @@ function SummaryItem({ value, label }: { value: string; label: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles({ colors, radius, spacing, typography }: Theme) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
   topBar: {
@@ -351,3 +386,4 @@ const styles = StyleSheet.create({
     width: 13,
   },
 });
+}

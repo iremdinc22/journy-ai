@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   SafeAreaView,
@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors, radius, spacing, typography } from '../theme/colors';
 import { profileApi } from '../api/journyApi';
 import type { ProfileResponse } from '../api/types';
+import { useAppTheme } from '../theme/ThemeContext';
+import { InlineError, InlineLoading } from '../components/StateViews';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -40,8 +41,26 @@ const savedPlans = [
 ];
 
 export default function ProfileScreen() {
+  const { isDark, theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors } = theme;
   const navigation = useNavigation<any>();
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const response = await profileApi.me();
+      setProfile(response);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -53,7 +72,13 @@ export default function ProfileScreen() {
           setProfile(response);
         }
       } catch {
-        // Keep the local profile preview if the API is unavailable.
+        if (mounted) {
+          setError(true);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -85,7 +110,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.avatar}>
@@ -100,6 +125,15 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
+        {loading ? <InlineLoading label="Loading your profile..." /> : null}
+        {error ? (
+          <InlineError
+            title="Profile is showing a local preview"
+            description="Retry after the API connection is available."
+            onRetry={loadProfile}
+          />
+        ) : null}
+
         <View style={styles.tripCard}>
           <View style={styles.tripTop}>
             <View>
@@ -113,14 +147,14 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.tripMetaRow}>
-            <InfoChip icon="calendar-outline" text={currentTrip?.dates ?? 'Oct 10 - Oct 14'} />
-            <InfoChip icon="wallet-outline" text="Mid budget" />
+            <InfoChip icon="calendar-outline" text={currentTrip?.dates ?? 'Oct 10 - Oct 14'} colors={colors} styles={styles} />
+            <InfoChip icon="wallet-outline" text="Mid budget" colors={colors} styles={styles} />
           </View>
 
           <View style={styles.statRow}>
-            <Stat icon="location-outline" value={`${currentTrip?.stops ?? 18}`} label="Stops" />
-            <Stat icon="restaurant-outline" value={`${currentTrip?.foodPicks ?? 7}`} label="Food picks" />
-            <Stat icon="walk-outline" value={`${(currentTrip?.averageWalkKm ?? 6.2).toFixed(1)} km`} label="Avg walk" />
+            <Stat icon="location-outline" value={`${currentTrip?.stops ?? 18}`} label="Stops" colors={colors} styles={styles} />
+            <Stat icon="restaurant-outline" value={`${currentTrip?.foodPicks ?? 7}`} label="Food picks" colors={colors} styles={styles} />
+            <Stat icon="walk-outline" value={`${(currentTrip?.averageWalkKm ?? 6.2).toFixed(1)} km`} label="Avg walk" colors={colors} styles={styles} />
           </View>
         </View>
 
@@ -180,7 +214,11 @@ function mapTasteIcon(icon: string): IconName {
   return 'walk-outline';
 }
 
-function InfoChip({ icon, text }: { icon: IconName; text: string }) {
+type Theme = ReturnType<typeof useAppTheme>['theme'];
+type AppColors = Theme['colors'];
+type ProfileStyles = ReturnType<typeof createStyles>;
+
+function InfoChip({ icon, text, colors, styles }: { icon: IconName; text: string; colors: AppColors; styles: ProfileStyles }) {
   return (
     <View style={styles.infoChip}>
       <Ionicons name={icon} size={14} color={colors.teal} />
@@ -189,7 +227,19 @@ function InfoChip({ icon, text }: { icon: IconName; text: string }) {
   );
 }
 
-function Stat({ icon, value, label }: { icon: IconName; value: string; label: string }) {
+function Stat({
+  icon,
+  value,
+  label,
+  colors,
+  styles,
+}: {
+  icon: IconName;
+  value: string;
+  label: string;
+  colors: AppColors;
+  styles: ProfileStyles;
+}) {
   return (
     <View style={styles.stat}>
       <View style={styles.statIcon}>
@@ -201,7 +251,8 @@ function Stat({ icon, value, label }: { icon: IconName; value: string; label: st
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles({ colors, radius, spacing, typography }: Theme) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { padding: spacing.lg, paddingBottom: 132 },
   header: {
@@ -348,3 +399,4 @@ const styles = StyleSheet.create({
   },
   savedMetricText: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900' },
 });
+}

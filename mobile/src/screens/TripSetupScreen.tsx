@@ -4,9 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { colors, radius, spacing, typography } from '../theme/colors';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { CreateTripRequest } from '../api/types';
+import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TripSetup'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -47,6 +47,9 @@ const interests: Array<{ label: string; icon: IconName }> = [
 ];
 
 export default function TripSetupScreen({ navigation }: Props) {
+  const { isDark, theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors } = theme;
   const [city, setCity] = useState('Amsterdam');
   const [cityOpen, setCityOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -122,7 +125,7 @@ export default function TripSetupScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity
@@ -156,6 +159,8 @@ export default function TripSetupScreen({ navigation }: Props) {
             icon="location-outline"
             expanded={cityOpen}
             onPress={() => setCityOpen((value) => !value)}
+            colors={colors}
+            styles={styles}
           />
           {cityOpen ? (
             <View style={styles.dropdown}>
@@ -184,6 +189,8 @@ export default function TripSetupScreen({ navigation }: Props) {
             icon="calendar-outline"
             expanded={calendarOpen}
             onPress={() => setCalendarOpen((value) => !value)}
+            colors={colors}
+            styles={styles}
           />
 
           {calendarOpen ? (
@@ -233,10 +240,10 @@ export default function TripSetupScreen({ navigation }: Props) {
           ) : null}
         </View>
 
-        <Section title="Travelers" value={travelType} />
-        <Segment options={['Solo', 'Couple', 'Friends', 'Family']} value={travelType} onChange={setTravelType} />
+        <Section title="Travelers" value={travelType} styles={styles} />
+        <Segment options={['Solo', 'Couple', 'Friends', 'Family']} value={travelType} onChange={setTravelType} styles={styles} />
 
-        <Section title="Interests" value={`${selectedInterests.length} selected`} />
+        <Section title="Interests" value={`${selectedInterests.length} selected`} styles={styles} />
         <View style={styles.interestGrid}>
           {interests.map((item) => {
             const active = selectedInterests.includes(item.label);
@@ -249,8 +256,8 @@ export default function TripSetupScreen({ navigation }: Props) {
           })}
         </View>
 
-        <Section title="Budget" value={budget} />
-        <Segment options={['Lean', 'Balanced', 'Comfort']} value={budget} onChange={setBudget} />
+        <Section title="Budget" value={budget} styles={styles} />
+        <Segment options={['Lean', 'Balanced', 'Comfort']} value={budget} onChange={setBudget} styles={styles} />
 
         <TouchableOpacity style={styles.primaryButton} activeOpacity={0.9} onPress={generatePlan}>
           <Text style={styles.primaryButtonText}>Generate plan</Text>
@@ -304,12 +311,16 @@ function PickerRow({
   icon,
   expanded,
   onPress,
+  colors,
+  styles,
 }: {
   label: string;
   value: string;
   icon: IconName;
   expanded: boolean;
   onPress: () => void;
+  colors: Theme['colors'];
+  styles: TripSetupStyles;
 }) {
   return (
     <TouchableOpacity style={styles.pickerRow} activeOpacity={0.86} onPress={onPress}>
@@ -325,7 +336,10 @@ function PickerRow({
   );
 }
 
-function Section({ title, value }: { title: string; value: string }) {
+type Theme = ReturnType<typeof useAppTheme>['theme'];
+type TripSetupStyles = ReturnType<typeof createStyles>;
+
+function Section({ title, value, styles }: { title: string; value: string; styles: TripSetupStyles }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -334,7 +348,17 @@ function Section({ title, value }: { title: string; value: string }) {
   );
 }
 
-function Segment({ options, value, onChange }: { options: string[]; value: string; onChange: (value: string) => void }) {
+function Segment({
+  options,
+  value,
+  onChange,
+  styles,
+}: {
+  options: string[];
+  value: string;
+  onChange: (value: string) => void;
+  styles: TripSetupStyles;
+}) {
   return (
     <View style={styles.segment}>
       {options.map((item) => (
@@ -346,7 +370,8 @@ function Segment({ options, value, onChange }: { options: string[]; value: strin
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles({ colors, radius, spacing, typography }: Theme) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
   header: {
@@ -527,3 +552,4 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: { color: colors.surface, fontSize: typography.body, fontWeight: '900' },
 });
+}

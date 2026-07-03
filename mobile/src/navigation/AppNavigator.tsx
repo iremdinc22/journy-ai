@@ -20,8 +20,8 @@ import ExploreScreen from '../screens/ExploreScreen';
 import AssistantScreen from '../screens/AssistantScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
-import { colors, radius } from '../theme/colors';
 import type { CreateTripRequest } from '../api/types';
+import { useAppTheme } from '../theme/ThemeContext';
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -54,6 +54,9 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 function MainTabs() {
+  const { theme } = useAppTheme();
+  const { colors, radius } = theme;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -127,6 +130,8 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
+  const { theme } = useAppTheme();
+
   return (
     <Stack.Navigator
       initialRouteName="Welcome"
@@ -134,7 +139,7 @@ export default function AppNavigator() {
         headerShown: false,
         animation: 'slide_from_right',
         contentStyle: {
-          backgroundColor: colors.ivory,
+          backgroundColor: theme.colors.ivory,
         },
       }}
     >

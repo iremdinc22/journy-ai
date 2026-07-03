@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,13 +13,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { colors, radius, spacing, typography } from '../theme/colors';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { authApi } from '../api/journyApi';
+import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
+  const { isDark, theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors } = theme;
   const [email, setEmail] = useState('admin@journy.app');
   const [password, setPassword] = useState('admin123');
   const [loading, setLoading] = useState(false);
@@ -55,7 +58,7 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
 
       <View style={styles.content}>
         <TouchableOpacity
@@ -75,13 +78,15 @@ export default function LoginScreen({ navigation }: Props) {
         </Text>
 
         <View style={styles.form}>
-          <Input icon="mail-outline" placeholder="Email" value={email} onChangeText={setEmail} />
+          <Input icon="mail-outline" placeholder="Email" value={email} onChangeText={setEmail} colors={colors} styles={styles} />
           <Input
             icon="lock-closed-outline"
             placeholder="Password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            colors={colors}
+            styles={styles}
           />
 
           <TouchableOpacity
@@ -126,12 +131,16 @@ function Input({
   value,
   onChangeText,
   secureTextEntry,
+  colors,
+  styles,
 }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   placeholder: string;
   value: string;
   onChangeText: (text: string) => void;
   secureTextEntry?: boolean;
+  colors: Theme['colors'];
+  styles: LoginStyles;
 }) {
   return (
     <View style={styles.inputRow}>
@@ -148,7 +157,11 @@ function Input({
   );
 }
 
-const styles = StyleSheet.create({
+type Theme = ReturnType<typeof useAppTheme>['theme'];
+type LoginStyles = ReturnType<typeof createStyles>;
+
+function createStyles({ colors, radius, spacing, typography }: Theme) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { flex: 1, padding: spacing.lg, justifyContent: 'center' },
   logo: {
@@ -249,3 +262,4 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 });
+}

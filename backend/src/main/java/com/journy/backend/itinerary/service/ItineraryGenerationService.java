@@ -86,20 +86,93 @@ public class ItineraryGenerationService {
 
     private List<Place> selectPlaces(Trip trip) {
         Set<PlaceCategory> categories = categoriesFor(trip.getInterests());
-        List<Place> places = placeRepository.findAll().stream()
-                .filter(place -> place.getCity().equalsIgnoreCase(trip.getDestination()) || place.getCity().equalsIgnoreCase("Amsterdam"))
+        List<Place> allPlaces = placeRepository.findAll();
+        List<Place> exactCityPlaces = filterPlaces(allPlaces, trip, categories, trip.getDestination());
+
+        if (!exactCityPlaces.isEmpty()) {
+            return arrangeForDailyRhythm(exactCityPlaces, trip.getInterests());
+        }
+
+        List<Place> amsterdamFallback = filterPlaces(allPlaces, trip, categories, "Amsterdam");
+        if (!amsterdamFallback.isEmpty()) {
+            return arrangeForDailyRhythm(amsterdamFallback, trip.getInterests());
+        }
+
+        return arrangeForDailyRhythm(
+                allPlaces.stream()
+                        .filter(place -> categories.contains(place.getCategory()))
+                        .filter(place -> budgetAllows(trip.getBudget(), place.getPriceLevel()))
+                        .sorted(Comparator.comparingDouble(Place::getRating).reversed())
+                        .toList(),
+                trip.getInterests()
+        );
+    }
+
+    private List<Place> filterPlaces(List<Place> places, Trip trip, Set<PlaceCategory> categories, String city) {
+        return places.stream()
+                .filter(place -> place.getCity().equalsIgnoreCase(city))
                 .filter(place -> categories.contains(place.getCategory()))
                 .filter(place -> budgetAllows(trip.getBudget(), place.getPriceLevel()))
                 .sorted(Comparator.comparingDouble(Place::getRating).reversed())
                 .toList();
+    }
 
-        if (!places.isEmpty()) {
-            return places;
+    private List<Place> arrangeForDailyRhythm(List<Place> places, List<TravelInterest> interests) {
+        List<PlaceCategory> rhythm = categoryRhythm(interests);
+        List<Place> remaining = new ArrayList<>(places);
+        List<Place> arranged = new ArrayList<>();
+
+        while (!remaining.isEmpty()) {
+            boolean pickedInRound = false;
+            for (PlaceCategory category : rhythm) {
+                int matchIndex = firstIndexOfCategory(remaining, category);
+                if (matchIndex >= 0) {
+                    arranged.add(remaining.remove(matchIndex));
+                    pickedInRound = true;
+                }
+            }
+
+            if (!pickedInRound) {
+                arranged.add(remaining.removeFirst());
+            }
         }
 
-        return placeRepository.findTop12ByOrderByRatingDesc().stream()
-                .filter(place -> budgetAllows(trip.getBudget(), place.getPriceLevel()))
-                .toList();
+        return arranged;
+    }
+
+    private List<PlaceCategory> categoryRhythm(List<TravelInterest> interests) {
+        List<PlaceCategory> rhythm = new ArrayList<>();
+        if (interests.contains(TravelInterest.MUSEUMS) || interests.contains(TravelInterest.CULTURE)) {
+            rhythm.add(PlaceCategory.CULTURE);
+        }
+        if (interests.contains(TravelInterest.WALKING)) {
+            rhythm.add(PlaceCategory.WALKING);
+        }
+        if (interests.contains(TravelInterest.COFFEE)) {
+            rhythm.add(PlaceCategory.COFFEE);
+        }
+        if (interests.contains(TravelInterest.LOCAL_FOOD)) {
+            rhythm.add(PlaceCategory.FOOD);
+        }
+        if (interests.contains(TravelInterest.FREE_ACTIVITIES)) {
+            rhythm.add(PlaceCategory.FREE);
+        }
+
+        for (PlaceCategory category : List.of(PlaceCategory.CULTURE, PlaceCategory.WALKING, PlaceCategory.COFFEE, PlaceCategory.FOOD, PlaceCategory.FREE)) {
+            if (!rhythm.contains(category)) {
+                rhythm.add(category);
+            }
+        }
+        return rhythm;
+    }
+
+    private int firstIndexOfCategory(List<Place> places, PlaceCategory category) {
+        for (int index = 0; index < places.size(); index++) {
+            if (places.get(index).getCategory() == category) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     private Set<PlaceCategory> categoriesFor(List<TravelInterest> interests) {

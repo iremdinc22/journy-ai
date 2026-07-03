@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import { colors, radius, spacing, typography } from '../theme/colors';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { colors as lightColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -21,9 +22,13 @@ const privacyRows: Array<{ label: string; value: string; icon: IconName }> = [
 ];
 
 export default function SettingsScreen({ navigation }: Props) {
+  const { isDark, setDarkMode, theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors } = theme;
+
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity
@@ -41,29 +46,36 @@ export default function SettingsScreen({ navigation }: Props) {
           Keep the assistant useful, quiet and aligned with how you like to move through a city.
         </Text>
 
-        <Section title="Trip defaults" />
+        <Section title="Trip defaults" styles={styles} />
         <View style={styles.list}>
           {preferenceRows.map((item) => (
-            <SettingRow key={item.label} item={item} />
+            <SettingRow key={item.label} item={item} colors={colors} styles={styles} />
           ))}
         </View>
 
-        <Section title="Notifications" />
+        <Section title="Notifications" styles={styles} />
         <View style={styles.list}>
-          <ToggleRow label="Plan changes" description="Route updates, closures and weather shifts." value />
-          <ToggleRow label="Food windows" description="Timely lunch, coffee and dinner suggestions." value />
-          <ToggleRow label="Marketing updates" description="Product news and occasional city guides." />
+          <ToggleRow label="Plan changes" description="Route updates, closures and weather shifts." value colors={colors} styles={styles} />
+          <ToggleRow label="Food windows" description="Timely lunch, coffee and dinner suggestions." value colors={colors} styles={styles} />
+          <ToggleRow label="Marketing updates" description="Product news and occasional city guides." colors={colors} styles={styles} />
         </View>
 
-        <Section title="Appearance" />
+        <Section title="Appearance" styles={styles} />
         <View style={styles.list}>
-          <ToggleRow label="Dark mode" description="Use a calmer dark interface at night." />
+          <ToggleRow
+            label="Dark mode"
+            description="Use a calmer dark interface at night."
+            value={isDark}
+            onValueChange={setDarkMode}
+            colors={colors}
+            styles={styles}
+          />
         </View>
 
-        <Section title="Privacy" />
+        <Section title="Privacy" styles={styles} />
         <View style={styles.list}>
           {privacyRows.map((item) => (
-            <SettingRow key={item.label} item={item} />
+            <SettingRow key={item.label} item={item} colors={colors} styles={styles} />
           ))}
         </View>
       </ScrollView>
@@ -71,11 +83,23 @@ export default function SettingsScreen({ navigation }: Props) {
   );
 }
 
-function Section({ title }: { title: string }) {
+type Theme = ReturnType<typeof useAppTheme>['theme'];
+type AppColors = typeof lightColors;
+type SettingsStyles = ReturnType<typeof createStyles>;
+
+function Section({ title, styles }: { title: string; styles: SettingsStyles }) {
   return <Text style={styles.sectionTitle}>{title}</Text>;
 }
 
-function SettingRow({ item }: { item: { label: string; value: string; icon: IconName } }) {
+function SettingRow({
+  item,
+  colors,
+  styles,
+}: {
+  item: { label: string; value: string; icon: IconName };
+  colors: AppColors;
+  styles: SettingsStyles;
+}) {
   return (
     <TouchableOpacity style={styles.settingRow} activeOpacity={0.86}>
       <View style={styles.rowIcon}>
@@ -92,10 +116,16 @@ function ToggleRow({
   label,
   description,
   value,
+  onValueChange,
+  colors,
+  styles,
 }: {
   label: string;
   description: string;
   value?: boolean;
+  onValueChange?: (value: boolean) => void;
+  colors: AppColors;
+  styles: SettingsStyles;
 }) {
   return (
     <View style={styles.toggleRow}>
@@ -105,6 +135,7 @@ function ToggleRow({
       </View>
       <Switch
         value={Boolean(value)}
+        onValueChange={onValueChange}
         trackColor={{ false: colors.mist, true: colors.teal }}
         thumbColor={colors.surface}
         ios_backgroundColor={colors.mist}
@@ -114,7 +145,8 @@ function ToggleRow({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles({ colors, radius, spacing, typography }: Theme) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
   header: {
@@ -222,3 +254,4 @@ const styles = StyleSheet.create({
     transform: [{ scaleX: 0.86 }, { scaleY: 0.86 }],
   },
 });
+}

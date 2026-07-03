@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
   Platform,
@@ -12,9 +12,9 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radius, spacing, typography } from '../theme/colors';
 import { aiApi } from '../api/journyApi';
 import { session } from '../api/session';
+import { useAppTheme } from '../theme/ThemeContext';
 
 type Message = {
   id: string;
@@ -60,6 +60,9 @@ const initialMessages: Message[] = [
 ];
 
 export default function AssistantScreen() {
+  const { isDark, theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors } = theme;
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -113,7 +116,7 @@ export default function AssistantScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
       <View style={styles.screen}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -214,7 +217,10 @@ function buildAnswer(prompt: string) {
   return 'I can help with that. I would keep the main anchor stops, reduce backtracking, and leave one flexible window so the day stays realistic.';
 }
 
-const styles = StyleSheet.create({
+type Theme = ReturnType<typeof useAppTheme>['theme'];
+
+function createStyles({ colors, radius, spacing, typography }: Theme) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   screen: { flex: 1 },
   header: {
@@ -338,3 +344,4 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: { opacity: 0.45 },
 });
+}

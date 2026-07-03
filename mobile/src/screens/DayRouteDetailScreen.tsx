@@ -1,19 +1,22 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import { colors, radius, spacing, typography } from '../theme/colors';
+import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DayRouteDetail'>;
 
 export default function DayRouteDetailScreen({ navigation, route }: Props) {
+  const { isDark, theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  const { colors } = theme;
   const { day, city, area, stats, stops } = route.params;
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity
@@ -61,9 +64,9 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.infoRow}>
-          <Info icon="walk-outline" value={stats.split(' - ')[0]} label="Walking" />
-          <Info icon="location-outline" value={`${stops.length}`} label="Stops" />
-          <Info icon="time-outline" value="Easy" label="Pace" />
+          <Info icon="walk-outline" value={stats.split(' - ')[0]} label="Walking" colors={colors} styles={styles} />
+          <Info icon="location-outline" value={`${stops.length}`} label="Stops" colors={colors} styles={styles} />
+          <Info icon="time-outline" value="Easy" label="Pace" colors={colors} styles={styles} />
         </View>
 
         <Text style={styles.sectionTitle}>Day stops</Text>
@@ -87,7 +90,22 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
   );
 }
 
-function Info({ icon, value, label }: { icon: React.ComponentProps<typeof Ionicons>['name']; value: string; label: string }) {
+type Theme = ReturnType<typeof useAppTheme>['theme'];
+type DetailStyles = ReturnType<typeof createStyles>;
+
+function Info({
+  icon,
+  value,
+  label,
+  colors,
+  styles,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  value: string;
+  label: string;
+  colors: Theme['colors'];
+  styles: DetailStyles;
+}) {
   return (
     <View style={styles.infoCard}>
       <Ionicons name={icon} size={18} color={colors.teal} />
@@ -97,7 +115,8 @@ function Info({ icon, value, label }: { icon: React.ComponentProps<typeof Ionico
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles({ colors, radius, spacing, typography }: Theme, isDark: boolean) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
   header: {
@@ -170,7 +189,7 @@ const styles = StyleSheet.create({
     width: 430,
   },
   mapRoad: {
-    backgroundColor: 'rgba(255,255,255,0.86)',
+    backgroundColor: isDark ? 'rgba(247,240,234,0.42)' : 'rgba(255,255,255,0.86)',
     borderRadius: radius.pill,
     height: 12,
     position: 'absolute',
@@ -215,7 +234,7 @@ const styles = StyleSheet.create({
   pinFour: { left: 198, top: 206 },
   mapPinText: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900' },
   mapMeta: {
-    backgroundColor: 'rgba(255,255,255,0.94)',
+    backgroundColor: isDark ? 'rgba(49,46,45,0.94)' : 'rgba(255,255,255,0.94)',
     borderRadius: radius.md,
     left: spacing.md,
     padding: spacing.md,
@@ -267,3 +286,4 @@ const styles = StyleSheet.create({
   stopTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
   stopMeta: { color: colors.slate, fontSize: typography.tiny, fontWeight: '700', marginTop: 3 },
 });
+}
