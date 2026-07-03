@@ -1,0 +1,58 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Node / Expo mobile app
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/expo-env.d.ts
+mobile/.metro-health-check*
+mobile/.tsbuildinfo
+mobile/*.tsbuildinfo
+mobile/ios/
+mobile/android/
+
+# React Native signing / local native secrets
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# Spring Boot backend
+backend/target/
+backend/build/
+backend/.gradle/
+backend/out/
+
+# Local database / Docker artifacts
+postgres-data/
+*.db
+*.sqlite
+*.sqlite3
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# Generated archives
+*.zip
+*.tar
+*.tar.gz

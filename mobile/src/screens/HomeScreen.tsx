@@ -1,0 +1,249 @@
+import React from 'react';
+import {
+  Image,
+  ImageBackground,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+
+import { colors, radius, spacing, typography } from '../theme/colors';
+
+const journyLogo = require('../../assets/images/journy-logo.png');
+
+const visualPicks = [
+  {
+    title: 'Ten Belles',
+    meta: 'Coffee - 9 min walk',
+    image:
+      'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=700&q=85',
+  },
+  {
+    title: 'Museumplein',
+    meta: 'Culture - low crowd',
+    image:
+      'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=700&q=85',
+  },
+  {
+    title: 'Canal loop',
+    meta: 'Walk - golden hour',
+    image:
+      'https://images.unsplash.com/photo-1584003564911-a7a321c84e1c?auto=format&fit=crop&w=700&q=85',
+  },
+];
+
+export default function HomeScreen() {
+  const navigation = useNavigation<any>();
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View style={styles.brandBlock}>
+            <Image source={journyLogo} style={styles.logo} resizeMode="contain" />
+            <View style={styles.headerCopy}>
+              <Text style={styles.headerLabel}>Current trip</Text>
+              <Text style={styles.location}>Amsterdam</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.iconButton}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <Ionicons name="notifications-outline" size={21} color={colors.midnight} />
+          </TouchableOpacity>
+        </View>
+
+        <ImageBackground
+          source={{
+            uri: 'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=900&q=90',
+          }}
+          style={styles.hero}
+          imageStyle={styles.heroImage}
+        >
+          <LinearGradient colors={['rgba(34,42,45,0.08)', 'rgba(34,42,45,0.72)']} style={styles.heroOverlay}>
+            <View style={styles.heroTop}>
+              <View style={styles.pill}>
+                <Ionicons name="partly-sunny-outline" size={14} color={colors.surface} />
+                <Text style={styles.pillText}>Mild weather</Text>
+              </View>
+            </View>
+            <View>
+              <Text style={styles.heroKicker}>Day 1</Text>
+              <Text style={styles.heroTitle}>Canals & Museums</Text>
+              <Text style={styles.heroMeta}>4 stops - 6.4 km - easy pace</Text>
+            </View>
+          </LinearGradient>
+        </ImageBackground>
+
+        <View style={styles.routeSummary}>
+          <SummaryItem icon="walk-outline" value="6.4 km" label="walk" />
+          <SummaryItem icon="location-outline" value="4" label="stops" />
+          <SummaryItem icon="time-outline" value="Easy" label="pace" />
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Next in your route</Text>
+          <Text style={styles.sectionAction}>Edit</Text>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.visualList}>
+          {visualPicks.map((item) => (
+            <TouchableOpacity key={item.title} style={styles.visualCard} activeOpacity={0.88}>
+              <Image source={{ uri: item.image }} style={styles.visualImage} />
+              <View style={styles.visualBody}>
+                <Text style={styles.visualTitle}>{item.title}</Text>
+                <Text style={styles.visualMeta}>{item.meta}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <TouchableOpacity style={styles.primaryAction} activeOpacity={0.9}>
+          <Ionicons name="navigate" size={17} color={colors.surface} />
+          <Text style={styles.primaryActionText}>Start today route</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function SummaryItem({
+  icon,
+  value,
+  label,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  value: string;
+  label: string;
+}) {
+  return (
+    <View style={styles.summaryItem}>
+      <Ionicons name={icon} size={16} color={colors.teal} />
+      <Text style={styles.summaryValue}>{value}</Text>
+      <Text style={styles.summaryLabel}>{label}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.ivory },
+  content: { padding: spacing.lg, paddingBottom: 132 },
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+  },
+  brandBlock: { alignItems: 'center', flex: 1, flexDirection: 'row' },
+  logo: {
+    height: 48,
+    width: 118,
+  },
+  headerCopy: {
+    borderLeftColor: colors.mist,
+    borderLeftWidth: 1,
+    marginLeft: spacing.sm,
+    paddingLeft: spacing.sm,
+  },
+  headerLabel: {
+    color: colors.teal,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  location: { color: colors.midnight, fontSize: typography.small, fontWeight: '900', marginTop: 2 },
+  iconButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  hero: {
+    height: 285,
+    marginTop: spacing.lg,
+  },
+  heroImage: {
+    borderRadius: radius.xl,
+  },
+  heroOverlay: {
+    borderRadius: radius.xl,
+    flex: 1,
+    justifyContent: 'space-between',
+    padding: spacing.lg,
+  },
+  heroTop: { alignItems: 'flex-start' },
+  pill: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.28)',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  pillText: { color: colors.surface, fontSize: typography.tiny, fontWeight: '900' },
+  heroKicker: { color: 'rgba(255,255,255,0.76)', fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  heroTitle: { color: colors.surface, fontSize: 34, fontWeight: '900', lineHeight: 38, marginTop: spacing.xs },
+  heroMeta: { color: 'rgba(255,255,255,0.78)', fontSize: typography.small, fontWeight: '800', marginTop: spacing.xs },
+  routeSummary: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  summaryItem: { alignItems: 'center', flex: 1 },
+  summaryValue: { color: colors.midnight, fontSize: typography.small, fontWeight: '900', marginTop: 3 },
+  summaryLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 2 },
+  sectionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.xl,
+  },
+  sectionTitle: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900' },
+  sectionAction: { color: colors.teal, fontSize: typography.small, fontWeight: '900' },
+  visualList: { gap: spacing.md, paddingVertical: spacing.md },
+  visualCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+    width: 190,
+  },
+  visualImage: { height: 118, width: '100%' },
+  visualBody: { padding: spacing.md },
+  visualTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
+  visualMeta: { color: colors.slate, fontSize: typography.tiny, fontWeight: '700', marginTop: 4 },
+  primaryAction: {
+    alignItems: 'center',
+    backgroundColor: colors.midnight,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+    minHeight: 56,
+  },
+  primaryActionText: { color: colors.surface, fontSize: typography.body, fontWeight: '900' },
+});

@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Journy",
+    "slug": "journy",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/journy-logo.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/journy-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FBF7F2"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/journy-logo.png",
+        "backgroundColor": "#FBF7F2"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/images/journy-logo.png"
+    }
+  }
+}

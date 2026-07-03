@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: backend
+  profiles:
+    default: dev
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/journy}
+    username: ${SPRING_DATASOURCE_USERNAME:journy}
+    password: ${SPRING_DATASOURCE_PASSWORD:journy}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  security:
+    jwt-secret: ${JWT_SECRET:journy-local-development-secret-change-before-production}
+    jwt-expiration-seconds: ${JWT_EXPIRATION_SECONDS:86400}
+    refresh-token-expiration-seconds: ${REFRESH_TOKEN_EXPIRATION_SECONDS:2592000}

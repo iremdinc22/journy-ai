@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: journy-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: journy
+      POSTGRES_USER: journy
+      POSTGRES_PASSWORD: journy
+    ports:
+      - "5433:5432"
+    volumes:
+      - journy-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U journy -d journy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  journy-postgres-data:
