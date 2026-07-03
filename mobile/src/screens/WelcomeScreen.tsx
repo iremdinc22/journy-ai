@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   ImageBackground,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +20,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { colors, radius, spacing, typography } from '../theme/colors';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { authApi } from '../api/journyApi';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 type AuthMode = 'login' | 'register';
@@ -33,9 +36,39 @@ export default function WelcomeScreen({ navigation }: Props) {
   const [email, setEmail] = useState('admin@journy.app');
   const [password, setPassword] = useState('admin123');
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const closeSheet = () => setSheetMode(null);
-  const submitAuth = () => navigation.replace('TripSetup');
+
+  const submitAuth = async () => {
+    if (!sheetMode) return;
+
+    try {
+      setLoading(true);
+      if (sheetMode === 'login') {
+        await authApi.login(email.trim(), password);
+      } else {
+        await authApi.register(name.trim() || 'Journy Traveler', email.trim(), password);
+      }
+      navigation.replace('TripSetup');
+    } catch {
+      Alert.alert('Authentication failed', 'Please check your details and make sure the backend is running.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const continueAsGuest = async () => {
+    try {
+      setLoading(true);
+      await authApi.login('admin@journy.app', 'admin123');
+      navigation.replace('TripSetup');
+    } catch {
+      Alert.alert('Guest mode unavailable', 'Please make sure the backend is running, then try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -108,7 +141,7 @@ export default function WelcomeScreen({ navigation }: Props) {
               <Text style={styles.secondaryButtonText}>Sign in</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.guestButton} activeOpacity={0.8} onPress={() => navigation.navigate('TripSetup')}>
+            <TouchableOpacity style={styles.guestButton} activeOpacity={0.8} onPress={continueAsGuest}>
               <Text style={styles.guestText}>Continue as guest</Text>
             </TouchableOpacity>
           </View>
@@ -151,11 +184,22 @@ export default function WelcomeScreen({ navigation }: Props) {
                   secureTextEntry
                 />
 
-                <TouchableOpacity style={styles.sheetPrimaryButton} activeOpacity={0.9} onPress={submitAuth}>
-                  <Text style={styles.sheetPrimaryText}>
-                    {sheetMode === 'login' ? 'Sign in' : 'Create account'}
-                  </Text>
-                  <Ionicons name="arrow-forward" size={18} color={colors.surface} />
+                <TouchableOpacity
+                  style={[styles.sheetPrimaryButton, loading && styles.buttonDisabled]}
+                  activeOpacity={0.9}
+                  disabled={loading}
+                  onPress={submitAuth}
+                >
+                  {loading ? (
+                    <ActivityIndicator color={colors.surface} />
+                  ) : (
+                    <>
+                      <Text style={styles.sheetPrimaryText}>
+                        {sheetMode === 'login' ? 'Sign in' : 'Create account'}
+                      </Text>
+                      <Ionicons name="arrow-forward" size={18} color={colors.surface} />
+                    </>
+                  )}
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.googleButton} activeOpacity={0.86}>
@@ -176,7 +220,7 @@ export default function WelcomeScreen({ navigation }: Props) {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.replace('TripSetup')}>
+              <TouchableOpacity activeOpacity={0.8} onPress={continueAsGuest}>
                 <Text style={styles.sheetGuestText}>Continue as guest</Text>
               </TouchableOpacity>
             </View>
@@ -451,6 +495,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     minHeight: 52,
   },
+  buttonDisabled: { opacity: 0.72 },
   sheetPrimaryText: {
     color: colors.surface,
     fontSize: typography.body,

@@ -21,13 +21,14 @@ import AssistantScreen from '../screens/AssistantScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 import { colors, radius } from '../theme/colors';
+import type { CreateTripRequest } from '../api/types';
 
 export type RootStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Register: undefined;
   TripSetup: undefined;
-  LoadingPlan: undefined;
+  LoadingPlan: { tripDraft: CreateTripRequest };
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   PlaceDetail: undefined;
   Notifications: undefined;

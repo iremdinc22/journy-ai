@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, radius, spacing, typography } from '../theme/colors';
+import { tripApi } from '../api/journyApi';
+import { session } from '../api/session';
+import type { ItineraryResponse } from '../api/types';
 
 const days = [
   {
@@ -33,6 +36,39 @@ const days = [
 
 export default function ItineraryScreen() {
   const navigation = useNavigation<any>();
+  const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        const current = session.getCurrentTrip() ?? await tripApi.current();
+        session.setCurrentTrip(current);
+        const response = await tripApi.itinerary(current.id);
+        if (mounted) {
+          setItinerary(response);
+        }
+      } catch {
+        // Keep fallback sample days available for offline UI preview.
+      }
+    };
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const visibleDays = itinerary?.days.map((day) => ({
+    day: `Day ${day.dayNumber}`,
+    city: itinerary.destination,
+    area: day.title,
+    summary: day.summary,
+    stats: `${day.walkKm.toFixed(1)} km - ${day.stopCount} stops`,
+    stops: day.stops.map((stop) => stop.title),
+  })) ?? days;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -44,7 +80,7 @@ export default function ItineraryScreen() {
           Journy keeps each day realistic by clustering nearby places and leaving room for breaks.
         </Text>
 
-        {days.map((item) => (
+        {visibleDays.map((item) => (
           <TouchableOpacity
             key={`${item.city}-${item.day}`}
             style={styles.dayCard}

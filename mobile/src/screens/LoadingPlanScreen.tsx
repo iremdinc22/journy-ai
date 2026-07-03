@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
-import { SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { colors, radius, spacing, typography } from '../theme/colors';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { tripApi } from '../api/journyApi';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LoadingPlan'>;
 
@@ -15,14 +16,34 @@ const steps = [
   'Optimizing the daily rhythm',
 ];
 
-export default function LoadingPlanScreen({ navigation }: Props) {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      navigation.replace('MainTabs', { screen: 'Itinerary' });
-    }, 2200);
+export default function LoadingPlanScreen({ navigation, route }: Props) {
+  const [error, setError] = useState(false);
 
-    return () => clearTimeout(timer);
-  }, [navigation]);
+  useEffect(() => {
+    let cancelled = false;
+
+    const createPlan = async () => {
+      try {
+        const trip = await tripApi.create(route.params.tripDraft);
+        await tripApi.generate(trip.id);
+
+        if (!cancelled) {
+          navigation.replace('MainTabs', { screen: 'Itinerary' });
+        }
+      } catch {
+        if (!cancelled) {
+          setError(true);
+          Alert.alert('Plan could not be created', 'Please make sure you are signed in and the backend is running.');
+        }
+      }
+    };
+
+    createPlan();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigation, route.params.tripDraft]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -56,6 +77,12 @@ export default function LoadingPlanScreen({ navigation }: Props) {
         <View style={styles.progressTrack}>
           <View style={styles.progressFill} />
         </View>
+
+        {error ? (
+          <TouchableOpacity style={styles.retryButton} activeOpacity={0.88} onPress={() => navigation.replace('TripSetup')}>
+            <Text style={styles.retryText}>Back to setup</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -136,4 +163,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.teal,
   },
+  retryButton: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  retryText: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
 });

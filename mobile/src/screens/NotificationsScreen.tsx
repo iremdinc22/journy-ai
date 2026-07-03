@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { colors, radius, spacing, typography } from '../theme/colors';
+import { notificationApi } from '../api/journyApi';
+import type { NotificationResponse } from '../api/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -47,8 +49,35 @@ const notifications: Array<{
 
 export default function NotificationsScreen({ navigation }: Props) {
   const [activeFilter, setActiveFilter] = useState<Filter>('All');
+  const [apiNotifications, setApiNotifications] = useState<NotificationResponse[] | null>(null);
+  const displayNotifications = useMemo(
+    () => apiNotifications?.map(normalizeNotification) ?? notifications,
+    [apiNotifications],
+  );
   const visibleNotifications =
-    activeFilter === 'All' ? notifications : notifications.filter((item) => item.type === activeFilter);
+    activeFilter === 'All' ? displayNotifications : displayNotifications.filter((item) => item.type === activeFilter);
+  const unreadCount = displayNotifications.filter((item) => item.unread).length;
+
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        const response = await notificationApi.list();
+        if (mounted) {
+          setApiNotifications(response);
+        }
+      } catch {
+        // Keep local notification preview if API is unavailable.
+      }
+    };
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -77,11 +106,11 @@ export default function NotificationsScreen({ navigation }: Props) {
           <Text style={styles.subtitle}>Only route changes, timing shifts and useful local suggestions.</Text>
 
           <View style={styles.summaryRow}>
-            <SummaryItem value="2" label="new" />
+            <SummaryItem value={`${unreadCount}`} label="new" />
             <View style={styles.summaryDivider} />
             <SummaryItem value="0" label="urgent" />
             <View style={styles.summaryDivider} />
-            <SummaryItem value="3" label="today" />
+            <SummaryItem value={`${displayNotifications.length}`} label="today" />
           </View>
         </View>
 
@@ -121,6 +150,44 @@ export default function NotificationsScreen({ navigation }: Props) {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function normalizeNotification(item: NotificationResponse) {
+  const type = normalizeType(item.type);
+  return {
+    title: item.title,
+    body: item.message,
+    time: formatTime(item.createdAt),
+    icon: iconForType(type),
+    type,
+    unread: item.unread,
+  };
+}
+
+function normalizeType(type: string): Exclude<Filter, 'All'> {
+  const value = type.toLowerCase();
+  if (value.includes('food')) return 'Food';
+  if (value.includes('weather')) return 'Weather';
+  return 'Route';
+}
+
+function iconForType(type: Exclude<Filter, 'All'>): IconName {
+  if (type === 'Food') return 'restaurant-outline';
+  if (type === 'Weather') return 'rainy-outline';
+  return 'walk-outline';
+}
+
+function formatTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Now';
+  }
+
+  const minutes = Math.max(1, Math.round((Date.now() - date.getTime()) / 60000));
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
 }
 
 function SummaryItem({ value, label }: { value: string; label: string }) {

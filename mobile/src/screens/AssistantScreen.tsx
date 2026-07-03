@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing, typography } from '../theme/colors';
+import { aiApi } from '../api/journyApi';
+import { session } from '../api/session';
 
 type Message = {
   id: string;
@@ -61,6 +63,7 @@ export default function AssistantScreen() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [sending, setSending] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -78,18 +81,34 @@ export default function AssistantScreen() {
     };
   }, []);
 
-  const sendPrompt = (prompt: string, answer?: string) => {
+  const sendPrompt = async (prompt: string, fallbackAnswer?: string) => {
     const cleanPrompt = prompt.trim();
-    if (!cleanPrompt) return;
+    if (!cleanPrompt || sending) return;
 
     const timestamp = Date.now().toString();
     setMessages((current) => [
       ...current,
       { id: `${timestamp}-user`, role: 'user', text: cleanPrompt },
-      { id: `${timestamp}-ai`, role: 'ai', text: answer ?? buildAnswer(cleanPrompt), time: 'Now' },
     ]);
     setInput('');
+    setSending(true);
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+
+    try {
+      const response = await aiApi.chat(cleanPrompt, session.getCurrentTrip()?.id);
+      setMessages((current) => [
+        ...current,
+        { id: `${timestamp}-ai`, role: 'ai', text: response.message, time: 'Now' },
+      ]);
+    } catch {
+      setMessages((current) => [
+        ...current,
+        { id: `${timestamp}-ai`, role: 'ai', text: fallbackAnswer ?? buildAnswer(cleanPrompt), time: 'Offline preview' },
+      ]);
+    } finally {
+      setSending(false);
+      requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+    }
   };
 
   return (
@@ -162,12 +181,12 @@ export default function AssistantScreen() {
               onSubmitEditing={() => sendPrompt(input)}
             />
             <TouchableOpacity
-              style={[styles.sendButton, !input.trim() && styles.sendButtonDisabled]}
+              style={[styles.sendButton, (!input.trim() || sending) && styles.sendButtonDisabled]}
               activeOpacity={0.86}
-              disabled={!input.trim()}
+              disabled={!input.trim() || sending}
               onPress={() => sendPrompt(input)}
             >
-              <Ionicons name="arrow-up" size={18} color={colors.surface} />
+              <Ionicons name={sending ? 'hourglass-outline' : 'arrow-up'} size={18} color={colors.surface} />
             </TouchableOpacity>
           </View>
         </View>

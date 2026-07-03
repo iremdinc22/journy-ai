@@ -6,6 +6,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { colors, radius, spacing, typography } from '../theme/colors';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import type { CreateTripRequest } from '../api/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TripSetup'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -68,6 +69,8 @@ export default function TripSetupScreen({ navigation }: Props) {
     [daysInMonth, firstOffset],
   );
   const dateLabel = `${months[monthIndex]} ${startDay} - ${months[monthIndex]} ${endDay}, ${year}`;
+  const startDate = useMemo(() => toDateString(year, monthIndex, startDay), [endDay, monthIndex, startDay, year]);
+  const endDate = useMemo(() => toDateString(year, monthIndex, endDay), [endDay, monthIndex, year]);
 
   const selectDay = (day: number) => {
     if (day <= startDay || endDay !== startDay) {
@@ -101,6 +104,20 @@ export default function TripSetupScreen({ navigation }: Props) {
     setSelectedInterests((current) =>
       current.includes(interest) ? current.filter((item) => item !== interest) : [...current, interest],
     );
+  };
+
+  const generatePlan = () => {
+    const tripDraft: CreateTripRequest = {
+      destination: city,
+      startDate,
+      endDate,
+      travelerType: mapTravelerType(travelType),
+      budget: mapBudget(budget),
+      pace: 'BALANCED',
+      interests: selectedInterests.map(mapInterest),
+    };
+
+    navigation.replace('LoadingPlan', { tripDraft });
   };
 
   return (
@@ -235,13 +252,50 @@ export default function TripSetupScreen({ navigation }: Props) {
         <Section title="Budget" value={budget} />
         <Segment options={['Lean', 'Balanced', 'Comfort']} value={budget} onChange={setBudget} />
 
-        <TouchableOpacity style={styles.primaryButton} activeOpacity={0.9} onPress={() => navigation.replace('LoadingPlan')}>
+        <TouchableOpacity style={styles.primaryButton} activeOpacity={0.9} onPress={generatePlan}>
           <Text style={styles.primaryButtonText}>Generate plan</Text>
           <Ionicons name="arrow-forward" size={18} color={colors.surface} />
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function toDateString(year: number, monthIndex: number, day: number) {
+  const month = String(monthIndex + 1).padStart(2, '0');
+  const date = String(day).padStart(2, '0');
+  return `${year}-${month}-${date}`;
+}
+
+function mapTravelerType(value: string): CreateTripRequest['travelerType'] {
+  const map: Record<string, CreateTripRequest['travelerType']> = {
+    Solo: 'SOLO',
+    Couple: 'COUPLE',
+    Friends: 'FRIENDS',
+    Family: 'FAMILY',
+  };
+  return map[value] ?? 'COUPLE';
+}
+
+function mapBudget(value: string): CreateTripRequest['budget'] {
+  const map: Record<string, CreateTripRequest['budget']> = {
+    Lean: 'LEAN',
+    Balanced: 'BALANCED',
+    Comfort: 'COMFORT',
+  };
+  return map[value] ?? 'BALANCED';
+}
+
+function mapInterest(value: string): CreateTripRequest['interests'][number] {
+  const map: Record<string, CreateTripRequest['interests'][number]> = {
+    Coffee: 'COFFEE',
+    Museums: 'MUSEUMS',
+    'Local food': 'LOCAL_FOOD',
+    Walking: 'WALKING',
+    Shopping: 'SHOPPING',
+    Nightlife: 'NIGHTLIFE',
+  };
+  return map[value] ?? 'WALKING';
 }
 
 function PickerRow({

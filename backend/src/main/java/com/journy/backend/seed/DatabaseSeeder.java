@@ -134,14 +134,14 @@ public class DatabaseSeeder implements CommandLineRunner {
 
     private void seedPlaces() {
         placeRepository.saveAll(List.of(
-                new Place("Local Bistro Noord", "Amsterdam", PlaceCategory.FOOD, "Seasonal plates in a calm neighborhood room.", "Mid", 4.7, ""),
-                new Place("Canal Bakery", "Amsterdam", PlaceCategory.FOOD, "Morning pastries and simple coffee near the route.", "Lean", 4.6, ""),
-                new Place("Museumplein Window", "Amsterdam", PlaceCategory.CULTURE, "A compact culture stop that keeps the day balanced.", "Mid", 4.8, ""),
-                new Place("Small Gallery Walk", "Amsterdam", PlaceCategory.CULTURE, "Independent galleries close to cafe streets.", "Lean", 4.5, ""),
-                new Place("Quiet Cup De Pijp", "Amsterdam", PlaceCategory.COFFEE, "A soft-paced cafe for planning the next stop.", "Lean", 4.7, ""),
-                new Place("Canal Roast Bar", "Amsterdam", PlaceCategory.COFFEE, "Good espresso without a long detour.", "Mid", 4.6, ""),
-                new Place("Golden Hour Canal Loop", "Amsterdam", PlaceCategory.FREE, "A scenic walking loop with no reservation needed.", "Free", 4.8, ""),
-                new Place("Neighborhood Market", "Amsterdam", PlaceCategory.FREE, "Low-cost local browsing and quick bites.", "Free", 4.5, "")
+                new Place("Local Bistro Noord", "Amsterdam", PlaceCategory.FOOD, "Seasonal plates in a calm neighborhood room.", "Mid", 4.7, "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=700&q=85"),
+                new Place("Canal Bakery", "Amsterdam", PlaceCategory.FOOD, "Morning pastries and simple coffee near the route.", "Lean", 4.6, "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=700&q=85"),
+                new Place("Museumplein Window", "Amsterdam", PlaceCategory.CULTURE, "A compact culture stop that keeps the day balanced.", "Mid", 4.8, "https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=700&q=85"),
+                new Place("Small Gallery Walk", "Amsterdam", PlaceCategory.CULTURE, "Independent galleries close to cafe streets.", "Lean", 4.5, "https://images.unsplash.com/photo-1564399579883-451a5d44ec08?auto=format&fit=crop&w=700&q=85"),
+                new Place("Quiet Cup De Pijp", "Amsterdam", PlaceCategory.COFFEE, "A soft-paced cafe for planning the next stop.", "Lean", 4.7, "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=700&q=85"),
+                new Place("Canal Roast Bar", "Amsterdam", PlaceCategory.COFFEE, "Good espresso without a long detour.", "Mid", 4.6, "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=700&q=85"),
+                new Place("Golden Hour Canal Loop", "Amsterdam", PlaceCategory.FREE, "A scenic walking loop with no reservation needed.", "Free", 4.8, "https://images.unsplash.com/photo-1584003564911-a7a321c84e1c?auto=format&fit=crop&w=700&q=85"),
+                new Place("Neighborhood Market", "Amsterdam", PlaceCategory.FREE, "Low-cost local browsing and quick bites.", "Free", 4.5, "https://images.unsplash.com/photo-1525968902-070804c45d6b?auto=format&fit=crop&w=700&q=85")
         ));
     }
 

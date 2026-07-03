@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   SafeAreaView,
   StatusBar,
   StyleSheet,
@@ -13,12 +15,43 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { colors, radius, spacing, typography } from '../theme/colors';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { authApi } from '../api/journyApi';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('admin@journy.app');
   const [password, setPassword] = useState('admin123');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Missing information', 'Please enter your email and password.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await authApi.login(email.trim(), password);
+      navigation.replace('TripSetup');
+    } catch {
+      Alert.alert('Sign in failed', 'Please check your credentials and make sure the backend is running.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const continueAsGuest = async () => {
+    try {
+      setLoading(true);
+      await authApi.login('admin@journy.app', 'admin123');
+      navigation.replace('TripSetup');
+    } catch {
+      Alert.alert('Guest mode unavailable', 'Please make sure the backend is running, then try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -52,12 +85,19 @@ export default function LoginScreen({ navigation }: Props) {
           />
 
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={[styles.primaryButton, loading && styles.buttonDisabled]}
             activeOpacity={0.9}
-            onPress={() => navigation.replace('TripSetup')}
+            disabled={loading}
+            onPress={handleLogin}
           >
-            <Text style={styles.primaryButtonText}>Sign in</Text>
-            <Ionicons name="arrow-forward" size={19} color={colors.surface} />
+            {loading ? (
+              <ActivityIndicator color={colors.surface} />
+            ) : (
+              <>
+                <Text style={styles.primaryButtonText}>Sign in</Text>
+                <Ionicons name="arrow-forward" size={19} color={colors.surface} />
+              </>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.googleButton} activeOpacity={0.85}>
@@ -72,7 +112,7 @@ export default function LoginScreen({ navigation }: Props) {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.replace('TripSetup')}>
+        <TouchableOpacity onPress={continueAsGuest}>
           <Text style={styles.guestText}>Continue as guest</Text>
         </TouchableOpacity>
       </View>
@@ -171,6 +211,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
+  buttonDisabled: { opacity: 0.72 },
   primaryButtonText: {
     color: colors.surface,
     fontSize: typography.body,

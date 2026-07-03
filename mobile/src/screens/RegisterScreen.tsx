@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   SafeAreaView,
   StatusBar,
   StyleSheet,
@@ -13,10 +15,39 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { colors, radius, spacing, typography } from '../theme/colors';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { authApi } from '../api/journyApi';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 
 export default function RegisterScreen({ navigation }: Props) {
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async () => {
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      Alert.alert('Missing information', 'Please fill in your name, email and password.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Passwords do not match', 'Please confirm your password again.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await authApi.register(fullName.trim(), email.trim(), password);
+      navigation.replace('TripSetup');
+    } catch {
+      Alert.alert('Account could not be created', 'Please try another email or make sure the backend is running.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
@@ -35,18 +66,31 @@ export default function RegisterScreen({ navigation }: Props) {
         </Text>
 
         <View style={styles.form}>
-          <Input icon="person-outline" placeholder="Full name" />
-          <Input icon="mail-outline" placeholder="Email" />
-          <Input icon="lock-closed-outline" placeholder="Password" secureTextEntry />
-          <Input icon="shield-checkmark-outline" placeholder="Confirm password" secureTextEntry />
+          <Input icon="person-outline" placeholder="Full name" value={fullName} onChangeText={setFullName} />
+          <Input icon="mail-outline" placeholder="Email" value={email} onChangeText={setEmail} />
+          <Input icon="lock-closed-outline" placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
+          <Input
+            icon="shield-checkmark-outline"
+            placeholder="Confirm password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+          />
 
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={[styles.primaryButton, loading && styles.buttonDisabled]}
             activeOpacity={0.9}
-            onPress={() => navigation.replace('TripSetup')}
+            disabled={loading}
+            onPress={handleRegister}
           >
-            <Text style={styles.primaryButtonText}>Create account</Text>
-            <Ionicons name="arrow-forward" size={19} color={colors.surface} />
+            {loading ? (
+              <ActivityIndicator color={colors.surface} />
+            ) : (
+              <>
+                <Text style={styles.primaryButtonText}>Create account</Text>
+                <Ionicons name="arrow-forward" size={19} color={colors.surface} />
+              </>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -63,10 +107,14 @@ export default function RegisterScreen({ navigation }: Props) {
 function Input({
   icon,
   placeholder,
+  value,
+  onChangeText,
   secureTextEntry,
 }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   placeholder: string;
+  value: string;
+  onChangeText: (text: string) => void;
   secureTextEntry?: boolean;
 }) {
   return (
@@ -75,6 +123,8 @@ function Input({
       <TextInput
         placeholder={placeholder}
         placeholderTextColor={colors.softMuted}
+        value={value}
+        onChangeText={onChangeText}
         secureTextEntry={secureTextEntry}
         style={styles.input}
       />
@@ -136,6 +186,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
+  buttonDisabled: { opacity: 0.72 },
   primaryButtonText: {
     color: colors.surface,
     fontSize: typography.body,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   SafeAreaView,
@@ -12,6 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, radius, spacing, typography } from '../theme/colors';
+import { profileApi } from '../api/journyApi';
+import type { ProfileResponse } from '../api/types';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -39,6 +41,47 @@ const savedPlans = [
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
+  const [profile, setProfile] = useState<ProfileResponse | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        const response = await profileApi.me();
+        if (mounted) {
+          setProfile(response);
+        }
+      } catch {
+        // Keep the local profile preview if the API is unavailable.
+      }
+    };
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const currentTrip = profile?.currentTrip;
+  const displayTaste = profile?.tasteProfile?.length
+    ? profile.tasteProfile.map((item) => ({
+        label: item.title,
+        detail: item.description,
+        icon: mapTasteIcon(item.icon),
+      }))
+    : tasteSignals;
+  const displaySavedPlans = profile?.savedPlans?.length
+    ? profile.savedPlans.map((plan, index) => ({
+        key: plan.id,
+        city: plan.destination,
+        detail: plan.summary,
+        image: savedPlans[index % savedPlans.length].image,
+        stops: plan.stops,
+        walk: plan.averageWalkKm,
+      }))
+    : savedPlans.map((plan, index) => ({ ...plan, key: `${plan.city}-${index}`, stops: 18, walk: 6.2 }));
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -49,8 +92,8 @@ export default function ProfileScreen() {
             <Text style={styles.avatarText}>ID</Text>
           </View>
           <View style={styles.headerCopy}>
-            <Text style={styles.name}>Irem Dinc</Text>
-            <Text style={styles.meta}>Balanced traveler</Text>
+            <Text style={styles.name}>{profile?.fullName ?? 'Irem Dinc'}</Text>
+            <Text style={styles.meta}>{profile?.travelStyle ?? 'Balanced traveler'}</Text>
           </View>
           <TouchableOpacity style={styles.settingsButton} activeOpacity={0.86} onPress={() => navigation.navigate('Settings')}>
             <Ionicons name="settings-outline" size={21} color={colors.midnight} />
@@ -61,7 +104,7 @@ export default function ProfileScreen() {
           <View style={styles.tripTop}>
             <View>
               <Text style={styles.kicker}>Current trip</Text>
-              <Text style={styles.tripTitle}>Amsterdam</Text>
+              <Text style={styles.tripTitle}>{currentTrip?.destination ?? 'Amsterdam'}</Text>
             </View>
             <TouchableOpacity style={styles.editPill} activeOpacity={0.82}>
               <Ionicons name="pencil-outline" size={14} color={colors.teal} />
@@ -70,14 +113,14 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.tripMetaRow}>
-            <InfoChip icon="calendar-outline" text="Oct 10 - Oct 14" />
+            <InfoChip icon="calendar-outline" text={currentTrip?.dates ?? 'Oct 10 - Oct 14'} />
             <InfoChip icon="wallet-outline" text="Mid budget" />
           </View>
 
           <View style={styles.statRow}>
-            <Stat icon="location-outline" value="18" label="Stops" />
-            <Stat icon="restaurant-outline" value="7" label="Food picks" />
-            <Stat icon="walk-outline" value="6.2 km" label="Avg walk" />
+            <Stat icon="location-outline" value={`${currentTrip?.stops ?? 18}`} label="Stops" />
+            <Stat icon="restaurant-outline" value={`${currentTrip?.foodPicks ?? 7}`} label="Food picks" />
+            <Stat icon="walk-outline" value={`${(currentTrip?.averageWalkKm ?? 6.2).toFixed(1)} km`} label="Avg walk" />
           </View>
         </View>
 
@@ -86,7 +129,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionAction}>Refine</Text>
         </View>
         <View style={styles.tasteGrid}>
-          {tasteSignals.map((item) => (
+          {displayTaste.map((item) => (
             <View key={item.label} style={styles.tasteCard}>
               <View style={styles.tasteIcon}>
                 <Ionicons name={item.icon} size={18} color={colors.teal} />
@@ -104,8 +147,8 @@ export default function ProfileScreen() {
           <Text style={styles.sectionAction}>View all</Text>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedRail}>
-          {savedPlans.map((plan) => (
-            <TouchableOpacity key={plan.city} style={styles.savedCard} activeOpacity={0.88}>
+          {displaySavedPlans.map((plan) => (
+            <TouchableOpacity key={plan.key} style={styles.savedCard} activeOpacity={0.88}>
               <Image source={{ uri: plan.image }} style={styles.savedImage} />
               <View style={styles.savedBody}>
                 <Text style={styles.savedCity}>{plan.city}</Text>
@@ -113,11 +156,11 @@ export default function ProfileScreen() {
                 <View style={styles.savedStats}>
                   <View style={styles.savedMetric}>
                     <Ionicons name="location-outline" size={13} color={colors.teal} />
-                    <Text style={styles.savedMetricText}>18 stops</Text>
+                    <Text style={styles.savedMetricText}>{plan.stops} stops</Text>
                   </View>
                   <View style={styles.savedMetric}>
                     <Ionicons name="walk-outline" size={13} color={colors.teal} />
-                    <Text style={styles.savedMetricText}>6.2 km</Text>
+                    <Text style={styles.savedMetricText}>{plan.walk.toFixed(1)} km</Text>
                   </View>
                 </View>
               </View>
@@ -127,6 +170,14 @@ export default function ProfileScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function mapTasteIcon(icon: string): IconName {
+  const value = icon.toLowerCase();
+  if (value.includes('food') || value.includes('restaurant')) return 'restaurant-outline';
+  if (value.includes('museum') || value.includes('culture')) return 'color-palette-outline';
+  if (value.includes('coffee') || value.includes('cafe')) return 'cafe-outline';
+  return 'walk-outline';
 }
 
 function InfoChip({ icon, text }: { icon: IconName; text: string }) {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   ImageBackground,
@@ -15,6 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
 import { colors, radius, spacing, typography } from '../theme/colors';
+import { tripApi } from '../api/journyApi';
+import { session } from '../api/session';
+import type { ItineraryResponse, TripResponse } from '../api/types';
 
 const journyLogo = require('../../assets/images/journy-logo.png');
 
@@ -41,6 +44,39 @@ const visualPicks = [
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
+  const [trip, setTrip] = useState<TripResponse | undefined>(() => session.getCurrentTrip());
+  const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        const current = await tripApi.current();
+        session.setCurrentTrip(current);
+        const route = await tripApi.itinerary(current.id);
+        if (mounted) {
+          setTrip(current);
+          setItinerary(route);
+        }
+      } catch {
+        // Keep the polished fallback UI if the API is temporarily unavailable.
+      }
+    };
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const firstDay = itinerary?.days[0];
+  const firstStops = firstDay?.stops.slice(0, 3);
+  const destination = trip?.destination ?? 'Amsterdam';
+  const dayTitle = firstDay?.title ?? 'Canals & Museums';
+  const walkKm = firstDay?.walkKm ?? trip?.stats.averageWalkKm ?? 6.4;
+  const stopCount = firstDay?.stopCount ?? trip?.stats.stops ?? 4;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -51,7 +87,7 @@ export default function HomeScreen() {
             <Image source={journyLogo} style={styles.logo} resizeMode="contain" />
             <View style={styles.headerCopy}>
               <Text style={styles.headerLabel}>Current trip</Text>
-              <Text style={styles.location}>Amsterdam</Text>
+              <Text style={styles.location}>{destination}</Text>
             </View>
           </View>
           <TouchableOpacity
@@ -79,16 +115,16 @@ export default function HomeScreen() {
             </View>
             <View>
               <Text style={styles.heroKicker}>Day 1</Text>
-              <Text style={styles.heroTitle}>Canals & Museums</Text>
-              <Text style={styles.heroMeta}>4 stops - 6.4 km - easy pace</Text>
+              <Text style={styles.heroTitle}>{dayTitle}</Text>
+              <Text style={styles.heroMeta}>{stopCount} stops - {walkKm.toFixed(1)} km - {formatEnum(trip?.pace ?? 'easy')} pace</Text>
             </View>
           </LinearGradient>
         </ImageBackground>
 
         <View style={styles.routeSummary}>
-          <SummaryItem icon="walk-outline" value="6.4 km" label="walk" />
-          <SummaryItem icon="location-outline" value="4" label="stops" />
-          <SummaryItem icon="time-outline" value="Easy" label="pace" />
+          <SummaryItem icon="walk-outline" value={`${walkKm.toFixed(1)} km`} label="walk" />
+          <SummaryItem icon="location-outline" value={`${stopCount}`} label="stops" />
+          <SummaryItem icon="time-outline" value={formatEnum(trip?.pace ?? 'Easy')} label="pace" />
         </View>
 
         <View style={styles.sectionHeader}>
@@ -97,7 +133,11 @@ export default function HomeScreen() {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.visualList}>
-          {visualPicks.map((item) => (
+          {(firstStops?.length ? firstStops.map((stop, index) => ({
+            title: stop.title,
+            meta: `${stop.category} - ${stop.timeWindow}`,
+            image: visualPicks[index % visualPicks.length].image,
+          })) : visualPicks).map((item) => (
             <TouchableOpacity key={item.title} style={styles.visualCard} activeOpacity={0.88}>
               <Image source={{ uri: item.image }} style={styles.visualImage} />
               <View style={styles.visualBody}>
@@ -115,6 +155,13 @@ export default function HomeScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function formatEnum(value: string) {
+  return value
+    .toLowerCase()
+    .replaceAll('_', ' ')
+    .replace(/^\w/, (letter) => letter.toUpperCase());
 }
 
 function SummaryItem({
