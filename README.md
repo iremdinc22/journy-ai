@@ -1,158 +1,109 @@
-# Journy
+<div align="center">
+  <img src="./mobile/assets/images/journy-logo.png" alt="Journy logo" width="96" />
 
-**AI-powered travel planning for calmer, smarter city trips.**
+  <h1>Journy</h1>
 
-Journy is a mobile travel assistant designed to make trip planning feel simple, personal, and effortless. Instead of switching between blogs, maps, review apps, social media videos, and restaurant lists, users can plan their city trip from one place.
+  <p><strong>AI travel planning for calmer, smarter city trips.</strong></p>
 
-The user tells Journy where they are going, when they will travel, their budget, travel pace, and interests. Journy then creates a personalized city plan with realistic daily routes, local recommendations, food stops, cultural places, and flexible travel suggestions.
+  <p>
+    A mobile travel assistant that creates personalized city plans from a destination,
+    travel dates, budget, pace, and interests.
+  </p>
 
----
-
-## The Idea
-
-Planning a trip can quickly become overwhelming.
-
-Before visiting a city, travelers often need to answer questions like:
-
-- Which neighborhood should I explore first?
-- What places are close to each other?
-- Where should I eat something local?
-- How can I avoid planning too much in one day?
-- Which cafes, museums, markets, or local areas are actually worth visiting?
-- How can I make my route more walkable?
-- What should I do if the weather changes?
-
-Journy brings these decisions into a single assistant-led experience.
-
-The goal is not only to recommend places. The goal is to understand the traveler and create a plan that feels realistic, personal, and easy to follow.
+  <p>
+    <img alt="Expo" src="https://img.shields.io/badge/Expo-Mobile-111827?style=flat-square&logo=expo&logoColor=white" />
+    <img alt="React Native" src="https://img.shields.io/badge/React_Native-TypeScript-61DAFB?style=flat-square&logo=react&logoColor=111827" />
+    <img alt="Spring Boot" src="https://img.shields.io/badge/Spring_Boot-API-6DB33F?style=flat-square&logo=springboot&logoColor=white" />
+    <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=flat-square&logo=postgresql&logoColor=white" />
+  </p>
+</div>
 
 ---
 
-## What Journy Helps With
+## At A Glance
 
-Journy is built around a few core travel needs:
+Journy helps travelers stop planning across ten different apps. It brings trip setup, daily itinerary planning, local recommendations, and an AI assistant into one calm mobile experience.
 
-### Personalized Trip Planning
-
-Every user can experience a city differently. A traveler interested in museums and coffee should not receive the same itinerary as someone focused on nightlife, shopping, or local food.
-
-Journy adapts the trip plan based on:
-
-- Destination
-- Travel dates
-- Budget
-- Travel pace
-- Traveler type
-- Interests
-- Local experience preferences
-
-### Smart Daily Routes
-
-Journy groups nearby places into the same day so users do not waste time moving across the city unnecessarily.
-
-For example, if several landmarks, cafes, and restaurants are close to each other, they can be planned together as one walkable city day.
-
-### Local Experiences
-
-The app is designed to go beyond the most obvious tourist spots. It can highlight:
-
-- Neighborhood cafes
-- Local restaurants
-- Food stops
-- Museums and culture areas
-- Markets
-- Walking routes
-- Free activities
-- Calm breaks between plans
-
-### AI Travel Assistant
-
-Journy also includes an assistant experience for questions during the trip, such as:
-
-- Find coffee nearby.
-- Make today lighter.
-- Suggest dinner near the last stop.
-- Rebuild the plan if it rains.
-- What should I do next?
+| User gives Journy | Journy creates |
+| --- | --- |
+| Destination | Personalized city plan |
+| Travel dates | Day-by-day itinerary |
+| Budget | Food and activity fit |
+| Pace | Realistic daily rhythm |
+| Interests | Local picks and route ideas |
 
 ---
 
-## Main User Flow
+## The Problem
+
+Travel planning is scattered.
+
+Before a trip, users usually check blogs, Google reviews, maps, TikTok videos, Instagram saves, restaurant lists, museum guides, and weather apps. Even after all that, the plan can still feel messy: too many places in one day, long distances between stops, or recommendations that do not match the user's style.
+
+Journy is built around one question:
+
+> How can planning a city trip feel as simple as talking to a travel companion?
+
+---
+
+## What Journy Does
+
+| Area | Experience |
+| --- | --- |
+| Trip setup | Destination, dates, traveler type, budget, pace, and interests |
+| Smart itinerary | Days grouped by distance, rhythm, and realistic walking flow |
+| Local discovery | Food, coffee, culture, neighborhoods, free activities, and hidden spots |
+| AI assistant | Ask for lighter days, dinner ideas, nearby coffee, or rain-friendly plans |
+| Profile | Saved plans, taste profile, current trip, and preference learning |
+
+---
+
+## User Journey
 
 ```txt
-Open Journy
-  -> Sign in or continue as guest
+Start
   -> Choose destination
-  -> Select travel dates
-  -> Pick traveler type
-  -> Choose interests
-  -> Set budget and pace
-  -> Generate personalized itinerary
-  -> Explore daily routes and local picks
-  -> Ask the AI assistant for changes during the trip
+  -> Select dates
+  -> Pick interests and budget
+  -> Generate itinerary
+  -> Explore local picks
+  -> Ask AI to adjust the plan
 ```
 
----
-
-## Example Scenario
-
-A user is planning a 4-day Amsterdam trip.
-
-They choose:
+Example:
 
 ```txt
-Destination: Amsterdam
-Dates: Oct 10 - Oct 14, 2026
-Traveler type: Couple
-Budget: Balanced
-Pace: Balanced
-Interests: Coffee, Museums, Local Food, Walking
+Amsterdam
+Oct 10 - Oct 14, 2026
+Couple trip
+Balanced budget
+Coffee, museums, local food, walking
 ```
 
-Journy can create a plan with:
+Journy can turn that into:
 
-- A calm first day around museums and canals
-- Local coffee stops between activities
-- Dinner areas near the final stop of the day
-- Flexible afternoons instead of overloaded schedules
-- Walkable routes grouped by distance
-- Food and culture recommendations based on the user's style
+- walkable daily routes
+- museum and culture windows
+- local cafe breaks
+- dinner zones near the final stop
+- flexible afternoons
+- balanced pacing across the trip
 
 ---
 
-## App Sections
+## Screens In The App
 
-### Welcome
-
-A polished entry screen that introduces Journy as a calm AI travel planner and guides users toward account creation, sign in, or guest mode.
-
-### Home
-
-A simple starting point for the user’s current travel plan, destination context, and next actions.
-
-### Trip Setup
-
-The planning form where users choose destination, dates, traveler type, interests, budget, and preferred pace.
-
-### Plan
-
-The itinerary area where days are organized into realistic routes with stops, walking rhythm, and trip structure.
-
-### Explore
-
-A recommendation space for food, culture, coffee, free activities, and local places.
-
-### AI Assistant
-
-A chat-style screen where users can ask for route changes, nearby ideas, lighter days, dinner suggestions, or weather-aware updates.
-
-### Profile
-
-A personal travel preference area showing current trip details, taste profile, saved plans, and travel style.
-
-### Settings and Notifications
-
-Supporting screens for app preferences, notification controls, and travel-related updates.
+| Screen | Purpose |
+| --- | --- |
+| Welcome | Introduces the product and guides users into the app |
+| Auth | Login, register, and guest access |
+| Home | A simple starting point for the current trip |
+| Trip Setup | Collects destination, dates, interests, budget, and pace |
+| Plan | Shows day-by-day itinerary structure |
+| Explore | Lists local recommendations by category |
+| AI Assistant | Lets users ask for changes and nearby suggestions |
+| Profile | Shows travel preferences, saved plans, and current trip |
+| Settings | Handles app preferences and notification choices |
 
 ---
 
@@ -160,60 +111,52 @@ Supporting screens for app preferences, notification controls, and travel-relate
 
 Journy is designed to feel:
 
-- Calm
-- Premium
-- Simple
-- Personal
-- Local-first
-- Practical during real travel
+| Calm | Personal | Practical |
+| --- | --- | --- |
+| Soft colors and clean layouts | Plans shaped around user interests | Routes that make sense during real travel |
 
-The visual direction focuses on soft colors, clean spacing, mobile-first layouts, and a product experience that feels less like a travel blog and more like a personal planning companion.
+The goal is a premium but approachable travel product: less like a crowded travel blog, more like a personal city planning companion.
 
 ---
 
-## Current Project Status
+## Current Status
 
 The project currently includes:
 
-- Mobile app screens and navigation
-- Welcome, login, register, trip setup, itinerary, explore, assistant, profile, settings, and notification flows
-- Backend API foundation
-- Authentication system
-- Trip creation flow
-- Itinerary generation foundation
-- Explore recommendation API
-- AI assistant API foundation
-- PostgreSQL database setup
+- mobile app screens and navigation
+- onboarding, auth, setup, plan, explore, assistant, profile, settings, and notification flows
+- backend API foundation
+- JWT authentication
+- trip creation
+- itinerary generation foundation
+- explore recommendation endpoints
+- AI assistant endpoint foundation
+- PostgreSQL setup
 - Swagger API documentation
-
-The mobile interface and backend foundation are both prepared for future integration and expansion.
 
 ---
 
-## Technology Overview
-
-Journy is organized as a mobile app with a backend service.
+## Tech Overview
 
 ```txt
 Journy/
-  mobile/    Mobile application
-  backend/   Backend API
+  mobile/    Expo React Native app
+  backend/   Spring Boot API
 ```
 
-Main technologies:
-
-- Expo
-- React Native
-- TypeScript
-- Spring Boot
-- PostgreSQL
-- JWT Authentication
+| Layer | Stack |
+| --- | --- |
+| Mobile | Expo, React Native, TypeScript, React Navigation |
+| Backend | Java, Spring Boot, Spring Security, JPA |
+| Database | PostgreSQL |
+| Auth | JWT access token and refresh token |
+| Docs | Swagger / OpenAPI |
 
 ---
 
-## Running the Project
+## Run Locally
 
-### Backend
+Backend:
 
 ```bash
 cd backend
@@ -221,26 +164,7 @@ docker compose up -d
 ./mvnw spring-boot:run
 ```
 
-Backend URL:
-
-```txt
-http://localhost:8080
-```
-
-Swagger:
-
-```txt
-http://localhost:8080/swagger-ui.html
-```
-
-Demo account:
-
-```txt
-Email: admin@journy.app
-Password: admin123
-```
-
-### Mobile
+Mobile:
 
 ```bash
 cd mobile
@@ -248,35 +172,43 @@ npm install
 npm start
 ```
 
-Then open the app through Expo on iOS or Android.
+Useful local URLs:
+
+```txt
+Backend: http://localhost:8080
+Swagger: http://localhost:8080/swagger-ui.html
+```
+
+Demo account:
+
+```txt
+admin@journy.app
+admin123
+```
 
 ---
 
 ## Roadmap
 
-Planned improvements:
-
-- Connect all mobile screens to the backend API
-- Add real AI-powered trip generation
+- Connect mobile screens to the backend API
+- Add real AI-powered itinerary generation
 - Expand city data for Paris, Amsterdam, Rome, Barcelona, and more
 - Add map-based route visualization
 - Add hotel-aware recommendations
-- Add weather-based itinerary updates
+- Add weather-based replanning
 - Add group trip planning
-- Improve saved plans and user preference learning
+- Improve saved plans and preference learning
 
 ---
 
-## Long-Term Vision
+## Vision
 
-Journy aims to become a personal AI travel companion that understands how each user likes to travel.
+Journy aims to become a personal AI travel companion that understands how each user likes to move through a city.
 
 In the long term, a user should be able to say:
 
 ```txt
-I'm going to Paris for four days.
+I am going to Paris for four days.
 ```
 
-And Journy should be able to plan the rest: daily routes, local food, museums, neighborhoods, walking pace, budget-friendly options, and flexible changes during the trip.
-
-The goal is to remove the stressful part of travel planning and let users focus on the experience itself.
+And Journy should plan the rest: daily routes, local food, museums, neighborhoods, walking pace, budget-friendly options, and flexible changes during the trip.
