@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ImageBackground,
   SafeAreaView,
@@ -23,6 +23,8 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const { place } = route.params;
+  const [saved, setSaved] = useState(false);
+  const [addedToPlan, setAddedToPlan] = useState(false);
   const categoryLabel = formatCategory(place.category);
   const role = roleForCategory(place.category);
   const walkTime = estimatedWalkTime(place.category);
@@ -45,12 +47,21 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
           imageStyle={styles.heroImage}
         >
           <LinearGradient colors={['rgba(23,32,51,0.1)', 'rgba(23,32,51,0.92)']} style={styles.overlay}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs'))}
-            >
-              <Ionicons name="arrow-back" size={21} color={colors.midnight} />
-            </TouchableOpacity>
+            <View style={styles.heroTop}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs'))}
+              >
+                <Ionicons name="arrow-back" size={21} color={colors.midnight} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveButton, saved && styles.saveButtonActive]}
+                activeOpacity={0.86}
+                onPress={() => setSaved((value) => !value)}
+              >
+                <Ionicons name={saved ? 'heart' : 'heart-outline'} size={21} color={saved ? colors.surface : colors.midnight} />
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.heroCopy}>
               <View style={styles.categoryPill}>
@@ -64,6 +75,16 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
         </ImageBackground>
 
         <View style={styles.sheet}>
+          <View style={styles.matchCard}>
+            <View style={styles.matchIcon}>
+              <Ionicons name="sparkles-outline" size={20} color={colors.teal} />
+            </View>
+            <View style={styles.matchCopy}>
+              <Text style={styles.matchTitle}>Route match</Text>
+              <Text style={styles.matchText}>{role.text}</Text>
+            </View>
+          </View>
+
           <View style={styles.statsRow}>
             <Stat icon="star" value={place.rating.toFixed(1)} label="Rating" colors={colors} styles={styles} />
             <Stat icon="walk-outline" value={walkTime} label="Est. walk" colors={colors} styles={styles} />
@@ -84,6 +105,23 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
             ))}
           </View>
 
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[styles.secondaryAction, saved && styles.secondaryActionActive]}
+              activeOpacity={0.86}
+              onPress={() => setSaved((value) => !value)}
+            >
+              <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={17} color={saved ? colors.surface : colors.teal} />
+              <Text style={[styles.secondaryActionText, saved && styles.secondaryActionTextActive]}>
+                {saved ? 'Saved' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryAction} activeOpacity={0.86}>
+              <Ionicons name="navigate-outline" size={17} color={colors.teal} />
+              <Text style={styles.secondaryActionText}>Route</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Why it fits</Text>
             <Text style={styles.description}>{place.description}</Text>
@@ -93,16 +131,20 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
             <Text style={styles.sectionTitle}>Role in the plan</Text>
             <View style={styles.infoCard}>
               <Ionicons name="time-outline" size={20} color={colors.teal} />
-              <View style={{ flex: 1 }}>
+              <View style={styles.infoCopy}>
                 <Text style={styles.infoTitle}>{role.title}</Text>
                 <Text style={styles.infoText}>{role.text}</Text>
               </View>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.primaryButton} activeOpacity={0.9}>
-            <Text style={styles.primaryButtonText}>Add to today's plan</Text>
-            <Ionicons name="add" size={20} color={colors.surface} />
+          <TouchableOpacity
+            style={[styles.primaryButton, addedToPlan && styles.primaryButtonActive]}
+            activeOpacity={0.9}
+            onPress={() => setAddedToPlan((value) => !value)}
+          >
+            <Text style={styles.primaryButtonText}>{addedToPlan ? "Added to today's plan" : "Add to today's plan"}</Text>
+            <Ionicons name={addedToPlan ? 'checkmark' : 'add'} size={20} color={colors.surface} />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -219,6 +261,11 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     paddingBottom: spacing.xl,
     justifyContent: 'space-between',
   },
+  heroTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   backButton: {
     width: 46,
     height: 46,
@@ -226,6 +273,17 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  saveButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    height: 46,
+    justifyContent: 'center',
+    width: 46,
+  },
+  saveButtonActive: {
+    backgroundColor: colors.teal,
   },
   heroCopy: {
     paddingBottom: spacing.md,
@@ -268,6 +326,32 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
   },
+  matchCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+  },
+  matchIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.lilac,
+    borderRadius: radius.lg,
+    height: 48,
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+    width: 48,
+  },
+  matchCopy: { flex: 1 },
+  matchTitle: { color: colors.midnight, fontSize: typography.body, fontWeight: '900' },
+  matchText: { color: colors.slate, fontSize: typography.small, fontWeight: '700', lineHeight: 19, marginTop: 3 },
   statsRow: {
     flexDirection: 'row',
     gap: spacing.xs,
@@ -298,6 +382,29 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     paddingVertical: spacing.xs,
   },
   tagText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'capitalize' },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  secondaryAction: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    minHeight: 50,
+  },
+  secondaryActionActive: {
+    backgroundColor: colors.teal,
+    borderColor: colors.teal,
+  },
+  secondaryActionText: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
+  secondaryActionTextActive: { color: colors.surface },
   stat: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -344,6 +451,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     flexDirection: 'row',
     gap: spacing.sm,
   },
+  infoCopy: { flex: 1 },
   infoTitle: {
     color: colors.midnight,
     fontSize: typography.body,
@@ -363,6 +471,9 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     flexDirection: 'row',
     gap: spacing.sm,
     marginTop: spacing.xl,
+  },
+  primaryButtonActive: {
+    backgroundColor: colors.teal,
   },
   primaryButtonText: {
     color: colors.surface,

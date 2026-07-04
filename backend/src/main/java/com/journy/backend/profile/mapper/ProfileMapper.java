@@ -7,10 +7,11 @@ import org.springframework.stereotype.Component;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 @Component
 public class ProfileMapper {
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM d");
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH);
 
     public ProfileResponse toResponse(UserAccount user, Trip currentTrip, List<Trip> savedTrips) {
         return new ProfileResponse(

@@ -40,6 +40,18 @@ const savedPlans = [
   },
 ];
 
+const favoritePlaces: Array<{ title: string; meta: string; icon: IconName }> = [
+  { title: 'Quiet Cup De Pijp', meta: 'Coffee - Amsterdam', icon: 'cafe-outline' },
+  { title: 'Canal Bakery', meta: 'Food - Amsterdam', icon: 'restaurant-outline' },
+  { title: 'Small Gallery Walk', meta: 'Culture - Amsterdam', icon: 'color-palette-outline' },
+];
+
+const accountPreferences: Array<{ label: string; value: string; icon: IconName }> = [
+  { label: 'Default pace', value: 'Balanced', icon: 'speedometer-outline' },
+  { label: 'Food discovery', value: 'Local-first', icon: 'restaurant-outline' },
+  { label: 'Notifications', value: 'Plan changes', icon: 'notifications-outline' },
+];
+
 export default function ProfileScreen() {
   const { isDark, theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -133,6 +145,23 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.memberStrip}>
+          <View style={styles.memberMetric}>
+            <Text style={styles.memberValue}>{profile?.savedPlans?.length ?? 2}</Text>
+            <Text style={styles.memberLabel}>Saved plans</Text>
+          </View>
+          <View style={styles.memberDivider} />
+          <View style={styles.memberMetric}>
+            <Text style={styles.memberValue}>{displayTaste.length}</Text>
+            <Text style={styles.memberLabel}>Taste signals</Text>
+          </View>
+          <View style={styles.memberDivider} />
+          <View style={styles.memberMetric}>
+            <Text style={styles.memberValue}>{currentTrip ? 'Live' : 'Ready'}</Text>
+            <Text style={styles.memberLabel}>Trip status</Text>
+          </View>
+        </View>
+
         {loading ? <InlineLoading label="Loading your profile..." /> : null}
         {error ? (
           <InlineError
@@ -209,6 +238,58 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Favorites</Text>
+          <Text style={styles.sectionAction}>Manage</Text>
+        </View>
+        <View style={styles.favoriteList}>
+          {favoritePlaces.map((place) => (
+            <View key={place.title} style={styles.favoriteRow}>
+              <View style={styles.favoriteIcon}>
+                <Ionicons name={place.icon} size={18} color={colors.teal} />
+              </View>
+              <View style={styles.favoriteCopy}>
+                <Text style={styles.favoriteTitle}>{place.title}</Text>
+                <Text style={styles.favoriteMeta}>{place.meta}</Text>
+              </View>
+              <Ionicons name="heart" size={18} color={colors.teal} />
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recent trips</Text>
+        </View>
+        <View style={styles.recentCard}>
+          {displaySavedPlans.slice(0, 3).map((plan, index) => (
+            <View key={`recent-${plan.key}`} style={[styles.recentRow, index > 0 && styles.recentRowBorder]}>
+              <View style={styles.recentIndex}>
+                <Text style={styles.recentIndexText}>{index + 1}</Text>
+              </View>
+              <View style={styles.recentCopy}>
+                <Text style={styles.recentTitle}>{plan.city}</Text>
+                <Text style={styles.recentMeta}>{plan.detail}</Text>
+              </View>
+              <Text style={styles.recentWalk}>{plan.walk.toFixed(1)} km</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Account preferences</Text>
+        </View>
+        <View style={styles.preferenceCard}>
+          {accountPreferences.map((item, index) => (
+            <View key={item.label} style={[styles.preferenceRow, index > 0 && styles.preferenceRowBorder]}>
+              <View style={styles.preferenceIcon}>
+                <Ionicons name={item.icon} size={18} color={colors.teal} />
+              </View>
+              <Text style={styles.preferenceLabel}>{item.label}</Text>
+              <Text style={styles.preferenceValue}>{item.value}</Text>
+            </View>
+          ))}
+        </View>
 
         <TouchableOpacity style={styles.signOutButton} activeOpacity={0.86} onPress={signOut}>
           <Ionicons name="log-out-outline" size={18} color={colors.teal} />
@@ -295,6 +376,21 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     justifyContent: 'center',
     width: 46,
   },
+  memberStrip: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginTop: spacing.lg,
+    minHeight: 82,
+    paddingHorizontal: spacing.md,
+  },
+  memberMetric: { alignItems: 'center', flex: 1 },
+  memberValue: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900' },
+  memberLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 3, textAlign: 'center' },
+  memberDivider: { backgroundColor: colors.mist, height: 38, width: 1 },
   tripCard: {
     backgroundColor: colors.surface,
     borderColor: colors.mist,
@@ -411,6 +507,87 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     paddingVertical: spacing.xs,
   },
   savedMetricText: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900' },
+  favoriteList: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    overflow: 'hidden',
+  },
+  favoriteRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    minHeight: 74,
+    paddingHorizontal: spacing.md,
+  },
+  favoriteIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    height: 42,
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+    width: 42,
+  },
+  favoriteCopy: { flex: 1 },
+  favoriteTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
+  favoriteMeta: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 3 },
+  recentCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    overflow: 'hidden',
+  },
+  recentRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    minHeight: 72,
+    paddingHorizontal: spacing.md,
+  },
+  recentRowBorder: { borderColor: colors.mist, borderTopWidth: 1 },
+  recentIndex: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderRadius: radius.pill,
+    height: 34,
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+    width: 34,
+  },
+  recentIndexText: { color: colors.teal, fontSize: typography.small, fontWeight: '900' },
+  recentCopy: { flex: 1 },
+  recentTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
+  recentMeta: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 3 },
+  recentWalk: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900' },
+  preferenceCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    overflow: 'hidden',
+  },
+  preferenceRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    minHeight: 68,
+    paddingHorizontal: spacing.md,
+  },
+  preferenceRowBorder: { borderColor: colors.mist, borderTopWidth: 1 },
+  preferenceIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    height: 38,
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+    width: 38,
+  },
+  preferenceLabel: { color: colors.midnight, flex: 1, fontSize: typography.small, fontWeight: '900' },
+  preferenceValue: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900' },
   signOutButton: {
     alignItems: 'center',
     backgroundColor: colors.surface,
