@@ -6,6 +6,7 @@ import java.util.List;
 public record TripResponse(
         String id,
         String destination,
+        String startingArea,
         LocalDate startDate,
         LocalDate endDate,
         int days,

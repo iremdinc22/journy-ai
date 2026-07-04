@@ -52,6 +52,7 @@ public class TripService {
         Trip trip = new Trip(
                 user,
                 request.destination(),
+                request.startingArea(),
                 request.startDate(),
                 request.endDate(),
                 request.travelerType(),

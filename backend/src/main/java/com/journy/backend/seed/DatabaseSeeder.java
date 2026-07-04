@@ -70,6 +70,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         Trip amsterdam = new Trip(
                 user,
                 "Amsterdam",
+                "Centraal Station",
                 LocalDate.of(2026, 10, 10),
                 LocalDate.of(2026, 10, 14),
                 TravelerType.COUPLE,
@@ -86,6 +87,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         Trip rome = new Trip(
                 user,
                 "Rome",
+                "Trastevere",
                 LocalDate.of(2026, 11, 6),
                 LocalDate.of(2026, 11, 9),
                 TravelerType.FRIENDS,

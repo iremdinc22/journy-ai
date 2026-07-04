@@ -53,6 +53,7 @@ class AiServiceTest {
         Trip trip = tripRepository.save(new Trip(
                 user,
                 "Amsterdam",
+                "Jordaan",
                 LocalDate.of(2026, 10, 10),
                 LocalDate.of(2026, 10, 12),
                 TravelerType.SOLO,

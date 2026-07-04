@@ -33,6 +33,7 @@ public class ItineraryGenerationService {
         }
 
         List<Place> candidatePlaces = selectPlaces(trip);
+        List<Place> placePool = new ArrayList<>(candidatePlaces);
         int days = trip.dayCount();
         int stopsPerDay = switch (trip.getPace()) {
             case RELAXED -> 3;
@@ -42,7 +43,7 @@ public class ItineraryGenerationService {
 
         List<ItineraryDay> generatedDays = new ArrayList<>();
         for (int dayNumber = 1; dayNumber <= days; dayNumber++) {
-            List<Place> dayPlaces = slice(candidatePlaces, (dayNumber - 1) * stopsPerDay, stopsPerDay);
+            List<Place> dayPlaces = pickDayPlaces(placePool, trip, stopsPerDay, dayNumber);
             if (dayPlaces.isEmpty()) {
                 dayPlaces = fallbackPlaces(dayNumber);
             }
@@ -52,7 +53,7 @@ public class ItineraryGenerationService {
                     trip,
                     dayNumber,
                     titleFor(dayNumber, dayPlaces),
-                    summaryFor(dayPlaces),
+                    summaryFor(dayPlaces, trip),
                     walkKm
             );
 
@@ -64,8 +65,8 @@ public class ItineraryGenerationService {
                         place.getCategory().name(),
                         timeWindowFor(order),
                         place.getDescription(),
-                        coordinateFor(dayNumber, order, true),
-                        coordinateFor(dayNumber, order, false)
+                        coordinateFor(place, dayNumber, order, true),
+                        coordinateFor(place, dayNumber, order, false)
                 ));
                 order++;
             }
@@ -90,21 +91,21 @@ public class ItineraryGenerationService {
         List<Place> exactCityPlaces = filterPlaces(allPlaces, trip, categories, trip.getDestination());
 
         if (!exactCityPlaces.isEmpty()) {
-            return arrangeForDailyRhythm(exactCityPlaces, trip.getInterests());
+            return arrangeForDailyRhythm(exactCityPlaces, trip);
         }
 
         List<Place> amsterdamFallback = filterPlaces(allPlaces, trip, categories, "Amsterdam");
         if (!amsterdamFallback.isEmpty()) {
-            return arrangeForDailyRhythm(amsterdamFallback, trip.getInterests());
+            return arrangeForDailyRhythm(amsterdamFallback, trip);
         }
 
         return arrangeForDailyRhythm(
                 allPlaces.stream()
                         .filter(place -> categories.contains(place.getCategory()))
                         .filter(place -> budgetAllows(trip.getBudget(), place.getPriceLevel()))
-                        .sorted(Comparator.comparingDouble(Place::getRating).reversed())
+                        .sorted(Comparator.comparingDouble((Place place) -> scorePlace(place, trip)).reversed())
                         .toList(),
-                trip.getInterests()
+                trip
         );
     }
 
@@ -113,12 +114,12 @@ public class ItineraryGenerationService {
                 .filter(place -> place.getCity().equalsIgnoreCase(city))
                 .filter(place -> categories.contains(place.getCategory()))
                 .filter(place -> budgetAllows(trip.getBudget(), place.getPriceLevel()))
-                .sorted(Comparator.comparingDouble(Place::getRating).reversed())
+                .sorted(Comparator.comparingDouble((Place place) -> scorePlace(place, trip)).reversed())
                 .toList();
     }
 
-    private List<Place> arrangeForDailyRhythm(List<Place> places, List<TravelInterest> interests) {
-        List<PlaceCategory> rhythm = categoryRhythm(interests);
+    private List<Place> arrangeForDailyRhythm(List<Place> places, Trip trip) {
+        List<PlaceCategory> rhythm = categoryRhythm(trip.getInterests());
         List<Place> remaining = new ArrayList<>(places);
         List<Place> arranged = new ArrayList<>();
 
@@ -133,11 +134,57 @@ public class ItineraryGenerationService {
             }
 
             if (!pickedInRound) {
-                arranged.add(remaining.removeFirst());
+                arranged.add(remaining.remove(0));
             }
         }
 
         return arranged;
+    }
+
+    private List<Place> pickDayPlaces(List<Place> placePool, Trip trip, int stopsPerDay, int dayNumber) {
+        if (placePool.isEmpty()) {
+            return List.of();
+        }
+
+        List<PlaceCategory> rhythm = rotateRhythm(categoryRhythm(trip.getInterests()), dayNumber - 1);
+        List<Place> dayPlaces = new ArrayList<>();
+
+        for (PlaceCategory category : rhythm) {
+            if (dayPlaces.size() >= stopsPerDay || placePool.isEmpty()) {
+                break;
+            }
+            int matchIndex = firstIndexOfCategory(placePool, category);
+            if (matchIndex >= 0) {
+                dayPlaces.add(placePool.remove(matchIndex));
+            }
+        }
+
+        while (dayPlaces.size() < stopsPerDay && !placePool.isEmpty()) {
+            dayPlaces.add(placePool.remove(0));
+        }
+
+        if (!hasFoodOrCoffee(dayPlaces) && !placePool.isEmpty()) {
+            int breakIndex = firstIndexOfCategory(placePool, PlaceCategory.COFFEE);
+            if (breakIndex < 0) {
+                breakIndex = firstIndexOfCategory(placePool, PlaceCategory.FOOD);
+            }
+            if (breakIndex >= 0 && !dayPlaces.isEmpty()) {
+                dayPlaces.remove(dayPlaces.size() - 1);
+                dayPlaces.add(placePool.remove(breakIndex));
+            }
+        }
+
+        return dayPlaces;
+    }
+
+    private List<PlaceCategory> rotateRhythm(List<PlaceCategory> rhythm, int offset) {
+        if (rhythm.isEmpty()) {
+            return rhythm;
+        }
+        int shift = offset % rhythm.size();
+        List<PlaceCategory> rotated = new ArrayList<>(rhythm.subList(shift, rhythm.size()));
+        rotated.addAll(rhythm.subList(0, shift));
+        return rotated;
     }
 
     private List<PlaceCategory> categoryRhythm(List<TravelInterest> interests) {
@@ -185,6 +232,33 @@ public class ItineraryGenerationService {
         return categories;
     }
 
+    private double scorePlace(Place place, Trip trip) {
+        double score = place.getRating();
+        if (categoryMatchesInterest(place.getCategory(), trip.getInterests())) {
+            score += 1.2;
+        }
+        if (budgetAllows(trip.getBudget(), place.getPriceLevel())) {
+            score += 0.4;
+        }
+        if (trip.getPace().name().equals("RELAXED") && place.getCategory() == PlaceCategory.WALKING) {
+            score -= 0.2;
+        }
+        if (trip.getPace().name().equals("FULL") && place.getCategory() == PlaceCategory.CULTURE) {
+            score += 0.2;
+        }
+        return score;
+    }
+
+    private boolean categoryMatchesInterest(PlaceCategory category, List<TravelInterest> interests) {
+        return switch (category) {
+            case COFFEE -> interests.contains(TravelInterest.COFFEE);
+            case FOOD -> interests.contains(TravelInterest.LOCAL_FOOD);
+            case CULTURE -> interests.contains(TravelInterest.MUSEUMS) || interests.contains(TravelInterest.CULTURE);
+            case WALKING -> interests.contains(TravelInterest.WALKING);
+            case FREE -> interests.contains(TravelInterest.FREE_ACTIVITIES);
+        };
+    }
+
     private boolean budgetAllows(BudgetMode budget, String priceLevel) {
         String normalized = priceLevel == null ? "" : priceLevel.toLowerCase();
         return switch (budget) {
@@ -218,9 +292,13 @@ public class ItineraryGenerationService {
         return "Balanced city day " + dayNumber;
     }
 
-    private String summaryFor(List<Place> places) {
+    private String summaryFor(List<Place> places, Trip trip) {
         int stopCount = places.size();
-        return "A realistic day with " + stopCount + " nearby stops, local breaks and enough room to adjust the pace.";
+        String paceLabel = trip.getPace().name().toLowerCase().replace('_', ' ');
+        String startContext = trip.getStartingArea() == null || trip.getStartingArea().isBlank()
+                ? "your starting point"
+                : trip.getStartingArea();
+        return "A " + paceLabel + " day from " + startContext + " with " + stopCount + " nearby stops, local breaks and enough room to adjust the pace.";
     }
 
     private String timeWindowFor(int order) {
@@ -242,7 +320,15 @@ public class ItineraryGenerationService {
         return Math.round(stopCount * base * 10.0) / 10.0;
     }
 
-    private double coordinateFor(int dayNumber, int order, boolean latitude) {
+    private boolean hasFoodOrCoffee(List<Place> places) {
+        return places.stream().anyMatch(place -> place.getCategory() == PlaceCategory.FOOD || place.getCategory() == PlaceCategory.COFFEE);
+    }
+
+    private double coordinateFor(Place place, int dayNumber, int order, boolean latitude) {
+        Double coordinate = latitude ? place.getLatitude() : place.getLongitude();
+        if (coordinate != null) {
+            return coordinate;
+        }
         double base = latitude ? 52.3676 : 4.9041;
         double delta = (dayNumber * 0.004) + (order * 0.002);
         return latitude ? base - delta : base + delta;

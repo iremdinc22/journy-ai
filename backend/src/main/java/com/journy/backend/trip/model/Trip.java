@@ -45,6 +45,9 @@ public class Trip {
     @Column(nullable = false)
     private String destination;
 
+    @Column
+    private String startingArea;
+
     @Column(nullable = false)
     private LocalDate startDate;
 
@@ -88,6 +91,7 @@ public class Trip {
     public Trip(
             UserAccount user,
             String destination,
+            String startingArea,
             LocalDate startDate,
             LocalDate endDate,
             TravelerType travelerType,
@@ -98,6 +102,7 @@ public class Trip {
         this.id = "trip_" + UUID.randomUUID();
         this.user = user;
         this.destination = destination;
+        this.startingArea = startingArea;
         this.startDate = startDate;
         this.endDate = endDate;
         this.travelerType = travelerType;

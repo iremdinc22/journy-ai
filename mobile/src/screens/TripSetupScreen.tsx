@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, ImageBackground, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ImageBackground, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -50,12 +50,14 @@ const interests: Array<{ label: string; icon: IconName }> = [
   { label: 'Shopping', icon: 'bag-outline' },
   { label: 'Nightlife', icon: 'moon-outline' },
 ];
+const paceOptions = ['Relaxed', 'Balanced', 'Full'];
 
 export default function TripSetupScreen({ navigation }: Props) {
   const { isDark, theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const [city, setCity] = useState('');
+  const [citySearch, setCitySearch] = useState('');
   const [cityOpen, setCityOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [monthIndex, setMonthIndex] = useState(9);
@@ -65,7 +67,10 @@ export default function TripSetupScreen({ navigation }: Props) {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [travelType, setTravelType] = useState('Couple');
   const [budget, setBudget] = useState('Balanced');
+  const [pace, setPace] = useState('Balanced');
+  const [startArea, setStartArea] = useState('');
   const selectedCity = city ? cityDetails[city as keyof typeof cityDetails] : cityDetails.Discover;
+  const cityOptions = cities.filter((item) => item.toLowerCase().includes(citySearch.trim().toLowerCase()));
 
   const daysInMonth = useMemo(() => new Date(year, monthIndex + 1, 0).getDate(), [monthIndex, year]);
   const firstOffset = useMemo(() => (new Date(year, monthIndex, 1).getDay() + 6) % 7, [monthIndex, year]);
@@ -81,6 +86,9 @@ export default function TripSetupScreen({ navigation }: Props) {
     : 'Choose travel dates';
   const startDate = startDay ? toDateString(year, monthIndex, startDay) : null;
   const endDate = endDay ? toDateString(year, monthIndex, endDay) : null;
+  const tripDays = startDate && endDate ? Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000)) : 0;
+  const previewStops = tripDays ? tripDays * stopsForPace(pace) : 0;
+  const previewFocus = selectedInterests.slice(0, 3).join(' - ') || 'Choose taste signals';
 
   const selectDay = (day: number) => {
     if (!startDay || !endDay || day <= startDay || endDay !== startDay) {
@@ -137,11 +145,12 @@ export default function TripSetupScreen({ navigation }: Props) {
 
     const tripDraft: CreateTripRequest = {
       destination: city,
+      startingArea: startArea.trim() || undefined,
       startDate,
       endDate,
       travelerType: mapTravelerType(travelType),
       budget: mapBudget(budget),
-      pace: 'BALANCED',
+      pace: mapPace(pace),
       interests: selectedInterests.map(mapInterest),
     };
 
@@ -189,7 +198,17 @@ export default function TripSetupScreen({ navigation }: Props) {
           />
           {cityOpen ? (
             <View style={styles.dropdown}>
-              {cities.map((item) => (
+              <View style={styles.searchBox}>
+                <Ionicons name="search-outline" size={16} color={colors.teal} />
+                <TextInput
+                  value={citySearch}
+                  onChangeText={setCitySearch}
+                  placeholder="Search city"
+                  placeholderTextColor={colors.softMuted}
+                  style={styles.searchInput}
+                />
+              </View>
+              {cityOptions.map((item) => (
                 <TouchableOpacity
                   key={item}
                   style={styles.dropdownItem}
@@ -203,6 +222,7 @@ export default function TripSetupScreen({ navigation }: Props) {
                   {item === city ? <Ionicons name="checkmark" size={18} color={colors.teal} /> : null}
                 </TouchableOpacity>
               ))}
+              {!cityOptions.length ? <Text style={styles.emptyDropdown}>No city match yet</Text> : null}
             </View>
           ) : null}
 
@@ -265,11 +285,27 @@ export default function TripSetupScreen({ navigation }: Props) {
           ) : null}
         </View>
 
+        <View style={styles.startCard}>
+          <View style={styles.startIcon}>
+            <Ionicons name="business-outline" size={18} color={colors.teal} />
+          </View>
+          <View style={styles.startCopy}>
+            <Text style={styles.startLabel}>Starting area</Text>
+            <TextInput
+              value={startArea}
+              onChangeText={setStartArea}
+              placeholder="Hotel area, station or neighborhood"
+              placeholderTextColor={colors.softMuted}
+              style={styles.startInput}
+            />
+          </View>
+        </View>
+
         <View style={styles.readinessCard}>
           <View style={styles.readinessHeader}>
             <Text style={styles.readinessTitle}>Plan readiness</Text>
             <Text style={styles.readinessMeta}>
-              {[city, startDate && endDate ? 'dates' : '', selectedInterests.length ? 'taste' : ''].filter(Boolean).length}/3
+              {[city, startDate && endDate ? 'dates' : '', selectedInterests.length ? 'taste' : '', pace, startArea.trim()].filter(Boolean).length}/5
             </Text>
           </View>
           <View style={styles.signalRow}>
@@ -277,10 +313,37 @@ export default function TripSetupScreen({ navigation }: Props) {
             <Signal label="Dates" value={startDate && endDate ? `${startDay}-${endDay} ${months[monthIndex]}` : 'Not selected'} active={Boolean(startDate && endDate)} />
             <Signal label="Taste" value={selectedInterests.length ? `${selectedInterests.length} interests` : 'Not selected'} active={selectedInterests.length > 0} />
           </View>
+          <View style={styles.signalRow}>
+            <Signal label="Pace" value={pace} active={Boolean(pace)} />
+            <Signal label="Start" value={startArea.trim() || 'Flexible'} active={Boolean(startArea.trim())} />
+            <Signal label="Stops" value={previewStops ? `~${previewStops} total` : 'Preview'} active={previewStops > 0} />
+          </View>
+        </View>
+
+        <View style={styles.previewPanel}>
+          <View style={styles.previewTop}>
+            <Text style={styles.previewTitle}>Live plan preview</Text>
+            <View style={styles.previewBadge}>
+              <Ionicons name="sparkles-outline" size={13} color={colors.teal} />
+              <Text style={styles.previewBadgeText}>AI draft</Text>
+            </View>
+          </View>
+          <Text style={styles.previewMain}>
+            {city ? `${city} - ${tripDays || 0} day ${pace.toLowerCase()} route` : 'Choose a city to start shaping your route'}
+          </Text>
+          <View style={styles.previewMetaRow}>
+            <PreviewMetric icon="walk-outline" label="Pace" value={pace} colors={colors} styles={styles} />
+            <PreviewMetric icon="wallet-outline" label="Budget" value={budget} colors={colors} styles={styles} />
+            <PreviewMetric icon="location-outline" label="Start" value={startArea.trim() || 'Flexible'} colors={colors} styles={styles} />
+          </View>
+          <Text style={styles.previewFocus}>{previewFocus}</Text>
         </View>
 
         <Section title="Travelers" value={travelType} styles={styles} />
         <Segment options={['Solo', 'Couple', 'Friends', 'Family']} value={travelType} onChange={setTravelType} styles={styles} />
+
+        <Section title="Pace" value={pace} styles={styles} />
+        <Segment options={paceOptions} value={pace} onChange={setPace} styles={styles} />
 
         <Section title="Interests" value={`${selectedInterests.length} selected`} styles={styles} />
         <View style={styles.interestGrid}>
@@ -330,6 +393,21 @@ function mapBudget(value: string): CreateTripRequest['budget'] {
     Comfort: 'COMFORT',
   };
   return map[value] ?? 'BALANCED';
+}
+
+function mapPace(value: string): CreateTripRequest['pace'] {
+  const map: Record<string, CreateTripRequest['pace']> = {
+    Relaxed: 'RELAXED',
+    Balanced: 'BALANCED',
+    Full: 'FULL',
+  };
+  return map[value] ?? 'BALANCED';
+}
+
+function stopsForPace(value: string) {
+  if (value === 'Relaxed') return 3;
+  if (value === 'Full') return 5;
+  return 4;
 }
 
 function mapInterest(value: string): CreateTripRequest['interests'][number] {
@@ -427,6 +505,28 @@ function Signal({
       <Ionicons name={active ? 'checkmark-circle' : 'ellipse-outline'} size={16} color={active ? colors.teal : colors.softMuted} />
       <Text style={styles.signalLabel}>{label}</Text>
       <Text style={styles.signalValue}>{value}</Text>
+    </View>
+  );
+}
+
+function PreviewMetric({
+  icon,
+  label,
+  value,
+  colors,
+  styles,
+}: {
+  icon: IconName;
+  label: string;
+  value: string;
+  colors: Theme['colors'];
+  styles: TripSetupStyles;
+}) {
+  return (
+    <View style={styles.previewMetric}>
+      <Ionicons name={icon} size={15} color={colors.teal} />
+      <Text style={styles.previewMetricLabel}>{label}</Text>
+      <Text style={styles.previewMetricValue} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
@@ -550,6 +650,30 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     marginBottom: spacing.sm,
     padding: spacing.xs,
   },
+  searchBox: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+    minHeight: 42,
+    paddingHorizontal: spacing.sm,
+  },
+  searchInput: {
+    color: colors.midnight,
+    flex: 1,
+    fontSize: typography.small,
+    fontWeight: '800',
+    paddingVertical: 0,
+  },
+  emptyDropdown: {
+    color: colors.slate,
+    fontSize: typography.small,
+    fontWeight: '800',
+    padding: spacing.md,
+    textAlign: 'center',
+  },
   dropdownItem: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -590,6 +714,83 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   daySelected: { backgroundColor: colors.teal },
   dayText: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
   dayTextSelected: { color: colors.surface },
+  startCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginTop: spacing.md,
+    minHeight: 78,
+    padding: spacing.md,
+  },
+  startIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    height: 42,
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+    width: 42,
+  },
+  startCopy: { flex: 1 },
+  startLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  startInput: {
+    color: colors.midnight,
+    fontSize: typography.body,
+    fontWeight: '900',
+    marginTop: 3,
+    padding: 0,
+  },
+  previewPanel: {
+    backgroundColor: colors.surfaceWarm,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  previewTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  previewTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
+  previewBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  previewBadgeText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  previewMain: {
+    color: colors.midnight,
+    fontSize: typography.h3,
+    fontWeight: '900',
+    lineHeight: 23,
+    marginTop: spacing.sm,
+  },
+  previewMetaRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  previewMetric: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    flex: 1,
+    minHeight: 76,
+    padding: spacing.sm,
+  },
+  previewMetricLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900', marginTop: spacing.xs },
+  previewMetricValue: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900', marginTop: 2 },
+  previewFocus: {
+    color: colors.slate,
+    fontSize: typography.small,
+    fontWeight: '800',
+    lineHeight: 19,
+    marginTop: spacing.md,
+  },
   section: {
     alignItems: 'center',
     flexDirection: 'row',

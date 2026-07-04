@@ -10,6 +10,7 @@ public class TripMapper {
         return new TripResponse(
                 trip.getId(),
                 trip.getDestination(),
+                trip.getStartingArea(),
                 trip.getStartDate(),
                 trip.getEndDate(),
                 trip.dayCount(),

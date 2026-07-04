@@ -60,6 +60,7 @@ class ItineraryGenerationServiceTest {
         Trip trip = tripRepository.save(new Trip(
                 user,
                 "Amsterdam",
+                "Centraal Station",
                 LocalDate.of(2026, 10, 10),
                 LocalDate.of(2026, 10, 13),
                 TravelerType.COUPLE,

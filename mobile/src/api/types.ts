@@ -15,6 +15,7 @@ export type AuthResponse = {
 export type TripResponse = {
   id: string;
   destination: string;
+  startingArea?: string;
   startDate: string;
   endDate: string;
   days: number;
@@ -31,6 +32,7 @@ export type TripResponse = {
 
 export type CreateTripRequest = {
   destination: string;
+  startingArea?: string;
   startDate: string;
   endDate: string;
   travelerType: 'SOLO' | 'COUPLE' | 'FRIENDS' | 'FAMILY';

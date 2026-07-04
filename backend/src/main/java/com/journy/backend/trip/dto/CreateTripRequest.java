@@ -15,6 +15,7 @@ import java.util.Set;
 @ValidTripDates
 public record CreateTripRequest(
         @NotBlank String destination,
+        String startingArea,
         @NotNull LocalDate startDate,
         @NotNull LocalDate endDate,
         @NotNull TravelerType travelerType,
