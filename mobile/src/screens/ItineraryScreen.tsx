@@ -4,34 +4,49 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { tripApi } from '../api/journyApi';
 import { session } from '../api/session';
-import type { ItineraryResponse } from '../api/types';
+import type { ItineraryDay, ItineraryResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
 
-const days = [
+const days: ItineraryDay[] = [
   {
-    day: 'Day 1',
-    city: 'Amsterdam',
-    area: 'Canals & Museums',
+    dayNumber: 1,
+    title: 'Canals & Museums',
     summary: 'A calm first day with a museum window, canal walk and a low-effort dinner area.',
-    stats: '6.4 km - 4 stops',
-    stops: ['Museumplein', 'Morning coffee', 'Canal loop', 'De Pijp dinner'],
+    walkKm: 6.4,
+    stopCount: 4,
+    stops: [
+      { order: 1, title: 'Museumplein', category: 'CULTURE', timeWindow: 'Morning', note: 'Start with the strongest culture anchor.', latitude: 52.3584, longitude: 4.8811 },
+      { order: 2, title: 'Morning coffee', category: 'COFFEE', timeWindow: 'Late morning', note: 'A soft break before the canal loop.', latitude: 52.3631, longitude: 4.8858 },
+      { order: 3, title: 'Canal loop', category: 'WALKING', timeWindow: 'Afternoon', note: 'Walkable streets with flexible photo stops.', latitude: 52.3702, longitude: 4.8952 },
+      { order: 4, title: 'De Pijp dinner', category: 'FOOD', timeWindow: 'Evening', note: 'End near a lively local dinner area.', latitude: 52.3542, longitude: 4.8907 },
+    ],
   },
   {
-    day: 'Day 2',
-    city: 'Rome',
-    area: 'Historic center',
+    dayNumber: 2,
+    title: 'Historic center',
     summary: 'Culture and food grouped tightly so the day feels rich without becoming exhausting.',
-    stats: '4.8 km - 5 stops',
-    stops: ['Morning piazza', 'Small gallery', 'Trattoria lunch', 'Aperitivo street'],
+    walkKm: 4.8,
+    stopCount: 4,
+    stops: [
+      { order: 1, title: 'Morning piazza', category: 'WALKING', timeWindow: 'Morning', note: 'Ease into the center with a short walk.', latitude: 41.8986, longitude: 12.4769 },
+      { order: 2, title: 'Small gallery', category: 'CULTURE', timeWindow: 'Late morning', note: 'A compact culture stop.', latitude: 41.9007, longitude: 12.4781 },
+      { order: 3, title: 'Trattoria lunch', category: 'FOOD', timeWindow: 'Lunch', note: 'Food-first stop without crossing town.', latitude: 41.8951, longitude: 12.4722 },
+      { order: 4, title: 'Aperitivo street', category: 'FOOD', timeWindow: 'Evening', note: 'A flexible final area for dinner or drinks.', latitude: 41.8916, longitude: 12.4679 },
+    ],
   },
   {
-    day: 'Day 3',
-    city: 'Barcelona',
-    area: 'Design & coast',
+    dayNumber: 3,
+    title: 'Design & coast',
     summary: 'A reusable city-day format for future destinations, not a single-city flow.',
-    stats: '5.2 km - 4 stops',
-    stops: ['Design district', 'Market lunch', 'Beach walk', 'Tapas bar'],
+    walkKm: 5.2,
+    stopCount: 4,
+    stops: [
+      { order: 1, title: 'Design district', category: 'CULTURE', timeWindow: 'Morning', note: 'Start with galleries and small shops.', latitude: 41.3851, longitude: 2.1734 },
+      { order: 2, title: 'Market lunch', category: 'FOOD', timeWindow: 'Lunch', note: 'Local food break near the route.', latitude: 41.3818, longitude: 2.1716 },
+      { order: 3, title: 'Beach walk', category: 'WALKING', timeWindow: 'Afternoon', note: 'Open-air pacing after lunch.', latitude: 41.3762, longitude: 2.1894 },
+      { order: 4, title: 'Tapas bar', category: 'FOOD', timeWindow: 'Evening', note: 'End with a low-effort dinner zone.', latitude: 41.3837, longitude: 2.1819 },
+    ],
   },
 ];
 
@@ -88,14 +103,8 @@ export default function ItineraryScreen() {
     };
   }, []);
 
-  const visibleDays = itinerary?.days.map((day) => ({
-    day: `Day ${day.dayNumber}`,
-    city: itinerary.destination,
-    area: day.title,
-    summary: day.summary,
-    stats: `${day.walkKm.toFixed(1)} km - ${day.stopCount} stops`,
-    stops: day.stops.map((stop) => stop.title),
-  })) ?? days;
+  const visibleDays = itinerary?.days ?? days;
+  const destination = itinerary?.destination ?? 'Amsterdam';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -118,19 +127,19 @@ export default function ItineraryScreen() {
 
         {visibleDays.map((item) => (
           <TouchableOpacity
-            key={`${item.city}-${item.day}`}
+            key={`${destination}-${item.dayNumber}`}
             style={styles.dayCard}
             activeOpacity={0.88}
-            onPress={() => navigation.navigate('DayRouteDetail', item)}
+            onPress={() => navigation.navigate('DayRouteDetail', { destination, day: item })}
           >
             <View style={styles.dayHeader}>
               <View>
-                <Text style={styles.day}>{item.day} - {item.city}</Text>
-                <Text style={styles.area}>{item.area}</Text>
+                <Text style={styles.day}>Day {item.dayNumber} - {destination}</Text>
+                <Text style={styles.area}>{item.title}</Text>
               </View>
               <View style={styles.badge}>
                 <Ionicons name="walk-outline" size={14} color={colors.teal} />
-                <Text style={styles.badgeText}>{item.stats}</Text>
+                <Text style={styles.badgeText}>{item.walkKm.toFixed(1)} km - {item.stopCount} stops</Text>
               </View>
             </View>
 
@@ -138,12 +147,12 @@ export default function ItineraryScreen() {
 
             <View style={styles.timeline}>
               {item.stops.map((stop, index) => (
-                <View key={stop} style={styles.stopRow}>
+                <View key={`${stop.order}-${stop.title}`} style={styles.stopRow}>
                   <View style={styles.stopNumber}>
                     <Text style={styles.stopNumberText}>{index + 1}</Text>
                   </View>
                   <View style={styles.stopLine} />
-                  <Text style={styles.stopText}>{stop}</Text>
+                  <Text style={styles.stopText}>{stop.title}</Text>
                 </View>
               ))}
             </View>

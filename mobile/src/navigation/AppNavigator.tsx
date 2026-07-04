@@ -20,7 +20,7 @@ import ExploreScreen from '../screens/ExploreScreen';
 import AssistantScreen from '../screens/AssistantScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
-import type { CreateTripRequest, PlaceResponse } from '../api/types';
+import type { CreateTripRequest, ItineraryDay, PlaceResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 
 export type RootStackParamList = {
@@ -34,11 +34,8 @@ export type RootStackParamList = {
   Notifications: undefined;
   Settings: undefined;
   DayRouteDetail: {
-    day: string;
-    city: string;
-    area: string;
-    stats: string;
-    stops: string[];
+    destination: string;
+    day: ItineraryDay;
   };
 };
 
