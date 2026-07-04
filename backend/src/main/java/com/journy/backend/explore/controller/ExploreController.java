@@ -1,5 +1,6 @@
 package com.journy.backend.explore.controller;
 
+import com.journy.backend.explore.dto.DestinationResponse;
 import com.journy.backend.explore.dto.PlaceResponse;
 import com.journy.backend.explore.service.ExploreService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,5 +22,10 @@ public class ExploreController {
     @GetMapping("/places")
     public List<PlaceResponse> places(@RequestParam(required = false) String category) {
         return exploreService.places(category);
+    }
+
+    @GetMapping("/destinations")
+    public List<DestinationResponse> destinations() {
+        return exploreService.destinations();
     }
 }

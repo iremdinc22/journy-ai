@@ -1,5 +1,7 @@
 package com.journy.backend.seed;
 
+import com.journy.backend.destination.model.Destination;
+import com.journy.backend.destination.repository.DestinationRepository;
 import com.journy.backend.explore.model.Place;
 import com.journy.backend.explore.repository.PlaceRepository;
 import com.journy.backend.itinerary.model.ItineraryDay;
@@ -34,6 +36,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final TripRepository tripRepository;
     private final ItineraryDayRepository itineraryDayRepository;
     private final PlaceRepository placeRepository;
+    private final DestinationRepository destinationRepository;
     private final AppNotificationRepository appNotificationRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -42,6 +45,7 @@ public class DatabaseSeeder implements CommandLineRunner {
             TripRepository tripRepository,
             ItineraryDayRepository itineraryDayRepository,
             PlaceRepository placeRepository,
+            DestinationRepository destinationRepository,
             AppNotificationRepository appNotificationRepository,
             PasswordEncoder passwordEncoder
     ) {
@@ -49,6 +53,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         this.tripRepository = tripRepository;
         this.itineraryDayRepository = itineraryDayRepository;
         this.placeRepository = placeRepository;
+        this.destinationRepository = destinationRepository;
         this.appNotificationRepository = appNotificationRepository;
         this.passwordEncoder = passwordEncoder;
     }
@@ -56,6 +61,8 @@ public class DatabaseSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
+        seedDestinations();
+
         if (userAccountRepository.existsByEmailIgnoreCase("admin@journy.app")) {
             return;
         }
@@ -104,6 +111,100 @@ public class DatabaseSeeder implements CommandLineRunner {
         seedItinerary(amsterdam);
         seedPlaces();
         seedNotifications(user);
+    }
+
+    private void seedDestinations() {
+        List.of(
+                destination(
+                        "Amsterdam",
+                        "Netherlands",
+                        "Canal neighborhoods, compact museums and calm food streets make Amsterdam ideal for walkable AI-planned days.",
+                        "https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=900&q=88",
+                        "Canals, Coffee, Museums",
+                        "Coffee breaks, museums, easy walking",
+                        9,
+                        6.2,
+                        true,
+                        true
+                ),
+                destination(
+                        "Paris",
+                        "France",
+                        "A culture and bakery-heavy city where Journy can group museums, river walks and local food windows by neighborhood.",
+                        "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=900&q=88",
+                        "Museums, Bakeries, Walks",
+                        "Art, pastries, scenic routes",
+                        4,
+                        5.8,
+                        true,
+                        true
+                ),
+                destination(
+                        "Rome",
+                        "Italy",
+                        "Historic anchors and food-first neighborhoods work well for compact days with dinner zones near the final stop.",
+                        "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=900&q=88",
+                        "History, Piazzas, Dinner",
+                        "Local food, history, evening walks",
+                        4,
+                        4.9,
+                        true,
+                        true
+                ),
+                destination(
+                        "Barcelona",
+                        "Spain",
+                        "Design districts, beach walks and tapas streets make Barcelona strong for mixed culture and food routes.",
+                        "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=900&q=88",
+                        "Design, Beach, Tapas",
+                        "Design, markets, relaxed walking",
+                        4,
+                        5.2,
+                        true,
+                        true
+                ),
+                destination(
+                        "Tokyo",
+                        "Japan",
+                        "Tokyo is on the roadmap. Journy can create a draft now, but curated local data is not fully available yet.",
+                        "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=900&q=88",
+                        "Food, Neighborhoods, Transit",
+                        "Draft planning only",
+                        0,
+                        7.1,
+                        false,
+                        false
+                )
+        ).forEach(this::upsertDestination);
+    }
+
+    private Destination destination(
+            String name,
+            String country,
+            String description,
+            String imageUrl,
+            String tags,
+            String bestFor,
+            int placeCount,
+            double averageDailyWalkKm,
+            boolean available,
+            boolean popular
+    ) {
+        return new Destination(name, country, description, imageUrl, tags, bestFor, placeCount, averageDailyWalkKm, available, popular);
+    }
+
+    private void upsertDestination(Destination seed) {
+        Destination destination = destinationRepository.findByNameIgnoreCase(seed.getName()).orElse(seed);
+        destination.setCountry(seed.getCountry());
+        destination.setDescription(seed.getDescription());
+        destination.setImageUrl(seed.getImageUrl());
+        destination.setTags(seed.getTags());
+        destination.setBestFor(seed.getBestFor());
+        destination.setPlaceCount(seed.getPlaceCount());
+        destination.setAverageDailyWalkKm(seed.getAverageDailyWalkKm());
+        destination.setAvailable(seed.isAvailable());
+        destination.setPopular(seed.isPopular());
+        destinationRepository.save(destination);
     }
 
     private void seedItinerary(Trip trip) {

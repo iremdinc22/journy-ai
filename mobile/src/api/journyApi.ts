@@ -2,8 +2,10 @@ import { apiRequest } from './client';
 import { session } from './session';
 import type {
   AiChatResponse,
+  AiItinerarySuggestionResponse,
   AuthResponse,
   CreateTripRequest,
+  DestinationResponse,
   ItineraryResponse,
   NotificationResponse,
   PlaceResponse,
@@ -80,6 +82,25 @@ export const exploreApi = {
     const query = category && category !== 'For you' ? `?category=${encodeURIComponent(category)}` : '';
     return apiRequest<PlaceResponse[]>(`/api/explore/places${query}`);
   },
+
+  destinations() {
+    return apiRequest<DestinationResponse[]>('/api/explore/destinations');
+  },
+};
+
+export const destinationApi = {
+  search(query?: string) {
+    const qs = query?.trim() ? `?query=${encodeURIComponent(query.trim())}` : '';
+    return apiRequest<DestinationResponse[]>(`/api/destinations${qs}`);
+  },
+
+  popular() {
+    return apiRequest<DestinationResponse[]>('/api/destinations/popular');
+  },
+
+  detail(id: string) {
+    return apiRequest<DestinationResponse>(`/api/destinations/${id}`);
+  },
 };
 
 export const aiApi = {
@@ -87,6 +108,13 @@ export const aiApi = {
     return apiRequest<AiChatResponse>('/api/ai/chat', {
       method: 'POST',
       body: { tripId, message },
+    });
+  },
+
+  itinerarySuggestion(tripId: string, dayNumber: number, action: string) {
+    return apiRequest<AiItinerarySuggestionResponse>('/api/ai/itinerary-suggestion', {
+      method: 'POST',
+      body: { tripId, dayNumber, action },
     });
   },
 };

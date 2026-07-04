@@ -1,15 +1,17 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, ImageBackground, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import type { CreateTripRequest } from '../api/types';
+import { destinationApi } from '../api/journyApi';
+import type { CreateTripRequest, DestinationResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TripSetup'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
+type CityDetail = { image: string; meta: string };
 
 const cityDetails = {
   Discover: {
@@ -51,6 +53,26 @@ const interests: Array<{ label: string; icon: IconName }> = [
   { label: 'Nightlife', icon: 'moon-outline' },
 ];
 const paceOptions = ['Relaxed', 'Balanced', 'Full'];
+const defaultStartSuggestions = ['Hotel area', 'Main station', 'Old town', 'City center'];
+const cityStartSuggestions: Record<string, string[]> = {
+  Amsterdam: ['Centraal Station', 'Jordaan', 'De Pijp', 'Museumplein'],
+  Paris: ['Saint-Germain', 'Le Marais', 'Latin Quarter', 'Montmartre'],
+  Rome: ['Trastevere', 'Centro Storico', 'Monti', 'Termini'],
+  Barcelona: ['Eixample', 'Gothic Quarter', 'Gracia', 'El Born'],
+};
+const fallbackDestinations: DestinationResponse[] = cities.map((name) => ({
+  id: `fallback-${name.toLowerCase()}`,
+  name,
+  country: name === 'Amsterdam' ? 'Netherlands' : name === 'Paris' ? 'France' : name === 'Rome' ? 'Italy' : 'Spain',
+  description: cityDetails[name as keyof typeof cityDetails].meta,
+  imageUrl: cityDetails[name as keyof typeof cityDetails].image,
+  tags: cityDetails[name as keyof typeof cityDetails].meta,
+  bestFor: cityDetails[name as keyof typeof cityDetails].meta,
+  placeCount: 4,
+  averageDailyWalkKm: 5.4,
+  available: true,
+  popular: true,
+}));
 
 export default function TripSetupScreen({ navigation }: Props) {
   const { isDark, theme } = useAppTheme();
@@ -69,8 +91,67 @@ export default function TripSetupScreen({ navigation }: Props) {
   const [budget, setBudget] = useState('Balanced');
   const [pace, setPace] = useState('Balanced');
   const [startArea, setStartArea] = useState('');
-  const selectedCity = city ? cityDetails[city as keyof typeof cityDetails] : cityDetails.Discover;
-  const cityOptions = cities.filter((item) => item.toLowerCase().includes(citySearch.trim().toLowerCase()));
+  const [destinations, setDestinations] = useState<DestinationResponse[]>([]);
+  const [popularDestinations, setPopularDestinations] = useState<DestinationResponse[]>([]);
+  const [destinationLoading, setDestinationLoading] = useState(false);
+  const destinationDetails = useMemo<Record<string, CityDetail>>(() => {
+    const mapped = destinations.reduce<Record<string, { image: string; meta: string }>>((acc, destination) => {
+      acc[destination.name] = {
+        image: destination.imageUrl,
+        meta: destination.tags,
+      };
+      return acc;
+    }, {});
+    return { ...cityDetails, ...mapped };
+  }, [destinations]);
+  const selectedCity = city ? destinationDetails[city] ?? destinationDetails.Discover : destinationDetails.Discover;
+  const destinationOptions = destinations.length ? destinations : fallbackDestinations.filter((item) => item.name.toLowerCase().includes(citySearch.trim().toLowerCase()));
+  const popularOptions = popularDestinations.length ? popularDestinations : fallbackDestinations.slice(0, 4);
+  const canCreateDraftDestination = citySearch.trim().length > 1 && !destinationOptions.some((item) => item.name.toLowerCase() === citySearch.trim().toLowerCase());
+
+  useEffect(() => {
+    let mounted = true;
+    destinationApi.popular()
+      .then((response) => {
+        if (mounted) {
+          setPopularDestinations(response);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setPopularDestinations([]);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    setDestinationLoading(true);
+    destinationApi.search(citySearch)
+      .then((response) => {
+        if (mounted) {
+          setDestinations(response);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setDestinations([]);
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setDestinationLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [citySearch]);
 
   const daysInMonth = useMemo(() => new Date(year, monthIndex + 1, 0).getDate(), [monthIndex, year]);
   const firstOffset = useMemo(() => (new Date(year, monthIndex, 1).getDay() + 6) % 7, [monthIndex, year]);
@@ -89,6 +170,7 @@ export default function TripSetupScreen({ navigation }: Props) {
   const tripDays = startDate && endDate ? Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000)) : 0;
   const previewStops = tripDays ? tripDays * stopsForPace(pace) : 0;
   const previewFocus = selectedInterests.slice(0, 3).join(' - ') || 'Choose taste signals';
+  const startSuggestions = cityStartSuggestions[city] ?? defaultStartSuggestions;
 
   const selectDay = (day: number) => {
     if (!startDay || !endDay || day <= startDay || endDay !== startDay) {
@@ -122,6 +204,21 @@ export default function TripSetupScreen({ navigation }: Props) {
     setSelectedInterests((current) =>
       current.includes(interest) ? current.filter((item) => item !== interest) : [...current, interest],
     );
+  };
+
+  const selectDestination = (destination: DestinationResponse) => {
+    setCity(destination.name);
+    setCitySearch('');
+    setCityOpen(false);
+  };
+
+  const createDraftDestination = () => {
+    const draftCity = citySearch.trim();
+    if (!draftCity) {
+      return;
+    }
+    setCity(draftCity);
+    setCityOpen(false);
   };
 
   const generatePlan = () => {
@@ -208,21 +305,56 @@ export default function TripSetupScreen({ navigation }: Props) {
                   style={styles.searchInput}
                 />
               </View>
-              {cityOptions.map((item) => (
+              {!citySearch.trim() ? (
+                <>
+                  <Text style={styles.dropdownSectionTitle}>Popular destinations</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularRail}>
+                    {popularOptions.map((item) => (
+                      <TouchableOpacity key={item.id} style={styles.popularCard} activeOpacity={0.86} onPress={() => selectDestination(item)}>
+                        <ImageBackground source={{ uri: item.imageUrl }} style={styles.popularImage} imageStyle={styles.popularImageStyle}>
+                          <LinearGradient colors={['rgba(33,43,45,0.02)', 'rgba(33,43,45,0.68)']} style={styles.popularOverlay}>
+                            <Text style={styles.popularCity}>{item.name}</Text>
+                            <Text style={styles.popularCountry}>{item.country}</Text>
+                          </LinearGradient>
+                        </ImageBackground>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </>
+              ) : null}
+              <Text style={styles.dropdownSectionTitle}>{citySearch.trim() ? 'Search results' : 'All available'}</Text>
+              {destinationLoading ? <Text style={styles.emptyDropdown}>Searching destinations...</Text> : null}
+              {destinationOptions.map((item) => (
                 <TouchableOpacity
-                  key={item}
-                  style={styles.dropdownItem}
+                  key={item.id}
+                  style={[styles.destinationResult, item.name === city && styles.destinationResultActive]}
                   activeOpacity={0.86}
-                  onPress={() => {
-                    setCity(item);
-                    setCityOpen(false);
-                  }}
+                  onPress={() => selectDestination(item)}
                 >
-                  <Text style={[styles.dropdownText, item === city && styles.dropdownTextActive]}>{item}</Text>
-                  {item === city ? <Ionicons name="checkmark" size={18} color={colors.teal} /> : null}
+                  <View style={styles.destinationThumb}>
+                    <ImageBackground source={{ uri: item.imageUrl }} style={styles.destinationThumbImage} imageStyle={styles.destinationThumbImageStyle} />
+                  </View>
+                  <View style={styles.destinationCopy}>
+                    <View style={styles.destinationTitleRow}>
+                      <Text style={styles.destinationName}>{item.name}</Text>
+                      {!item.available ? <Text style={styles.unavailablePill}>Draft</Text> : null}
+                    </View>
+                    <Text style={styles.destinationMeta}>{item.country} - {item.tags}</Text>
+                    <Text style={styles.destinationSmall}>{item.placeCount} picks - {item.averageDailyWalkKm.toFixed(1)} km avg walk</Text>
+                  </View>
+                  {item.name === city ? <Ionicons name="checkmark-circle" size={19} color={colors.teal} /> : <Ionicons name="chevron-forward" size={17} color={colors.softMuted} />}
                 </TouchableOpacity>
               ))}
-              {!cityOptions.length ? <Text style={styles.emptyDropdown}>No city match yet</Text> : null}
+              {!destinationOptions.length && !destinationLoading ? <Text style={styles.emptyDropdown}>No city match yet</Text> : null}
+              {canCreateDraftDestination ? (
+                <TouchableOpacity style={styles.draftCard} activeOpacity={0.86} onPress={createDraftDestination}>
+                  <Ionicons name="add-circle-outline" size={20} color={colors.teal} />
+                  <View style={styles.draftCopy}>
+                    <Text style={styles.draftTitle}>Create a draft for {citySearch.trim()}</Text>
+                    <Text style={styles.draftText}>Curated data is not ready yet, but Journy can still build a flexible starter plan.</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : null}
             </View>
           ) : null}
 
@@ -305,19 +437,50 @@ export default function TripSetupScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.startCard}>
-          <View style={styles.startIcon}>
-            <Ionicons name="business-outline" size={18} color={colors.teal} />
+          <View style={styles.startHeader}>
+            <View style={styles.startTitleRow}>
+              <View style={styles.startIcon}>
+                <Ionicons name="business-outline" size={18} color={colors.teal} />
+              </View>
+              <View style={styles.startTitleCopy}>
+                <Text style={styles.startLabel}>Starting area</Text>
+                <Text style={styles.startHelper}>Optional, but it helps Journy keep the first route realistic.</Text>
+              </View>
+            </View>
+            {startArea.trim() ? (
+              <TouchableOpacity style={styles.startClearButton} activeOpacity={0.82} onPress={() => setStartArea('')}>
+                <Ionicons name="close" size={15} color={colors.teal} />
+              </TouchableOpacity>
+            ) : null}
           </View>
-          <View style={styles.startCopy}>
-            <Text style={styles.startLabel}>Starting area</Text>
+
+          <View style={styles.startInputShell}>
+            <Ionicons name="search-outline" size={16} color={colors.softMuted} />
             <TextInput
               value={startArea}
               onChangeText={setStartArea}
-              placeholder="Hotel area, station or neighborhood"
+              placeholder={city ? `Search a ${city} area or hotel zone` : 'Hotel, station or neighborhood'}
               placeholderTextColor={colors.softMuted}
               style={styles.startInput}
             />
           </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.startSuggestionRail}>
+            {startSuggestions.map((item) => {
+              const active = startArea.trim().toLowerCase() === item.toLowerCase();
+              return (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.startSuggestion, active && styles.startSuggestionActive]}
+                  activeOpacity={0.84}
+                  onPress={() => setStartArea(item)}
+                >
+                  <Ionicons name={active ? 'checkmark-circle' : 'location-outline'} size={14} color={active ? colors.surface : colors.teal} />
+                  <Text style={[styles.startSuggestionText, active && styles.startSuggestionTextActive]}>{item}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
 
         <Section title="Travelers" value={travelType} styles={styles} />
@@ -631,6 +794,34 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     marginBottom: spacing.sm,
     padding: spacing.xs,
   },
+  dropdownSectionTitle: {
+    color: colors.slate,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    marginBottom: spacing.xs,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.xs,
+    textTransform: 'uppercase',
+  },
+  popularRail: {
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  popularCard: {
+    borderRadius: radius.lg,
+    height: 116,
+    overflow: 'hidden',
+    width: 132,
+  },
+  popularImage: { flex: 1 },
+  popularImageStyle: { borderRadius: radius.lg },
+  popularOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    padding: spacing.sm,
+  },
+  popularCity: { color: colors.surface, fontSize: typography.body, fontWeight: '900' },
+  popularCountry: { color: 'rgba(255,255,255,0.82)', fontSize: typography.tiny, fontWeight: '800', marginTop: 2 },
   searchBox: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -664,6 +855,57 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   dropdownText: { color: colors.slate, fontSize: typography.small, fontWeight: '900' },
   dropdownTextActive: { color: colors.midnight },
+  destinationResult: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginBottom: spacing.xs,
+    minHeight: 86,
+    padding: spacing.sm,
+  },
+  destinationResultActive: { borderColor: colors.teal },
+  destinationThumb: {
+    borderRadius: radius.md,
+    height: 58,
+    marginRight: spacing.sm,
+    overflow: 'hidden',
+    width: 58,
+  },
+  destinationThumbImage: { flex: 1 },
+  destinationThumbImageStyle: { borderRadius: radius.md },
+  destinationCopy: { flex: 1 },
+  destinationTitleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  destinationName: { color: colors.midnight, fontSize: typography.body, fontWeight: '900' },
+  unavailablePill: {
+    backgroundColor: colors.lilac,
+    borderRadius: radius.pill,
+    color: colors.teal,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    overflow: 'hidden',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    textTransform: 'uppercase',
+  },
+  destinationMeta: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 3 },
+  destinationSmall: { color: colors.softMuted, fontSize: typography.tiny, fontWeight: '800', marginTop: 2 },
+  draftCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+    padding: spacing.md,
+  },
+  draftCopy: { flex: 1 },
+  draftTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
+  draftText: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', lineHeight: 16, marginTop: 3 },
   calendar: { backgroundColor: colors.fog, borderRadius: radius.lg, marginTop: spacing.md, padding: spacing.md },
   calendarTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   monthButton: {
@@ -696,15 +938,22 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   dayText: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
   dayTextSelected: { color: colors.surface },
   startCard: {
-    alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.mist,
     borderRadius: radius.xl,
     borderWidth: 1,
-    flexDirection: 'row',
     marginTop: spacing.md,
-    minHeight: 78,
     padding: spacing.md,
+  },
+  startHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  startTitleRow: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
   },
   startIcon: {
     alignItems: 'center',
@@ -715,14 +964,67 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     marginRight: spacing.sm,
     width: 42,
   },
-  startCopy: { flex: 1 },
+  startTitleCopy: { flex: 1 },
   startLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  startHelper: {
+    color: colors.slate,
+    fontSize: typography.tiny,
+    fontWeight: '800',
+    lineHeight: 16,
+    marginTop: 3,
+  },
+  startClearButton: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.pill,
+    height: 30,
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
+    width: 30,
+  },
+  startInputShell: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    minHeight: 50,
+    paddingHorizontal: spacing.md,
+  },
   startInput: {
     color: colors.midnight,
-    fontSize: typography.body,
+    flex: 1,
+    fontSize: typography.small,
     fontWeight: '900',
-    marginTop: 3,
     padding: 0,
+  },
+  startSuggestionRail: {
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+  },
+  startSuggestion: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderColor: colors.mist,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  startSuggestionActive: {
+    backgroundColor: colors.teal,
+    borderColor: colors.teal,
+  },
+  startSuggestionText: {
+    color: colors.midnight,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+  },
+  startSuggestionTextActive: {
+    color: colors.surface,
   },
   previewPanel: {
     backgroundColor: colors.surfaceWarm,

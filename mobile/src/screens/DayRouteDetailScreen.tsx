@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import type { ItineraryStop, PlaceResponse } from '../api/types';
+import { aiApi } from '../api/journyApi';
+import type { AiItinerarySuggestionResponse, ItineraryStop, PlaceResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DayRouteDetail'>;
@@ -22,18 +23,46 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
   const { isDark, theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const { colors } = theme;
-  const { destination, day } = route.params;
+  const { tripId, destination, day } = route.params;
   const [selectedAction, setSelectedAction] = useState<ActionKey>('lighter');
+  const [suggestion, setSuggestion] = useState<AiItinerarySuggestionResponse | null>(null);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [suggestionError, setSuggestionError] = useState(false);
 
   const paceLabel = day.walkKm <= 4.5 ? 'Relaxed' : day.walkKm >= 7 ? 'Full' : 'Balanced';
   const focusLabel = day.stops.some((stop) => stop.category === 'FOOD' || stop.category === 'COFFEE')
     ? 'Food breaks included'
     : 'Culture-first flow';
-  const actionMessage = {
+  const fallbackActionMessage = {
     lighter: 'Journy would remove the longest transfer and keep the strongest stops.',
     food: 'Journy would add a nearby food or coffee stop without stretching the route.',
     replace: 'Journy would swap one stop for a better fit in the same area.',
   }[selectedAction];
+
+  const loadSuggestion = useCallback(async (action: ActionKey) => {
+    if (tripId === 'preview-trip') {
+      return;
+    }
+    setSuggestionLoading(true);
+    setSuggestionError(false);
+    try {
+      const response = await aiApi.itinerarySuggestion(tripId, day.dayNumber, action);
+      setSuggestion(response);
+    } catch {
+      setSuggestionError(true);
+      setSuggestion(null);
+    } finally {
+      setSuggestionLoading(false);
+    }
+  }, [day.dayNumber, tripId]);
+
+  useEffect(() => {
+    loadSuggestion(selectedAction);
+  }, [loadSuggestion, selectedAction]);
+
+  const chooseAction = (action: ActionKey) => {
+    setSelectedAction(action);
+  };
 
   const openStop = (stop: ItineraryStop) => {
     navigation.navigate('PlaceDetail', { place: toPlaceDetail(stop, destination) });
@@ -109,15 +138,20 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.actionRow}>
-          <ActionChip label="Make lighter" icon="leaf-outline" active={selectedAction === 'lighter'} onPress={() => setSelectedAction('lighter')} styles={styles} />
-          <ActionChip label="Add food stop" icon="restaurant-outline" active={selectedAction === 'food'} onPress={() => setSelectedAction('food')} styles={styles} />
-          <ActionChip label="Replace stop" icon="swap-horizontal-outline" active={selectedAction === 'replace'} onPress={() => setSelectedAction('replace')} styles={styles} />
+          <ActionChip label="Make lighter" icon="leaf-outline" active={selectedAction === 'lighter'} onPress={() => chooseAction('lighter')} styles={styles} />
+          <ActionChip label="Add food stop" icon="restaurant-outline" active={selectedAction === 'food'} onPress={() => chooseAction('food')} styles={styles} />
+          <ActionChip label="Replace stop" icon="swap-horizontal-outline" active={selectedAction === 'replace'} onPress={() => chooseAction('replace')} styles={styles} />
         </View>
         <View style={styles.aiNote}>
           <Ionicons name="sparkles-outline" size={18} color={colors.teal} />
           <View style={styles.aiNoteCopy}>
-            <Text style={styles.aiNoteLabel}>Suggested adjustment</Text>
-            <Text style={styles.aiNoteText}>{actionMessage}</Text>
+            <Text style={styles.aiNoteLabel}>{suggestion?.title ?? 'Suggested adjustment'}</Text>
+            <Text style={styles.aiNoteText}>
+              {suggestionLoading ? 'Checking your route context...' : suggestion?.message ?? fallbackActionMessage}
+            </Text>
+            {suggestion?.routeSummary ? <Text style={styles.routeSummary}>{suggestion.routeSummary}</Text> : null}
+            {suggestion?.minutesSaved ? <Text style={styles.minutesSaved}>{suggestion.minutesSaved} min saved</Text> : null}
+            {suggestionError ? <Text style={styles.suggestionError}>Could not refresh suggestion. Showing local guidance.</Text> : null}
           </View>
           <TouchableOpacity style={styles.applyButton} activeOpacity={0.86}>
             <Text style={styles.applyButtonText}>Apply</Text>
@@ -435,6 +469,31 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
     aiNoteCopy: { flex: 1 },
     aiNoteLabel: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
     aiNoteText: { color: colors.midnight, fontSize: typography.small, fontWeight: '800', lineHeight: 19, marginTop: 3 },
+    routeSummary: {
+      color: colors.slate,
+      fontSize: typography.tiny,
+      fontWeight: '800',
+      lineHeight: 16,
+      marginTop: spacing.xs,
+    },
+    minutesSaved: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.surface,
+      borderRadius: radius.pill,
+      color: colors.teal,
+      fontSize: typography.tiny,
+      fontWeight: '900',
+      marginTop: spacing.xs,
+      overflow: 'hidden',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+    },
+    suggestionError: {
+      color: colors.slate,
+      fontSize: typography.tiny,
+      fontWeight: '800',
+      marginTop: spacing.xs,
+    },
     applyButton: {
       backgroundColor: colors.surface,
       borderColor: colors.mist,

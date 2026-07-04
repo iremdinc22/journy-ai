@@ -105,6 +105,7 @@ export default function ItineraryScreen() {
 
   const visibleDays = itinerary?.days ?? days;
   const destination = itinerary?.destination ?? 'Amsterdam';
+  const tripId = itinerary?.tripId ?? session.getCurrentTrip()?.id ?? 'preview-trip';
   const totalWalk = visibleDays.reduce((sum, day) => sum + day.walkKm, 0);
   const totalStops = visibleDays.reduce((sum, day) => sum + day.stopCount, 0);
 
@@ -153,7 +154,7 @@ export default function ItineraryScreen() {
               key={`chip-${destination}-${item.dayNumber}`}
               style={styles.dayChip}
               activeOpacity={0.86}
-              onPress={() => navigation.navigate('DayRouteDetail', { destination, day: item })}
+              onPress={() => navigation.navigate('DayRouteDetail', { tripId, destination, day: item })}
             >
               <Text style={styles.dayChipLabel}>Day {item.dayNumber}</Text>
               <Text style={styles.dayChipValue}>{item.walkKm.toFixed(1)} km</Text>
@@ -166,7 +167,7 @@ export default function ItineraryScreen() {
             key={`${destination}-${item.dayNumber}`}
             style={styles.dayCard}
             activeOpacity={0.88}
-            onPress={() => navigation.navigate('DayRouteDetail', { destination, day: item })}
+            onPress={() => navigation.navigate('DayRouteDetail', { tripId, destination, day: item })}
           >
             <View style={styles.dayHeader}>
               <View style={styles.dayTitleBlock}>

@@ -34,6 +34,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   Settings: undefined;
   DayRouteDetail: {
+    tripId: string;
     destination: string;
     day: ItineraryDay;
   };

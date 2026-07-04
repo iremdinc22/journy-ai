@@ -92,11 +92,34 @@ export type PlaceResponse = {
   tags?: string;
 };
 
+export type DestinationResponse = {
+  id: string;
+  name: string;
+  country: string;
+  description: string;
+  imageUrl: string;
+  tags: string;
+  bestFor: string;
+  placeCount: number;
+  averageDailyWalkKm: number;
+  available: boolean;
+  popular: boolean;
+};
+
 export type AiChatResponse = {
   conversationId: string;
   message: string;
   suggestedAction: string | null;
   minutesSaved: number | null;
+};
+
+export type AiItinerarySuggestionResponse = {
+  title: string;
+  message: string;
+  suggestedAction: string;
+  minutesSaved: number | null;
+  stopsAffected: string[];
+  routeSummary: string;
 };
 
 export type ProfileResponse = {
