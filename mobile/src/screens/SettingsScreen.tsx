@@ -6,6 +6,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { colors as lightColors } from '../theme/colors';
+import { authApi } from '../api/journyApi';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -25,6 +26,14 @@ export default function SettingsScreen({ navigation }: Props) {
   const { isDark, setDarkMode, theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
+
+  const signOut = async () => {
+    await authApi.logout();
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Welcome' }],
+    });
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -78,6 +87,11 @@ export default function SettingsScreen({ navigation }: Props) {
             <SettingRow key={item.label} item={item} colors={colors} styles={styles} />
           ))}
         </View>
+
+        <TouchableOpacity style={styles.signOutButton} activeOpacity={0.86} onPress={signOut}>
+          <Ionicons name="log-out-outline" size={18} color={colors.teal} />
+          <Text style={styles.signOutText}>Sign out</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -253,5 +267,18 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   switchControl: {
     transform: [{ scaleX: 0.86 }, { scaleY: 0.86 }],
   },
+  signOutButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
+    marginTop: spacing.lg,
+    minHeight: 52,
+  },
+  signOutText: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
 });
 }

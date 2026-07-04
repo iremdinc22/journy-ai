@@ -8,6 +8,12 @@ public record PlaceResponse(
         String description,
         String priceLevel,
         double rating,
-        String imageUrl
+        String imageUrl,
+        String address,
+        Double latitude,
+        Double longitude,
+        String openingHours,
+        Integer estimatedVisitMinutes,
+        String tags
 ) {
 }

@@ -64,7 +64,9 @@ public class TripService {
         trip.setFoodPicks(0);
         trip.setAverageWalkKm(0);
 
-        return tripMapper.toResponse(tripRepository.save(trip));
+        Trip savedTrip = tripRepository.save(trip);
+        itineraryGenerationService.generateIfMissing(savedTrip);
+        return tripMapper.toResponse(tripRepository.save(savedTrip));
     }
 
     @Transactional

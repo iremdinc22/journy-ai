@@ -6,6 +6,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { tripApi } from '../api/journyApi';
 import { useAppTheme } from '../theme/ThemeContext';
+import { ApiError } from '../api/client';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LoadingPlan'>;
 
@@ -21,16 +22,17 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('Make sure the backend is running, then try again.');
   const [creating, setCreating] = useState(false);
 
   const createPlan = useCallback(async () => {
     setCreating(true);
     setError(false);
     try {
-      const trip = await tripApi.create(route.params.tripDraft);
-      await tripApi.generate(trip.id);
+      await tripApi.create(route.params.tripDraft);
       navigation.replace('MainTabs', { screen: 'Itinerary' });
-    } catch {
+    } catch (requestError) {
+      setErrorMessage(messageForError(requestError));
       setError(true);
     } finally {
       setCreating(false);
@@ -42,14 +44,14 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
 
     const run = async () => {
       try {
-        const trip = await tripApi.create(route.params.tripDraft);
-        await tripApi.generate(trip.id);
+        await tripApi.create(route.params.tripDraft);
 
         if (!cancelled) {
           navigation.replace('MainTabs', { screen: 'Itinerary' });
         }
-      } catch {
+      } catch (requestError) {
         if (!cancelled) {
+          setErrorMessage(messageForError(requestError));
           setError(true);
         }
       } finally {
@@ -103,7 +105,7 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
         {error ? (
           <View style={styles.errorCard}>
             <Text style={styles.errorTitle}>Plan could not be created</Text>
-            <Text style={styles.errorText}>Make sure the backend is running, then try again.</Text>
+            <Text style={styles.errorText}>{errorMessage}</Text>
             <View style={styles.errorActions}>
               <TouchableOpacity style={styles.retryButton} activeOpacity={0.88} onPress={createPlan} disabled={creating}>
                 <Text style={styles.retryText}>{creating ? 'Retrying...' : 'Retry'}</Text>
@@ -117,6 +119,16 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
       </View>
     </SafeAreaView>
   );
+}
+
+function messageForError(error: unknown) {
+  if (error instanceof ApiError && error.status === 401) {
+    return 'Your session expired. Please sign in again, then retry creating the plan.';
+  }
+  if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+    return 'Some trip details need attention. Go back to setup and check your destination, dates and interests.';
+  }
+  return 'Make sure the backend is running and your phone is using the correct API address, then try again.';
 }
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];

@@ -31,6 +31,21 @@ export const authApi = {
     session.setAuth(response);
     return response;
   },
+
+  async logout() {
+    const refreshToken = session.getRefreshToken();
+    try {
+      if (refreshToken) {
+        await apiRequest<void>('/api/auth/logout', {
+          method: 'POST',
+          auth: false,
+          body: { refreshToken },
+        });
+      }
+    } finally {
+      session.clearAuth();
+    }
+  },
 };
 
 export const tripApi = {

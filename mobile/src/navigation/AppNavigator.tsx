@@ -20,7 +20,7 @@ import ExploreScreen from '../screens/ExploreScreen';
 import AssistantScreen from '../screens/AssistantScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
-import type { CreateTripRequest } from '../api/types';
+import type { CreateTripRequest, PlaceResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 
 export type RootStackParamList = {
@@ -30,7 +30,7 @@ export type RootStackParamList = {
   TripSetup: undefined;
   LoadingPlan: { tripDraft: CreateTripRequest };
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
-  PlaceDetail: undefined;
+  PlaceDetail: { place: PlaceResponse };
   Notifications: undefined;
   Settings: undefined;
   DayRouteDetail: {

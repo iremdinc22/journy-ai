@@ -16,6 +16,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { authApi } from '../api/journyApi';
 import { useAppTheme } from '../theme/ThemeContext';
+import { isStrongEnoughPassword, isValidEmail } from '../utils/validation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 
@@ -32,6 +33,14 @@ export default function RegisterScreen({ navigation }: Props) {
   const handleRegister = async () => {
     if (!fullName.trim() || !email.trim() || !password.trim()) {
       Alert.alert('Missing information', 'Please fill in your name, email and password.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      return;
+    }
+    if (!isStrongEnoughPassword(password)) {
+      Alert.alert('Password too short', 'Password must be at least 6 characters.');
       return;
     }
 

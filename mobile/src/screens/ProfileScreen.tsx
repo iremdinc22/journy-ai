@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { profileApi } from '../api/journyApi';
+import { authApi, profileApi } from '../api/journyApi';
 import type { ProfileResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
@@ -108,6 +108,14 @@ export default function ProfileScreen() {
       }))
     : savedPlans.map((plan, index) => ({ ...plan, key: `${plan.city}-${index}`, stops: 18, walk: 6.2 }));
 
+  const signOut = async () => {
+    await authApi.logout();
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Welcome' }],
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
@@ -201,6 +209,11 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        <TouchableOpacity style={styles.signOutButton} activeOpacity={0.86} onPress={signOut}>
+          <Ionicons name="log-out-outline" size={18} color={colors.teal} />
+          <Text style={styles.signOutText}>Sign out</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -398,5 +411,18 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     paddingVertical: spacing.xs,
   },
   savedMetricText: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900' },
+  signOutButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
+    marginTop: spacing.md,
+    minHeight: 52,
+  },
+  signOutText: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
 });
 }

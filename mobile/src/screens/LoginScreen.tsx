@@ -16,6 +16,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { authApi } from '../api/journyApi';
 import { useAppTheme } from '../theme/ThemeContext';
+import { authErrorMessage } from '../utils/apiErrors';
+import { isStrongEnoughPassword, isValidEmail } from '../utils/validation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -32,13 +34,21 @@ export default function LoginScreen({ navigation }: Props) {
       Alert.alert('Missing information', 'Please enter your email and password.');
       return;
     }
+    if (!isValidEmail(email)) {
+      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      return;
+    }
+    if (!isStrongEnoughPassword(password)) {
+      Alert.alert('Password too short', 'Password must be at least 6 characters.');
+      return;
+    }
 
     try {
       setLoading(true);
       await authApi.login(email.trim(), password);
       navigation.replace('TripSetup');
-    } catch {
-      Alert.alert('Sign in failed', 'Please check your credentials and make sure the backend is running.');
+    } catch (error) {
+      Alert.alert('Sign in failed', authErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -49,8 +59,8 @@ export default function LoginScreen({ navigation }: Props) {
       setLoading(true);
       await authApi.login('admin@journy.app', 'admin123');
       navigation.replace('TripSetup');
-    } catch {
-      Alert.alert('Guest mode unavailable', 'Please make sure the backend is running, then try again.');
+    } catch (error) {
+      Alert.alert('Guest mode unavailable', authErrorMessage(error));
     } finally {
       setLoading(false);
     }

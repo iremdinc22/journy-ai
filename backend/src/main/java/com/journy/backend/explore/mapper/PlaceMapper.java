@@ -15,7 +15,13 @@ public class PlaceMapper {
                 place.getDescription(),
                 place.getPriceLevel(),
                 place.getRating(),
-                place.getImageUrl()
+                place.getImageUrl(),
+                place.getAddress(),
+                place.getLatitude(),
+                place.getLongitude(),
+                place.getOpeningHours(),
+                place.getEstimatedVisitMinutes(),
+                place.getTags()
         );
     }
 }

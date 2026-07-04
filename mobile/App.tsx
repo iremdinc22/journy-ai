@@ -1,6 +1,8 @@
 import { DarkTheme, DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
+import { useEffect, useState } from "react";
 
+import { session } from "./src/api/session";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { ThemeProvider, useAppTheme } from "./src/theme/ThemeContext";
 
@@ -14,6 +16,12 @@ export default function App() {
 
 function JournyApp() {
   const { isDark, theme } = useAppTheme();
+  const [sessionReady, setSessionReady] = useState(false);
+
+  useEffect(() => {
+    session.restore().finally(() => setSessionReady(true));
+  }, []);
+
   const navigationTheme = {
     ...(isDark ? DarkTheme : DefaultTheme),
     colors: {
@@ -29,7 +37,7 @@ function JournyApp() {
   return (
     <NavigationContainer theme={navigationTheme}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <AppNavigator />
+      {sessionReady ? <AppNavigator /> : null}
     </NavigationContainer>
   );
 }

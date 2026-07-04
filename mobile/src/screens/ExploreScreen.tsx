@@ -5,19 +5,22 @@ import { exploreApi } from '../api/journyApi';
 import type { PlaceResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
+import { useNavigation } from '@react-navigation/native';
 
 type Category = 'For you' | 'Food' | 'Culture' | 'Coffee' | 'Free';
 
 const categories: Category[] = ['For you', 'Food', 'Culture', 'Coffee', 'Free'];
 
-const placeGroups: Record<Category, Array<{
+type PreviewPlace = {
   title: string;
   city: string;
   type: string;
   rating: string;
   reason: string;
   image: string;
-}>> = {
+};
+
+const placeGroups: Record<Category, PreviewPlace[]> = {
   'For you': [
     {
       title: 'De Pijp Market Loop',
@@ -146,6 +149,7 @@ export default function ExploreScreen() {
   const { isDark, theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
+  const navigation = useNavigation<any>();
   const [activeCategory, setActiveCategory] = useState<Category>('For you');
   const [apiPlaces, setApiPlaces] = useState<PlaceResponse[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -211,7 +215,12 @@ export default function ExploreScreen() {
         {places.map((place, index) => {
           const normalized = normalizePlace(place, activeCategory);
           return (
-          <View key={`${normalized.city}-${normalized.title}-${index}`} style={styles.card}>
+          <TouchableOpacity
+            key={`${normalized.city}-${normalized.title}-${index}`}
+            style={styles.card}
+            activeOpacity={0.88}
+            onPress={() => navigation.navigate('PlaceDetail', { place: toPlaceDetail(place, activeCategory) })}
+          >
             <Image source={{ uri: normalized.image }} style={styles.image} />
             <View style={styles.body}>
               <View style={styles.metaRow}>
@@ -224,7 +233,7 @@ export default function ExploreScreen() {
               <Text style={styles.placeTitle}>{normalized.title}</Text>
               <Text style={styles.description}>{normalized.reason}</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         )})}
       </ScrollView>
     </SafeAreaView>
@@ -232,7 +241,7 @@ export default function ExploreScreen() {
 }
 
 function normalizePlace(
-  place: PlaceResponse | (typeof placeGroups)[Category][number],
+  place: PlaceResponse | PreviewPlace,
   activeCategory: Category,
 ) {
   if ('name' in place) {
@@ -247,6 +256,30 @@ function normalizePlace(
   }
 
   return place;
+}
+
+function toPlaceDetail(place: PlaceResponse | PreviewPlace, activeCategory: Category): PlaceResponse {
+  if ('name' in place) {
+    return {
+      ...place,
+      imageUrl: place.imageUrl || fallbackImage(place.category || activeCategory, place.name),
+    };
+  }
+
+  return {
+    id: `${place.city}-${place.title}`,
+    name: place.title,
+    city: place.city,
+    category: place.type.toUpperCase(),
+    description: place.reason,
+    priceLevel: activeCategory === 'Free' ? 'Free' : 'Mid',
+    rating: Number(place.rating),
+    imageUrl: place.image,
+    address: `${place.city} city center`,
+    openingHours: activeCategory === 'Food' ? '12:00 - 22:30' : activeCategory === 'Coffee' ? '08:00 - 18:00' : 'Flexible route window',
+    estimatedVisitMinutes: activeCategory === 'Food' ? 90 : activeCategory === 'Culture' ? 120 : 60,
+    tags: `${place.type.toLowerCase()},walkable,local`,
+  };
 }
 
 function formatCategory(category: string) {

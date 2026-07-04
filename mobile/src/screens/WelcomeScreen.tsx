@@ -21,6 +21,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { authApi } from '../api/journyApi';
 import { useAppTheme } from '../theme/ThemeContext';
+import { authErrorMessage } from '../utils/apiErrors';
+import { isStrongEnoughPassword, isValidEmail } from '../utils/validation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 type AuthMode = 'login' | 'register';
@@ -45,6 +47,18 @@ export default function WelcomeScreen({ navigation }: Props) {
 
   const submitAuth = async () => {
     if (!sheetMode) return;
+    if (!isValidEmail(email)) {
+      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      return;
+    }
+    if (!isStrongEnoughPassword(password)) {
+      Alert.alert('Password too short', 'Password must be at least 6 characters.');
+      return;
+    }
+    if (sheetMode === 'register' && !name.trim()) {
+      Alert.alert('Missing name', 'Please enter your full name to create an account.');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -54,8 +68,8 @@ export default function WelcomeScreen({ navigation }: Props) {
         await authApi.register(name.trim() || 'Journy Traveler', email.trim(), password);
       }
       navigation.replace('TripSetup');
-    } catch {
-      Alert.alert('Authentication failed', 'Please check your details and make sure the backend is running.');
+    } catch (error) {
+      Alert.alert('Authentication failed', authErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -66,8 +80,8 @@ export default function WelcomeScreen({ navigation }: Props) {
       setLoading(true);
       await authApi.login('admin@journy.app', 'admin123');
       navigation.replace('TripSetup');
-    } catch {
-      Alert.alert('Guest mode unavailable', 'Please make sure the backend is running, then try again.');
+    } catch (error) {
+      Alert.alert('Guest mode unavailable', authErrorMessage(error));
     } finally {
       setLoading(false);
     }

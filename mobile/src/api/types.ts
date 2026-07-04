@@ -82,6 +82,12 @@ export type PlaceResponse = {
   priceLevel: string;
   rating: number;
   imageUrl: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  openingHours?: string;
+  estimatedVisitMinutes?: number;
+  tags?: string;
 };
 
 export type AiChatResponse = {

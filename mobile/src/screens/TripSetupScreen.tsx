@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ImageBackground, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ImageBackground, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -12,6 +12,11 @@ type Props = NativeStackScreenProps<RootStackParamList, 'TripSetup'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const cityDetails = {
+  Discover: {
+    image:
+      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=88',
+    meta: 'Choose a city, dates and travel style',
+  },
   Amsterdam: {
     image:
       'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=900&q=88',
@@ -33,7 +38,7 @@ const cityDetails = {
     meta: 'Museums - bakeries - walks',
   },
 };
-const cities = Object.keys(cityDetails);
+const cities = Object.keys(cityDetails).filter((item) => item !== 'Discover');
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const years = [2026, 2027, 2028];
 const weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -50,17 +55,17 @@ export default function TripSetupScreen({ navigation }: Props) {
   const { isDark, theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
-  const [city, setCity] = useState('Amsterdam');
+  const [city, setCity] = useState('');
   const [cityOpen, setCityOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [monthIndex, setMonthIndex] = useState(9);
   const [year, setYear] = useState(2026);
-  const [startDay, setStartDay] = useState(10);
-  const [endDay, setEndDay] = useState(14);
-  const [selectedInterests, setSelectedInterests] = useState(['Coffee', 'Museums', 'Local food']);
+  const [startDay, setStartDay] = useState<number | null>(null);
+  const [endDay, setEndDay] = useState<number | null>(null);
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [travelType, setTravelType] = useState('Couple');
   const [budget, setBudget] = useState('Balanced');
-  const selectedCity = cityDetails[city as keyof typeof cityDetails];
+  const selectedCity = city ? cityDetails[city as keyof typeof cityDetails] : cityDetails.Discover;
 
   const daysInMonth = useMemo(() => new Date(year, monthIndex + 1, 0).getDate(), [monthIndex, year]);
   const firstOffset = useMemo(() => (new Date(year, monthIndex, 1).getDay() + 6) % 7, [monthIndex, year]);
@@ -71,12 +76,14 @@ export default function TripSetupScreen({ navigation }: Props) {
     }),
     [daysInMonth, firstOffset],
   );
-  const dateLabel = `${months[monthIndex]} ${startDay} - ${months[monthIndex]} ${endDay}, ${year}`;
-  const startDate = useMemo(() => toDateString(year, monthIndex, startDay), [endDay, monthIndex, startDay, year]);
-  const endDate = useMemo(() => toDateString(year, monthIndex, endDay), [endDay, monthIndex, year]);
+  const dateLabel = startDay && endDay
+    ? `${months[monthIndex]} ${startDay} - ${months[monthIndex]} ${endDay}, ${year}`
+    : 'Choose travel dates';
+  const startDate = startDay ? toDateString(year, monthIndex, startDay) : null;
+  const endDate = endDay ? toDateString(year, monthIndex, endDay) : null;
 
   const selectDay = (day: number) => {
-    if (day <= startDay || endDay !== startDay) {
+    if (!startDay || !endDay || day <= startDay || endDay !== startDay) {
       setStartDay(day);
       setEndDay(day);
       return;
@@ -99,8 +106,8 @@ export default function TripSetupScreen({ navigation }: Props) {
       }
       return next;
     });
-    setStartDay(1);
-    setEndDay(1);
+    setStartDay(null);
+    setEndDay(null);
   };
 
   const toggleInterest = (interest: string) => {
@@ -110,6 +117,24 @@ export default function TripSetupScreen({ navigation }: Props) {
   };
 
   const generatePlan = () => {
+    if (!city.trim()) {
+      Alert.alert('Destination required', 'Please choose a city before generating a plan.');
+      return;
+    }
+    if (!startDate || !endDate) {
+      Alert.alert('Travel dates required', 'Please choose your start and end dates from the calendar.');
+      setCalendarOpen(true);
+      return;
+    }
+    if (selectedInterests.length === 0) {
+      Alert.alert('Choose at least one interest', 'Journy needs a few taste signals to build a useful route.');
+      return;
+    }
+    if (new Date(endDate) < new Date(startDate)) {
+      Alert.alert('Invalid dates', 'End date cannot be before the start date.');
+      return;
+    }
+
     const tripDraft: CreateTripRequest = {
       destination: city,
       startDate,
@@ -146,7 +171,7 @@ export default function TripSetupScreen({ navigation }: Props) {
               <Text style={styles.cityBadgeText}>Trip draft</Text>
             </View>
             <View>
-              <Text style={styles.cityName}>{city}</Text>
+              <Text style={styles.cityName}>{city || 'Choose your city'}</Text>
               <Text style={styles.cityMeta}>{selectedCity.meta}</Text>
             </View>
           </LinearGradient>
@@ -155,7 +180,7 @@ export default function TripSetupScreen({ navigation }: Props) {
         <View style={styles.panel}>
           <PickerRow
             label="Destination"
-            value={city}
+            value={city || 'Select destination'}
             icon="location-outline"
             expanded={cityOpen}
             onPress={() => setCityOpen((value) => !value)}
@@ -221,8 +246,8 @@ export default function TripSetupScreen({ navigation }: Props) {
               </View>
               <View style={styles.daysGrid}>
                 {calendarCells.map((day, index) => {
-                  const selected = day === startDay || day === endDay;
-                  const inRange = day !== null && day > startDay && day < endDay;
+                  const selected = day !== null && (day === startDay || day === endDay);
+                  const inRange = day !== null && startDay !== null && endDay !== null && day > startDay && day < endDay;
                   return (
                     <TouchableOpacity
                       key={`${day ?? 'blank'}-${index}`}
@@ -238,6 +263,20 @@ export default function TripSetupScreen({ navigation }: Props) {
               </View>
             </View>
           ) : null}
+        </View>
+
+        <View style={styles.readinessCard}>
+          <View style={styles.readinessHeader}>
+            <Text style={styles.readinessTitle}>Plan readiness</Text>
+            <Text style={styles.readinessMeta}>
+              {[city, startDate && endDate ? 'dates' : '', selectedInterests.length ? 'taste' : ''].filter(Boolean).length}/3
+            </Text>
+          </View>
+          <View style={styles.signalRow}>
+            <Signal label="City" value={city || 'Not selected'} active={Boolean(city)} />
+            <Signal label="Dates" value={startDate && endDate ? `${startDay}-${endDay} ${months[monthIndex]}` : 'Not selected'} active={Boolean(startDate && endDate)} />
+            <Signal label="Taste" value={selectedInterests.length ? `${selectedInterests.length} interests` : 'Not selected'} active={selectedInterests.length > 0} />
+          </View>
         </View>
 
         <Section title="Travelers" value={travelType} styles={styles} />
@@ -370,6 +409,28 @@ function Segment({
   );
 }
 
+function Signal({
+  label,
+  value,
+  active,
+}: {
+  label: string;
+  value: string;
+  active: boolean;
+}) {
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors } = theme;
+
+  return (
+    <View style={[styles.signal, active && styles.signalActive]}>
+      <Ionicons name={active ? 'checkmark-circle' : 'ellipse-outline'} size={16} color={active ? colors.teal : colors.softMuted} />
+      <Text style={styles.signalLabel}>{label}</Text>
+      <Text style={styles.signalValue}>{value}</Text>
+    </View>
+  );
+}
+
 function createStyles({ colors, radius, spacing, typography }: Theme) {
   return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
@@ -443,6 +504,32 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     marginTop: spacing.md,
     padding: spacing.md,
   },
+  readinessCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  readinessHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  readinessTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
+  readinessMeta: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900' },
+  signalRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  signal: {
+    backgroundColor: colors.fog,
+    borderRadius: radius.lg,
+    flex: 1,
+    minHeight: 82,
+    padding: spacing.sm,
+  },
+  signalActive: { backgroundColor: colors.surfaceWarm },
+  signalLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900', marginTop: spacing.xs },
+  signalValue: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900', lineHeight: 15, marginTop: 3 },
   pickerRow: { alignItems: 'center', flexDirection: 'row', minHeight: 62 },
   pickerIcon: {
     alignItems: 'center',
