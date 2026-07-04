@@ -105,16 +105,38 @@ export default function ItineraryScreen() {
 
   const visibleDays = itinerary?.days ?? days;
   const destination = itinerary?.destination ?? 'Amsterdam';
+  const totalWalk = visibleDays.reduce((sum, day) => sum + day.walkKm, 0);
+  const totalStops = visibleDays.reduce((sum, day) => sum + day.stopCount, 0);
 
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.eyebrow}>AI itinerary</Text>
-        <Text style={styles.title}>Your days, grouped by distance and rhythm.</Text>
-        <Text style={styles.subtitle}>
-          Journy keeps each day realistic by clustering nearby places and leaving room for breaks.
-        </Text>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.eyebrow}>AI itinerary</Text>
+            <Text style={styles.title}>{destination}</Text>
+          </View>
+          <View style={styles.headerBadge}>
+            <Ionicons name="sparkles-outline" size={14} color={colors.teal} />
+            <Text style={styles.headerBadgeText}>Optimized</Text>
+          </View>
+        </View>
+
+        <View style={styles.overviewCard}>
+          <View style={styles.overviewTop}>
+            <View>
+              <Text style={styles.overviewLabel}>Trip rhythm</Text>
+              <Text style={styles.overviewTitle}>{visibleDays.length} days planned around distance</Text>
+            </View>
+            <Ionicons name="map-outline" size={24} color={colors.teal} />
+          </View>
+          <View style={styles.overviewStats}>
+            <OverviewStat label="Days" value={`${visibleDays.length}`} styles={styles} />
+            <OverviewStat label="Stops" value={`${totalStops}`} styles={styles} />
+            <OverviewStat label="Walk" value={`${totalWalk.toFixed(1)} km`} styles={styles} />
+          </View>
+        </View>
 
         {loading ? <InlineLoading label="Building your itinerary..." /> : null}
         {error ? (
@@ -125,6 +147,20 @@ export default function ItineraryScreen() {
           />
         ) : null}
 
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayRail}>
+          {visibleDays.map((item) => (
+            <TouchableOpacity
+              key={`chip-${destination}-${item.dayNumber}`}
+              style={styles.dayChip}
+              activeOpacity={0.86}
+              onPress={() => navigation.navigate('DayRouteDetail', { destination, day: item })}
+            >
+              <Text style={styles.dayChipLabel}>Day {item.dayNumber}</Text>
+              <Text style={styles.dayChipValue}>{item.walkKm.toFixed(1)} km</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
         {visibleDays.map((item) => (
           <TouchableOpacity
             key={`${destination}-${item.dayNumber}`}
@@ -133,7 +169,7 @@ export default function ItineraryScreen() {
             onPress={() => navigation.navigate('DayRouteDetail', { destination, day: item })}
           >
             <View style={styles.dayHeader}>
-              <View>
+              <View style={styles.dayTitleBlock}>
                 <Text style={styles.day}>Day {item.dayNumber} - {destination}</Text>
                 <Text style={styles.area}>{item.title}</Text>
               </View>
@@ -145,8 +181,19 @@ export default function ItineraryScreen() {
 
             <Text style={styles.summary}>{item.summary}</Text>
 
+            <View style={styles.routeStrip}>
+              {item.stops.slice(0, 5).map((stop, index) => (
+                <React.Fragment key={`${stop.order}-${stop.title}-strip`}>
+                  <View style={styles.routeDot}>
+                    <Text style={styles.routeDotText}>{index + 1}</Text>
+                  </View>
+                  {index !== Math.min(item.stops.length, 5) - 1 ? <View style={styles.routeLine} /> : null}
+                </React.Fragment>
+              ))}
+            </View>
+
             <View style={styles.timeline}>
-              {item.stops.map((stop, index) => (
+              {item.stops.slice(0, 3).map((stop, index) => (
                 <View key={`${stop.order}-${stop.title}`} style={styles.stopRow}>
                   <View style={styles.stopNumber}>
                     <Text style={styles.stopNumberText}>{index + 1}</Text>
@@ -155,6 +202,7 @@ export default function ItineraryScreen() {
                   <Text style={styles.stopText}>{stop.title}</Text>
                 </View>
               ))}
+              {item.stops.length > 3 ? <Text style={styles.moreStops}>+{item.stops.length - 3} more stops in detail</Text> : null}
             </View>
             <View style={styles.openRouteRow}>
               <Text style={styles.openRouteText}>Open route map</Text>
@@ -168,11 +216,27 @@ export default function ItineraryScreen() {
 }
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];
+type ItineraryStyles = ReturnType<typeof createStyles>;
+
+function OverviewStat({ label, value, styles }: { label: string; value: string; styles: ItineraryStyles }) {
+  return (
+    <View style={styles.overviewStat}>
+      <Text style={styles.overviewStatValue}>{value}</Text>
+      <Text style={styles.overviewStatLabel}>{label}</Text>
+    </View>
+  );
+}
 
 function createStyles({ colors, radius, spacing, typography }: Theme) {
   return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { padding: spacing.lg, paddingBottom: 132 },
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+  },
   eyebrow: {
     color: colors.teal,
     fontSize: typography.tiny,
@@ -182,11 +246,66 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   title: {
     color: colors.midnight,
-    fontSize: typography.h1,
+    fontSize: typography.h2,
     fontWeight: '900',
-    lineHeight: 36,
+    lineHeight: 29,
     marginTop: spacing.xs,
   },
+  headerBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  headerBadgeText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  overviewCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  overviewTop: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  overviewLabel: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  overviewTitle: {
+    color: colors.midnight,
+    fontSize: typography.h3,
+    fontWeight: '900',
+    lineHeight: 23,
+    marginTop: 4,
+    maxWidth: 250,
+  },
+  overviewStats: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  overviewStat: {
+    backgroundColor: colors.surfaceWarm,
+    borderRadius: radius.lg,
+    flex: 1,
+    padding: spacing.sm,
+  },
+  overviewStatValue: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900' },
+  overviewStatLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900', marginTop: 2 },
+  dayRail: { gap: spacing.sm, paddingVertical: spacing.md },
+  dayChip: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    minWidth: 92,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  dayChipLabel: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
+  dayChipValue: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900', marginTop: 2 },
   subtitle: {
     color: colors.slate,
     fontSize: typography.body,
@@ -197,10 +316,10 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   dayCard: {
     backgroundColor: colors.surface,
     borderColor: colors.mist,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
     marginBottom: spacing.md,
-    padding: spacing.lg,
+    padding: spacing.md,
   },
   dayHeader: {
     alignItems: 'flex-start',
@@ -208,6 +327,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     justifyContent: 'space-between',
     gap: spacing.md,
   },
+  dayTitleBlock: { flex: 1 },
   day: { color: colors.teal, fontSize: typography.small, fontWeight: '900' },
   area: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900', marginTop: 3 },
   badge: {
@@ -226,6 +346,24 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     lineHeight: 20,
     marginTop: spacing.md,
   },
+  routeStrip: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    marginTop: spacing.md,
+    padding: spacing.sm,
+  },
+  routeDot: {
+    alignItems: 'center',
+    backgroundColor: colors.midnight,
+    borderRadius: radius.pill,
+    height: 26,
+    justifyContent: 'center',
+    width: 26,
+  },
+  routeDotText: { color: colors.surface, fontSize: typography.tiny, fontWeight: '900' },
+  routeLine: { backgroundColor: colors.mist, flex: 1, height: 2, marginHorizontal: spacing.xs },
   timeline: { marginTop: spacing.md },
   stopRow: { alignItems: 'center', flexDirection: 'row', minHeight: 38 },
   stopNumber: {
@@ -244,6 +382,12 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     width: 22,
   },
   stopText: { color: colors.midnight, flex: 1, fontSize: typography.small, fontWeight: '800' },
+  moreStops: {
+    color: colors.teal,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    marginTop: spacing.xs,
+  },
   openRouteRow: {
     alignItems: 'center',
     borderTopColor: colors.mist,

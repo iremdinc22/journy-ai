@@ -174,10 +174,10 @@ export default function TripSetupScreen({ navigation }: Props) {
         </View>
 
         <ImageBackground source={{ uri: selectedCity.image }} style={styles.cityPreview} imageStyle={styles.cityPreviewImage}>
-          <LinearGradient colors={['rgba(33,43,45,0.02)', 'rgba(33,43,45,0.68)']} style={styles.cityPreviewOverlay}>
+          <LinearGradient colors={['rgba(33,43,45,0.04)', 'rgba(33,43,45,0.74)']} style={styles.cityPreviewOverlay}>
             <View style={styles.cityBadge}>
               <Ionicons name="sparkles-outline" size={13} color={colors.surface} />
-              <Text style={styles.cityBadgeText}>Trip draft</Text>
+              <Text style={styles.cityBadgeText}>Personal trip setup</Text>
             </View>
             <View>
               <Text style={styles.cityName}>{city || 'Choose your city'}</Text>
@@ -285,6 +285,25 @@ export default function TripSetupScreen({ navigation }: Props) {
           ) : null}
         </View>
 
+        <View style={styles.previewPanel}>
+          <View style={styles.previewTop}>
+            <Text style={styles.previewTitle}>Plan preview</Text>
+            <View style={styles.previewBadge}>
+              <Ionicons name="sparkles-outline" size={13} color={colors.teal} />
+              <Text style={styles.previewBadgeText}>{[city, startDate && endDate ? 'dates' : '', selectedInterests.length ? 'taste' : '', pace, startArea.trim()].filter(Boolean).length}/5 ready</Text>
+            </View>
+          </View>
+          <Text style={styles.previewMain}>
+            {city ? `${city} - ${tripDays || 0} day ${pace.toLowerCase()} route` : 'Choose a city to start shaping your route'}
+          </Text>
+          <View style={styles.previewMetaRow}>
+            <PreviewMetric icon="walk-outline" label="Pace" value={pace} colors={colors} styles={styles} />
+            <PreviewMetric icon="wallet-outline" label="Budget" value={budget} colors={colors} styles={styles} />
+            <PreviewMetric icon="location-outline" label="Start" value={startArea.trim() || 'Flexible'} colors={colors} styles={styles} />
+          </View>
+          <Text style={styles.previewFocus}>{previewFocus}</Text>
+        </View>
+
         <View style={styles.startCard}>
           <View style={styles.startIcon}>
             <Ionicons name="business-outline" size={18} color={colors.teal} />
@@ -299,44 +318,6 @@ export default function TripSetupScreen({ navigation }: Props) {
               style={styles.startInput}
             />
           </View>
-        </View>
-
-        <View style={styles.readinessCard}>
-          <View style={styles.readinessHeader}>
-            <Text style={styles.readinessTitle}>Plan readiness</Text>
-            <Text style={styles.readinessMeta}>
-              {[city, startDate && endDate ? 'dates' : '', selectedInterests.length ? 'taste' : '', pace, startArea.trim()].filter(Boolean).length}/5
-            </Text>
-          </View>
-          <View style={styles.signalRow}>
-            <Signal label="City" value={city || 'Not selected'} active={Boolean(city)} />
-            <Signal label="Dates" value={startDate && endDate ? `${startDay}-${endDay} ${months[monthIndex]}` : 'Not selected'} active={Boolean(startDate && endDate)} />
-            <Signal label="Taste" value={selectedInterests.length ? `${selectedInterests.length} interests` : 'Not selected'} active={selectedInterests.length > 0} />
-          </View>
-          <View style={styles.signalRow}>
-            <Signal label="Pace" value={pace} active={Boolean(pace)} />
-            <Signal label="Start" value={startArea.trim() || 'Flexible'} active={Boolean(startArea.trim())} />
-            <Signal label="Stops" value={previewStops ? `~${previewStops} total` : 'Preview'} active={previewStops > 0} />
-          </View>
-        </View>
-
-        <View style={styles.previewPanel}>
-          <View style={styles.previewTop}>
-            <Text style={styles.previewTitle}>Live plan preview</Text>
-            <View style={styles.previewBadge}>
-              <Ionicons name="sparkles-outline" size={13} color={colors.teal} />
-              <Text style={styles.previewBadgeText}>AI draft</Text>
-            </View>
-          </View>
-          <Text style={styles.previewMain}>
-            {city ? `${city} - ${tripDays || 0} day ${pace.toLowerCase()} route` : 'Choose a city to start shaping your route'}
-          </Text>
-          <View style={styles.previewMetaRow}>
-            <PreviewMetric icon="walk-outline" label="Pace" value={pace} colors={colors} styles={styles} />
-            <PreviewMetric icon="wallet-outline" label="Budget" value={budget} colors={colors} styles={styles} />
-            <PreviewMetric icon="location-outline" label="Start" value={startArea.trim() || 'Flexible'} colors={colors} styles={styles} />
-          </View>
-          <Text style={styles.previewFocus}>{previewFocus}</Text>
         </View>
 
         <Section title="Travelers" value={travelType} styles={styles} />
@@ -554,7 +535,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   headerTitle: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900' },
   stepText: { color: colors.slate, fontSize: typography.small, fontWeight: '900', width: 44, textAlign: 'right' },
   cityPreview: {
-    height: 178,
+    height: 224,
     marginTop: spacing.xl,
   },
   cityPreviewImage: {
@@ -570,7 +551,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     alignItems: 'center',
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(255,255,255,0.18)',
-    borderColor: 'rgba(255,255,255,0.28)',
+    borderColor: 'rgba(255,255,255,0.32)',
     borderRadius: radius.pill,
     borderWidth: 1,
     flexDirection: 'row',
@@ -586,15 +567,15 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   cityName: {
     color: colors.surface,
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '900',
-    lineHeight: 36,
+    lineHeight: 38,
   },
   cityMeta: {
-    color: 'rgba(255,255,255,0.82)',
+    color: 'rgba(255,255,255,0.86)',
     fontSize: typography.small,
     fontWeight: '800',
-    marginTop: 3,
+    marginTop: 4,
   },
   panel: {
     backgroundColor: colors.surface,
@@ -769,9 +750,9 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   previewBadgeText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
   previewMain: {
     color: colors.midnight,
-    fontSize: typography.h3,
+    fontSize: typography.h2,
     fontWeight: '900',
-    lineHeight: 23,
+    lineHeight: 29,
     marginTop: spacing.sm,
   },
   previewMetaRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },

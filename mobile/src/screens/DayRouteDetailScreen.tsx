@@ -115,7 +115,13 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
         </View>
         <View style={styles.aiNote}>
           <Ionicons name="sparkles-outline" size={18} color={colors.teal} />
-          <Text style={styles.aiNoteText}>{actionMessage}</Text>
+          <View style={styles.aiNoteCopy}>
+            <Text style={styles.aiNoteLabel}>Suggested adjustment</Text>
+            <Text style={styles.aiNoteText}>{actionMessage}</Text>
+          </View>
+          <TouchableOpacity style={styles.applyButton} activeOpacity={0.86}>
+            <Text style={styles.applyButtonText}>Apply</Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.sectionTitle}>Stop timeline</Text>
@@ -416,7 +422,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
     actionText: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900' },
     actionTextActive: { color: colors.surface },
     aiNote: {
-      alignItems: 'flex-start',
+      alignItems: 'center',
       backgroundColor: colors.lilac,
       borderColor: colors.mist,
       borderRadius: radius.lg,
@@ -426,7 +432,18 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       marginTop: spacing.sm,
       padding: spacing.md,
     },
-    aiNoteText: { color: colors.midnight, flex: 1, fontSize: typography.small, fontWeight: '800', lineHeight: 19 },
+    aiNoteCopy: { flex: 1 },
+    aiNoteLabel: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+    aiNoteText: { color: colors.midnight, fontSize: typography.small, fontWeight: '800', lineHeight: 19, marginTop: 3 },
+    applyButton: {
+      backgroundColor: colors.surface,
+      borderColor: colors.mist,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    applyButtonText: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900' },
     sectionTitle: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900', marginTop: spacing.xl },
     stopList: {
       backgroundColor: colors.surface,
