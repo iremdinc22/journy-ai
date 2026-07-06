@@ -11,6 +11,8 @@ import type {
   NotificationResponse,
   PlaceResponse,
   ProfileResponse,
+  SavedPlaceRequest,
+  SavedPlaceResponse,
   TripResponse,
 } from './types';
 
@@ -130,6 +132,29 @@ export const aiApi = {
 export const profileApi = {
   me() {
     return apiRequest<ProfileResponse>('/api/users/me');
+  },
+};
+
+export const savedPlaceApi = {
+  list() {
+    return apiRequest<SavedPlaceResponse[]>('/api/saved-places');
+  },
+
+  status(placeId: string) {
+    return apiRequest<{ saved: boolean }>(`/api/saved-places/${encodeURIComponent(placeId)}/status`);
+  },
+
+  save(place: SavedPlaceRequest) {
+    return apiRequest<SavedPlaceResponse>('/api/saved-places', {
+      method: 'POST',
+      body: place,
+    });
+  },
+
+  remove(placeId: string) {
+    return apiRequest<void>(`/api/saved-places/${encodeURIComponent(placeId)}`, {
+      method: 'DELETE',
+    });
   },
 };
 

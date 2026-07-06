@@ -8,7 +8,8 @@ public record ProfileResponse(
         String travelStyle,
         CurrentTrip currentTrip,
         List<TasteSignal> tasteProfile,
-        List<SavedPlan> savedPlans
+        List<SavedPlan> savedPlans,
+        List<SavedPlace> savedPlaces
 ) {
     public record CurrentTrip(
             String destination,
@@ -33,6 +34,16 @@ public record ProfileResponse(
             int stops,
             int foodPicks,
             double averageWalkKm
+    ) {
+    }
+
+    public record SavedPlace(
+            String placeId,
+            String name,
+            String city,
+            String category,
+            String imageUrl,
+            double rating
     ) {
     }
 }

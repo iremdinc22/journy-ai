@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ImageBackground,
   SafeAreaView,
@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { savedPlaceApi } from '../api/journyApi';
+import type { PlaceResponse, SavedPlaceRequest } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PlaceDetail'>;
@@ -24,6 +26,7 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
   const { colors } = theme;
   const { place } = route.params;
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [addedToPlan, setAddedToPlan] = useState(false);
   const categoryLabel = formatCategory(place.category);
   const role = roleForCategory(place.category);
@@ -33,6 +36,45 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
     .map((tag) => tag.trim())
     .filter(Boolean)
     .slice(0, 4);
+
+  useEffect(() => {
+    let mounted = true;
+    savedPlaceApi.status(place.id)
+      .then((response) => {
+        if (mounted) {
+          setSaved(response.saved);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setSaved(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [place.id]);
+
+  const toggleSaved = async () => {
+    if (saving) {
+      return;
+    }
+    const nextSaved = !saved;
+    setSaved(nextSaved);
+    setSaving(true);
+    try {
+      if (nextSaved) {
+        await savedPlaceApi.save(toSavedPlaceRequest(place));
+      } else {
+        await savedPlaceApi.remove(place.id);
+      }
+    } catch {
+      setSaved(!nextSaved);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -57,7 +99,7 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
               <TouchableOpacity
                 style={[styles.saveButton, saved && styles.saveButtonActive]}
                 activeOpacity={0.86}
-                onPress={() => setSaved((value) => !value)}
+                onPress={toggleSaved}
               >
                 <Ionicons name={saved ? 'heart' : 'heart-outline'} size={21} color={saved ? colors.surface : colors.midnight} />
               </TouchableOpacity>
@@ -109,7 +151,7 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
             <TouchableOpacity
               style={[styles.secondaryAction, saved && styles.secondaryActionActive]}
               activeOpacity={0.86}
-              onPress={() => setSaved((value) => !value)}
+              onPress={toggleSaved}
             >
               <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={17} color={saved ? colors.surface : colors.teal} />
               <Text style={[styles.secondaryActionText, saved && styles.secondaryActionTextActive]}>
@@ -150,6 +192,31 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function toSavedPlaceRequest(place: PlaceResponse): SavedPlaceRequest {
+  return {
+    placeId: place.id,
+    name: place.name || 'Saved place',
+    city: place.city || 'Current city',
+    category: place.category || 'WALKING',
+    description: place.description || 'Saved from your Journy route.',
+    priceLevel: place.priceLevel || 'Mid',
+    rating: place.rating || 4.6,
+    imageUrl: place.imageUrl || fallbackImageForCategory(place.category),
+    address: place.address,
+    openingHours: place.openingHours,
+    estimatedVisitMinutes: place.estimatedVisitMinutes,
+    tags: place.tags,
+  };
+}
+
+function fallbackImageForCategory(category: string) {
+  const value = (category ?? '').toLowerCase();
+  if (value.includes('coffee')) return 'https://images.unsplash.com/photo-1511920170033-f8396924c348?auto=format&fit=crop&w=900&q=85';
+  if (value.includes('food')) return 'https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?auto=format&fit=crop&w=900&q=85';
+  if (value.includes('culture')) return 'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=900&q=85';
+  return 'https://images.unsplash.com/photo-1584003564911-a7a321c84e1c?auto=format&fit=crop&w=900&q=85';
 }
 
 function formatCategory(category: string) {

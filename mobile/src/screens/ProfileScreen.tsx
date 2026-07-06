@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Image,
   SafeAreaView,
@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { authApi, profileApi } from '../api/journyApi';
 import type { ProfileResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -74,10 +74,11 @@ export default function ProfileScreen() {
     }
   }, []);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let mounted = true;
 
     const load = async () => {
+      setError(false);
       try {
         const response = await profileApi.me();
         if (mounted) {
@@ -99,7 +100,7 @@ export default function ProfileScreen() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, []));
 
   const currentTrip = profile?.currentTrip;
   const displayTaste = profile?.tasteProfile?.length
@@ -119,6 +120,13 @@ export default function ProfileScreen() {
         walk: plan.averageWalkKm,
       }))
     : savedPlans.map((plan, index) => ({ ...plan, key: `${plan.city}-${index}`, stops: 18, walk: 6.2 }));
+  const displayFavoritePlaces = profile
+    ? (profile.savedPlaces ?? []).map((place) => ({
+        title: place.name,
+        meta: `${formatCategory(place.category)} - ${place.city} - ${place.rating.toFixed(1)}`,
+        icon: mapPlaceIcon(place.category),
+      }))
+    : favoritePlaces;
 
   const signOut = async () => {
     await authApi.logout();
@@ -147,8 +155,8 @@ export default function ProfileScreen() {
 
         <View style={styles.memberStrip}>
           <View style={styles.memberMetric}>
-            <Text style={styles.memberValue}>{profile?.savedPlans?.length ?? 2}</Text>
-            <Text style={styles.memberLabel}>Saved plans</Text>
+            <Text style={styles.memberValue}>{profile ? (profile.savedPlaces ?? []).length : 3}</Text>
+            <Text style={styles.memberLabel}>Favorites</Text>
           </View>
           <View style={styles.memberDivider} />
           <View style={styles.memberMetric}>
@@ -244,18 +252,30 @@ export default function ProfileScreen() {
           <Text style={styles.sectionAction}>Manage</Text>
         </View>
         <View style={styles.favoriteList}>
-          {favoritePlaces.map((place) => (
-            <View key={place.title} style={styles.favoriteRow}>
+          {displayFavoritePlaces.length ? (
+            displayFavoritePlaces.map((place) => (
+              <View key={place.title} style={styles.favoriteRow}>
+                <View style={styles.favoriteIcon}>
+                  <Ionicons name={place.icon} size={18} color={colors.teal} />
+                </View>
+                <View style={styles.favoriteCopy}>
+                  <Text style={styles.favoriteTitle}>{place.title}</Text>
+                  <Text style={styles.favoriteMeta}>{place.meta}</Text>
+                </View>
+                <Ionicons name="heart" size={18} color={colors.teal} />
+              </View>
+            ))
+          ) : (
+            <View style={styles.favoriteRow}>
               <View style={styles.favoriteIcon}>
-                <Ionicons name={place.icon} size={18} color={colors.teal} />
+                <Ionicons name="heart-outline" size={18} color={colors.teal} />
               </View>
               <View style={styles.favoriteCopy}>
-                <Text style={styles.favoriteTitle}>{place.title}</Text>
-                <Text style={styles.favoriteMeta}>{place.meta}</Text>
+                <Text style={styles.favoriteTitle}>No saved places yet</Text>
+                <Text style={styles.favoriteMeta}>Save places from Explore or day route details.</Text>
               </View>
-              <Ionicons name="heart" size={18} color={colors.teal} />
             </View>
-          ))}
+          )}
         </View>
 
         <View style={styles.sectionHeader}>
@@ -306,6 +326,19 @@ function mapTasteIcon(icon: string): IconName {
   if (value.includes('museum') || value.includes('culture')) return 'color-palette-outline';
   if (value.includes('coffee') || value.includes('cafe')) return 'cafe-outline';
   return 'walk-outline';
+}
+
+function mapPlaceIcon(category: string): IconName {
+  const value = category.toLowerCase();
+  if (value.includes('coffee')) return 'cafe-outline';
+  if (value.includes('food') || value.includes('restaurant')) return 'restaurant-outline';
+  if (value.includes('culture') || value.includes('museum')) return 'color-palette-outline';
+  if (value.includes('free')) return 'leaf-outline';
+  return 'walk-outline';
+}
+
+function formatCategory(category: string) {
+  return category.toLowerCase().replace(/_/g, ' ');
 }
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];

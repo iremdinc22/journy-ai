@@ -1,6 +1,7 @@
 package com.journy.backend.profile.mapper;
 
 import com.journy.backend.profile.dto.ProfileResponse;
+import com.journy.backend.savedplace.model.SavedPlace;
 import com.journy.backend.trip.model.Trip;
 import com.journy.backend.user.model.UserAccount;
 import org.springframework.stereotype.Component;
@@ -13,7 +14,7 @@ import java.util.Locale;
 public class ProfileMapper {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH);
 
-    public ProfileResponse toResponse(UserAccount user, Trip currentTrip, List<Trip> savedTrips) {
+    public ProfileResponse toResponse(UserAccount user, Trip currentTrip, List<Trip> savedTrips, List<SavedPlace> savedPlaces) {
         return new ProfileResponse(
                 user.getId(),
                 user.getFullName(),
@@ -26,7 +27,8 @@ public class ProfileMapper {
                         currentTrip.getAverageWalkKm()
                 ),
                 tasteSignals(),
-                savedTrips.stream().map(this::toSavedPlan).toList()
+                savedTrips.stream().map(this::toSavedPlan).toList(),
+                savedPlaces.stream().map(this::toSavedPlace).toList()
         );
     }
 
@@ -38,6 +40,17 @@ public class ProfileMapper {
                 trip.getTotalStops(),
                 trip.getFoodPicks(),
                 trip.getAverageWalkKm()
+        );
+    }
+
+    private ProfileResponse.SavedPlace toSavedPlace(SavedPlace place) {
+        return new ProfileResponse.SavedPlace(
+                place.getPlaceId(),
+                place.getName(),
+                place.getCity(),
+                place.getCategory(),
+                place.getImageUrl(),
+                place.getRating()
         );
     }
 

@@ -122,6 +122,24 @@ export type AiItinerarySuggestionResponse = {
   routeSummary: string;
 };
 
+export type SavedPlaceResponse = {
+  id: string;
+  placeId: string;
+  name: string;
+  city: string;
+  category: string;
+  description: string;
+  priceLevel: string;
+  rating: number;
+  imageUrl: string;
+  address?: string;
+  openingHours?: string;
+  estimatedVisitMinutes?: number;
+  tags?: string;
+};
+
+export type SavedPlaceRequest = Omit<SavedPlaceResponse, 'id'>;
+
 export type ProfileResponse = {
   id: string;
   fullName: string;
@@ -145,6 +163,14 @@ export type ProfileResponse = {
     stops: number;
     foodPicks: number;
     averageWalkKm: number;
+  }>;
+  savedPlaces: Array<{
+    placeId: string;
+    name: string;
+    city: string;
+    category: string;
+    imageUrl: string;
+    rating: number;
   }>;
 };
 
