@@ -7,6 +7,7 @@ public record ProfileResponse(
         String fullName,
         String travelStyle,
         CurrentTrip currentTrip,
+        Preferences preferences,
         List<TasteSignal> tasteProfile,
         List<SavedPlan> savedPlans,
         List<SavedPlace> savedPlaces
@@ -24,6 +25,15 @@ public record ProfileResponse(
             String title,
             String description,
             String icon
+    ) {
+    }
+
+    public record Preferences(
+            String defaultPace,
+            String defaultBudget,
+            String foodDiscovery,
+            boolean planChangeNotifications,
+            boolean foodWindowNotifications
     ) {
     }
 

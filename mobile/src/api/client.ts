@@ -1,6 +1,7 @@
 import { NativeModules, Platform } from 'react-native';
 
 import { session } from './session';
+import type { AuthResponse } from './types';
 
 declare const process: {
   env?: Record<string, string | undefined>;
@@ -44,6 +45,10 @@ export class NetworkError extends Error {
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  return sendRequest(path, options, true);
+}
+
+async function sendRequest<T>(path: string, options: RequestOptions, allowRefresh: boolean): Promise<T> {
   const headers: Record<string, string> = {
     Accept: 'application/json',
   };
@@ -81,6 +86,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   if (!response.ok) {
+    if (allowRefresh && options.auth !== false && (response.status === 401 || response.status === 403)) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        return sendRequest<T>(path, options, false);
+      }
+    }
     const message = await readErrorMessage(response);
     throw new ApiError(response.status, message || `Request failed with status ${response.status}`);
   }
@@ -90,6 +101,35 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   return response.json() as Promise<T>;
+}
+
+async function refreshAccessToken() {
+  const refreshToken = session.getRefreshToken();
+  if (!refreshToken) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      session.clearAuth();
+      return false;
+    }
+
+    const auth = await response.json() as AuthResponse;
+    session.setAuth(auth);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function readErrorMessage(response: Response) {

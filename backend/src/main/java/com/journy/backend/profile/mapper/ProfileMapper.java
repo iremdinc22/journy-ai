@@ -26,6 +26,13 @@ public class ProfileMapper {
                         currentTrip.getFoodPicks(),
                         currentTrip.getAverageWalkKm()
                 ),
+                new ProfileResponse.Preferences(
+                        fallback(user.getDefaultPace(), "BALANCED"),
+                        fallback(user.getDefaultBudget(), "BALANCED"),
+                        fallback(user.getFoodDiscovery(), "LOCAL_FIRST"),
+                        user.isPlanChangeNotifications(),
+                        user.isFoodWindowNotifications()
+                ),
                 tasteSignals(),
                 savedTrips.stream().map(this::toSavedPlan).toList(),
                 savedPlaces.stream().map(this::toSavedPlace).toList()
@@ -61,5 +68,9 @@ public class ProfileMapper {
                 new ProfileResponse.TasteSignal("Coffee breaks", "Best cafes & spots", "coffee"),
                 new ProfileResponse.TasteSignal("Easy walking", "Comfortable pace", "walk")
         );
+    }
+
+    private String fallback(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 }

@@ -102,7 +102,7 @@ public class AiService {
         AiConversation conversation = resolveConversation(user, trip);
         conversation.addMessage(new AiMessage("USER", request.message()));
 
-        AiDecision decision = decide(request.message());
+        AiDecision decision = decide(request.message(), trip);
         conversation.addMessage(new AiMessage("ASSISTANT", decision.message()));
         AiConversation savedConversation = aiConversationRepository.save(conversation);
 
@@ -114,41 +114,66 @@ public class AiService {
         );
     }
 
-    private AiDecision decide(String message) {
+    private AiDecision decide(String message, Trip trip) {
         String text = message.toLowerCase();
+        TripContext context = buildTripContext(trip);
         if (text.contains("coffee") || text.contains("cafe")) {
             return new AiDecision(
-                    "I found a quiet coffee break that fits between your museum stop and canal walk.",
+                    "I found a quiet coffee break for " + context.destination() + ". It fits best around " + context.breakWindow() + " and keeps the route close to your " + context.paceLabel() + " pace.",
                     "Add coffee stop",
                     0
             );
         }
         if (text.contains("rain") || text.contains("weather")) {
             return new AiDecision(
-                    "I would move the outdoor canal walk to a clearer window and keep today focused on indoor stops.",
+                    "For " + context.destination() + ", I would move outdoor walking to the clearest window and keep the day around indoor culture, coffee and food stops. That protects the plan without rebuilding everything.",
                     "Rebuild around rain",
                     18
             );
         }
         if (text.contains("dinner") || text.contains("food")) {
             return new AiDecision(
-                    "Stay near the final neighborhood for dinner. It avoids a long transfer after the busiest part of the day.",
+                    "Stay near the final neighborhood for dinner in " + context.destination() + ". With a " + context.budgetLabel() + " budget, I would choose a local-first place close to the last stop instead of adding a long transfer.",
                     "Suggest dinner area",
                     12
             );
         }
         if (text.contains("light") || text.contains("easy") || text.contains("short")) {
             return new AiDecision(
-                    "Remove one optional stop and add a longer break after lunch. You keep the main experience but the day feels lighter.",
+                    "I would keep the strongest anchor stop, remove one optional stop and add a longer break after lunch. Your " + context.stopSummary() + " plan stays realistic, but the day feels lighter.",
                     "Lighten day",
                     22
             );
         }
 
         return new AiDecision(
-                "I can help with that. I would keep the main anchor stops, reduce backtracking and leave one flexible window.",
+                "I can help with that for " + context.destination() + ". I would keep the main anchor stops, reduce backtracking and leave one flexible window so the route still matches your " + context.paceLabel() + " style.",
                 "Adjust route",
                 null
+        );
+    }
+
+    private TripContext buildTripContext(Trip trip) {
+        if (trip == null) {
+            return new TripContext("your trip", "balanced", "mid-range", "current", "current");
+        }
+
+        List<ItineraryDay> days = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId());
+        String breakWindow = days.stream()
+                .flatMap(day -> day.getStops().stream())
+                .filter(stop -> stop.getCategory().equalsIgnoreCase("COFFEE") || stop.getCategory().equalsIgnoreCase("FOOD"))
+                .map(ItineraryStop::getTimeWindow)
+                .findFirst()
+                .orElse("your afternoon break");
+        String stopSummary = trip.getTotalStops() > 0
+                ? trip.getTotalStops() + "-stop"
+                : Math.max(1, days.stream().mapToInt(day -> day.getStops().size()).sum()) + "-stop";
+        return new TripContext(
+                trip.getDestination(),
+                trip.getPace().name().toLowerCase().replace('_', ' '),
+                trip.getBudget().name().toLowerCase().replace('_', ' '),
+                breakWindow,
+                stopSummary
         );
     }
 
@@ -215,15 +240,19 @@ public class AiService {
     }
 
     private void applyLighterDay(ItineraryDay day) {
+        day.setTitle(lightTitle(day.getTitle()));
         if (day.getStops().size() <= 2) {
-            day.setSummary(day.getSummary() + " Journy kept the core stops and marked the pace as already light.");
+            day.setSummary("Journy kept the core stops and marked the pace as already light.");
             day.setWalkKm(Math.max(2.4, Math.round((day.getWalkKm() - 0.4) * 10.0) / 10.0));
             return;
         }
         day.getStops().removeLast();
-        day.setTitle("Lighter " + day.getTitle());
         day.setSummary("A lighter version of the day with the final optional stop removed and more room between anchors.");
         day.setWalkKm(Math.max(2.4, Math.round((day.getWalkKm() - 1.1) * 10.0) / 10.0));
+    }
+
+    private String lightTitle(String title) {
+        return title.toLowerCase().startsWith("lighter ") ? title : "Lighter " + title;
     }
 
     private void applyFoodStop(ItineraryDay day, Trip trip) {
@@ -291,5 +320,8 @@ public class AiService {
     }
 
     private record AiDecision(String message, String suggestedAction, Integer minutesSaved) {
+    }
+
+    private record TripContext(String destination, String paceLabel, String budgetLabel, String breakWindow, String stopSummary) {
     }
 }

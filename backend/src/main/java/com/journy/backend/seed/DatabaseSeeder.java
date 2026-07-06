@@ -62,6 +62,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         seedDestinations();
+        seedPlaces();
 
         if (userAccountRepository.existsByEmailIgnoreCase("admin@journy.app")) {
             return;
@@ -109,7 +110,6 @@ public class DatabaseSeeder implements CommandLineRunner {
         tripRepository.save(rome);
 
         seedItinerary(amsterdam);
-        seedPlaces();
         seedNotifications(user);
     }
 
@@ -174,6 +174,54 @@ public class DatabaseSeeder implements CommandLineRunner {
                         7.1,
                         false,
                         false
+                ),
+                destination(
+                        "London",
+                        "United Kingdom",
+                        "London works well for neighborhood-led days across galleries, markets, parks and dinner streets.",
+                        "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=900&q=88",
+                        "Markets, Parks, Culture",
+                        "Free museums, coffee, food halls",
+                        6,
+                        6.7,
+                        true,
+                        true
+                ),
+                destination(
+                        "Lisbon",
+                        "Portugal",
+                        "Lisbon is strong for scenic walks, small cafes, viewpoints and food routes with a relaxed pace.",
+                        "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=900&q=88",
+                        "Views, Cafes, Seafood",
+                        "Slow walks, bakeries, viewpoints",
+                        6,
+                        5.6,
+                        true,
+                        true
+                ),
+                destination(
+                        "Prague",
+                        "Czechia",
+                        "Prague is ideal for compact culture days, riverside walks and atmospheric local food stops.",
+                        "https://images.unsplash.com/photo-1519677100203-a0e668c92439?auto=format&fit=crop&w=900&q=88",
+                        "Old Town, River, Cafes",
+                        "Culture, walking, low-cost days",
+                        6,
+                        5.4,
+                        true,
+                        true
+                ),
+                destination(
+                        "Vienna",
+                        "Austria",
+                        "Vienna supports premium-feeling culture routes with cafes, museums, markets and calm transit windows.",
+                        "https://images.unsplash.com/photo-1516550893923-42d28e5677af?auto=format&fit=crop&w=900&q=88",
+                        "Museums, Cafes, Markets",
+                        "Art, pastries, elegant walks",
+                        6,
+                        5.9,
+                        true,
+                        true
                 )
         ).forEach(this::upsertDestination);
     }
@@ -236,7 +284,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     }
 
     private void seedPlaces() {
-        placeRepository.saveAll(List.of(
+        List.of(
                 new Place("Local Bistro Noord", "Amsterdam", PlaceCategory.FOOD, "Seasonal plates in a calm neighborhood room.", "Mid", 4.7, "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=700&q=85"),
                 new Place("Canal Bakery", "Amsterdam", PlaceCategory.FOOD, "Morning pastries and simple coffee near the route.", "Lean", 4.6, "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=700&q=85"),
                 new Place("Museumplein Window", "Amsterdam", PlaceCategory.CULTURE, "A compact culture stop that keeps the day balanced.", "Mid", 4.8, "https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=700&q=85"),
@@ -260,8 +308,44 @@ public class DatabaseSeeder implements CommandLineRunner {
                 new Place("Born Design Route", "Barcelona", PlaceCategory.CULTURE, "Independent galleries and design shops grouped into one area.", "Lean", 4.6, "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=700&q=85"),
                 new Place("Gracia Coffee Corner", "Barcelona", PlaceCategory.COFFEE, "A softer cafe stop away from the busiest tourist streets.", "Lean", 4.7, "https://images.unsplash.com/photo-1511920170033-f8396924c348?auto=format&fit=crop&w=700&q=85"),
                 new Place("Tapas Street Window", "Barcelona", PlaceCategory.FOOD, "Easy dinner zone with short transfers after the final stop.", "Mid", 4.8, "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=700&q=85"),
-                new Place("Gothic Quarter Drift", "Barcelona", PlaceCategory.FREE, "Free wandering through small lanes, plazas and local corners.", "Free", 4.6, "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&w=700&q=85")
-        ));
+                new Place("Gothic Quarter Drift", "Barcelona", PlaceCategory.FREE, "Free wandering through small lanes, plazas and local corners.", "Free", 4.6, "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&w=700&q=85"),
+
+                new Place("South Bank Culture Walk", "London", PlaceCategory.CULTURE, "A flexible riverside culture route with galleries and easy food options nearby.", "Free", 4.8, "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=700&q=85", "South Bank, London", 51.5076, -0.0994, "10:00 - 18:00", 120, "culture,free,walkable"),
+                new Place("Borough Market Lunch", "London", PlaceCategory.FOOD, "A high-choice food stop that works well for mixed budgets and short detours.", "Mid", 4.7, "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=700&q=85", "Borough Market, London", 51.5055, -0.0910, "10:00 - 17:00", 75, "food,market,local"),
+                new Place("Soho Coffee Pause", "London", PlaceCategory.COFFEE, "A compact coffee break between central culture and evening areas.", "Mid", 4.6, "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=700&q=85", "Soho, London", 51.5136, -0.1365, "08:00 - 18:00", 45, "coffee,central,break"),
+                new Place("Hyde Park Soft Window", "London", PlaceCategory.FREE, "A free open-air reset that keeps a full city day from becoming too dense.", "Free", 4.6, "https://images.unsplash.com/photo-1533929736458-ca588d08c8be?auto=format&fit=crop&w=700&q=85", "Hyde Park, London", 51.5073, -0.1657, "Open route window", 70, "free,walking,park"),
+
+                new Place("Alfama Morning Walk", "Lisbon", PlaceCategory.WALKING, "A scenic slow-start route through viewpoints, tiled streets and quiet corners.", "Free", 4.8, "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=700&q=85", "Alfama, Lisbon", 38.7112, -9.1300, "Open route window", 85, "walking,views,local"),
+                new Place("Chiado Coffee Room", "Lisbon", PlaceCategory.COFFEE, "A calm cafe window near bookstores, shops and gentle walking streets.", "Lean", 4.6, "https://images.unsplash.com/photo-1511920170033-f8396924c348?auto=format&fit=crop&w=700&q=85", "Chiado, Lisbon", 38.7107, -9.1439, "08:30 - 19:00", 45, "coffee,books,break"),
+                new Place("Time Out Food Hall", "Lisbon", PlaceCategory.FOOD, "An easy local-food decision point when travelers want choice without a formal booking.", "Mid", 4.5, "https://images.unsplash.com/photo-1551218808-94e220e084d2?auto=format&fit=crop&w=700&q=85", "Cais do Sodre, Lisbon", 38.7068, -9.1456, "10:00 - 23:00", 80, "food,market,flexible"),
+                new Place("MAAT Culture Edge", "Lisbon", PlaceCategory.CULTURE, "A compact riverfront culture stop that pairs well with sunset walking.", "Mid", 4.6, "https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=700&q=85", "Belem, Lisbon", 38.6958, -9.2092, "10:00 - 19:00", 110, "culture,river,design"),
+
+                new Place("Old Town Morning Loop", "Prague", PlaceCategory.WALKING, "A compact walk through historic streets before the central areas get crowded.", "Free", 4.7, "https://images.unsplash.com/photo-1519677100203-a0e668c92439?auto=format&fit=crop&w=700&q=85", "Old Town, Prague", 50.0870, 14.4208, "Open route window", 80, "walking,history,free"),
+                new Place("Kampa Gallery Stop", "Prague", PlaceCategory.CULTURE, "A manageable culture stop near the river with easy walking connections.", "Lean", 4.6, "https://images.unsplash.com/photo-1541849546-216549ae216d?auto=format&fit=crop&w=700&q=85", "Kampa, Prague", 50.0843, 14.4072, "10:00 - 18:00", 95, "culture,river,compact"),
+                new Place("Vinohrady Coffee Break", "Prague", PlaceCategory.COFFEE, "A quieter cafe break in a neighborhood that feels lived-in rather than rushed.", "Lean", 4.7, "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=700&q=85", "Vinohrady, Prague", 50.0755, 14.4419, "08:00 - 18:00", 45, "coffee,local,break"),
+                new Place("Lokal Dinner Window", "Prague", PlaceCategory.FOOD, "A reliable local dinner zone that keeps the evening practical and low-stress.", "Mid", 4.6, "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=700&q=85", "Old Town, Prague", 50.0902, 14.4248, "12:00 - 22:30", 90, "food,local,dinner"),
+
+                new Place("MuseumsQuartier Window", "Vienna", PlaceCategory.CULTURE, "A premium-feeling culture anchor with cafes and flexible indoor backup nearby.", "Mid", 4.8, "https://images.unsplash.com/photo-1516550893923-42d28e5677af?auto=format&fit=crop&w=700&q=85", "MuseumsQuartier, Vienna", 48.2034, 16.3597, "10:00 - 18:00", 120, "culture,museums,indoor"),
+                new Place("Naschmarkt Food Route", "Vienna", PlaceCategory.FOOD, "A market-led food stop with broad options and short route friction.", "Mid", 4.6, "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=700&q=85", "Naschmarkt, Vienna", 48.1990, 16.3640, "09:00 - 18:30", 75, "food,market,local"),
+                new Place("Cafe Central Pause", "Vienna", PlaceCategory.COFFEE, "A classic coffee window that fits culture-heavy days without feeling random.", "Comfort", 4.7, "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=700&q=85", "Innere Stadt, Vienna", 48.2102, 16.3654, "08:00 - 21:00", 55, "coffee,classic,central"),
+                new Place("Ringstrasse Easy Walk", "Vienna", PlaceCategory.FREE, "A low-cost architectural walk that gives structure to the afternoon.", "Free", 4.6, "https://images.unsplash.com/photo-1573599852326-2bcc1299b0ff?auto=format&fit=crop&w=700&q=85", "Ringstrasse, Vienna", 48.2082, 16.3738, "Open route window", 80, "free,walking,architecture")
+        ).forEach(this::upsertPlace);
+    }
+
+    private void upsertPlace(Place seed) {
+        Place place = placeRepository.findByNameIgnoreCaseAndCityIgnoreCase(seed.getName(), seed.getCity()).orElse(seed);
+        place.setCategory(seed.getCategory());
+        place.setDescription(seed.getDescription());
+        place.setPriceLevel(seed.getPriceLevel());
+        place.setRating(seed.getRating());
+        place.setImageUrl(seed.getImageUrl());
+        place.setAddress(seed.getAddress());
+        place.setLatitude(seed.getLatitude());
+        place.setLongitude(seed.getLongitude());
+        place.setOpeningHours(seed.getOpeningHours());
+        place.setEstimatedVisitMinutes(seed.getEstimatedVisitMinutes());
+        place.setTags(seed.getTags());
+        placeRepository.save(place);
     }
 
     private void seedNotifications(UserAccount user) {

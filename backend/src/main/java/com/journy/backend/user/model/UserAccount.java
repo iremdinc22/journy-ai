@@ -32,6 +32,21 @@ public class UserAccount {
     @Column(nullable = false)
     private String travelStyle;
 
+    @Column
+    private String defaultPace;
+
+    @Column
+    private String defaultBudget;
+
+    @Column
+    private String foodDiscovery;
+
+    @Column
+    private boolean planChangeNotifications;
+
+    @Column
+    private boolean foodWindowNotifications;
+
     @Column(nullable = false)
     private Instant createdAt;
 
@@ -41,6 +56,11 @@ public class UserAccount {
         this.email = email;
         this.passwordHash = passwordHash;
         this.travelStyle = travelStyle;
+        this.defaultPace = "BALANCED";
+        this.defaultBudget = "BALANCED";
+        this.foodDiscovery = "LOCAL_FIRST";
+        this.planChangeNotifications = true;
+        this.foodWindowNotifications = true;
         this.createdAt = Instant.now();
     }
 }

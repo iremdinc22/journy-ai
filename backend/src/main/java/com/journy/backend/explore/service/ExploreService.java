@@ -58,6 +58,10 @@ public class ExploreService {
             case "rome" -> "History - piazzas - dinner";
             case "barcelona" -> "Design - beach - tapas";
             case "amsterdam" -> "Canals - coffee - museums";
+            case "london" -> "Markets - parks - museums";
+            case "lisbon" -> "Views - cafes - seafood";
+            case "prague" -> "Old Town - river - cafes";
+            case "vienna" -> "Museums - cafes - markets";
             default -> "Local picks - culture - food";
         };
     }
@@ -68,6 +72,10 @@ public class ExploreService {
             case "rome" -> "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=900&q=88";
             case "barcelona" -> "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=900&q=88";
             case "amsterdam" -> "https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=900&q=88";
+            case "london" -> "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=900&q=88";
+            case "lisbon" -> "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=900&q=88";
+            case "prague" -> "https://images.unsplash.com/photo-1519677100203-a0e668c92439?auto=format&fit=crop&w=900&q=88";
+            case "vienna" -> "https://images.unsplash.com/photo-1516550893923-42d28e5677af?auto=format&fit=crop&w=900&q=88";
             default -> "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=88";
         };
     }

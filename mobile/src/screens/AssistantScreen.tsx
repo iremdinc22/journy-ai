@@ -21,30 +21,36 @@ type Message = {
   role: 'ai' | 'user';
   text: string;
   time?: string;
+  action?: 'lighter' | 'food' | 'replace';
+  applied?: boolean;
 };
 
 const quickPrompts = [
   {
     label: 'Make today lighter',
     prompt: 'Can you make today lighter?',
+    action: 'lighter' as const,
     answer:
       'Yes. I would keep Museumplein as the main anchor, move the canal walk before lunch, and remove the optional market stop. Your day becomes about 22 minutes shorter with a longer afternoon break.',
   },
   {
     label: 'Coffee nearby',
     prompt: 'Find a quiet coffee spot near me.',
+    action: 'food' as const,
     answer:
       'I would add a quiet coffee stop near De Pijp before the canal loop. It keeps the detour under 10 minutes and gives you a calm break before the next stop.',
   },
   {
     label: 'Dinner idea',
     prompt: 'Suggest dinner near the last stop.',
+    action: 'food' as const,
     answer:
       'For dinner, stay near the final neighborhood instead of crossing the city. A small local bistro around the evening area fits the route and keeps the night relaxed.',
   },
   {
     label: 'Rain backup',
     prompt: 'Rebuild the plan if it rains.',
+    action: 'replace' as const,
     answer:
       'If it rains, move the outdoor canal walk to tomorrow morning and keep today focused on one museum, a covered food stop, and a longer cafe window.',
   },
@@ -67,6 +73,7 @@ export default function AssistantScreen() {
   const [input, setInput] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [sending, setSending] = useState(false);
+  const [applyingMessageId, setApplyingMessageId] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -99,17 +106,55 @@ export default function AssistantScreen() {
 
     try {
       const response = await aiApi.chat(cleanPrompt, session.getCurrentTrip()?.id);
+      const action = actionFromSuggestion(response.suggestedAction ?? cleanPrompt);
       setMessages((current) => [
         ...current,
-        { id: `${timestamp}-ai`, role: 'ai', text: response.message, time: 'Now' },
+        { id: `${timestamp}-ai`, role: 'ai', text: response.message, time: 'Now', action },
       ]);
     } catch {
       setMessages((current) => [
         ...current,
-        { id: `${timestamp}-ai`, role: 'ai', text: fallbackAnswer ?? buildAnswer(cleanPrompt), time: 'Offline preview' },
+        { id: `${timestamp}-ai`, role: 'ai', text: fallbackAnswer ?? buildAnswer(cleanPrompt), time: 'Offline preview', action: actionFromSuggestion(cleanPrompt) },
       ]);
     } finally {
       setSending(false);
+      requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+    }
+  };
+
+  const applyAction = async (message: Message) => {
+    const trip = session.getCurrentTrip();
+    if (!trip?.id || !message.action || applyingMessageId) {
+      return;
+    }
+
+    setApplyingMessageId(message.id);
+    try {
+      const updatedDay = await aiApi.applyItinerarySuggestion(trip.id, 1, message.action);
+      setMessages((current) => current.map((item) => (
+        item.id === message.id ? { ...item, applied: true } : item
+      )));
+      setMessages((current) => [
+        ...current,
+        {
+          id: `${Date.now()}-applied`,
+          role: 'ai',
+          text: `Done. Day 1 is now updated as "${updatedDay.title}" with ${updatedDay.stopCount} stops and ${updatedDay.walkKm.toFixed(1)} km of walking.`,
+          time: 'Plan updated',
+        },
+      ]);
+    } catch {
+      setMessages((current) => [
+        ...current,
+        {
+          id: `${Date.now()}-apply-error`,
+          role: 'ai',
+          text: 'I could not update the plan right now. Check that the backend is running, then try again.',
+          time: 'Needs connection',
+        },
+      ]);
+    } finally {
+      setApplyingMessageId(null);
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
     }
   };
@@ -148,6 +193,23 @@ export default function AssistantScreen() {
               <View style={message.role === 'ai' ? styles.aiBubble : styles.userBubble}>
                 <Text style={message.role === 'ai' ? styles.aiText : styles.userText}>{message.text}</Text>
                 {message.role === 'ai' && message.time ? <Text style={styles.messageTime}>{message.time}</Text> : null}
+                {message.role === 'ai' && message.action ? (
+                  <TouchableOpacity
+                    style={[styles.applyButton, message.applied && styles.applyButtonDone]}
+                    activeOpacity={0.86}
+                    disabled={message.applied || applyingMessageId === message.id}
+                    onPress={() => applyAction(message)}
+                  >
+                    <Ionicons
+                      name={message.applied ? 'checkmark' : applyingMessageId === message.id ? 'hourglass-outline' : 'sparkles-outline'}
+                      size={13}
+                      color={message.applied ? colors.surface : colors.teal}
+                    />
+                    <Text style={[styles.applyButtonText, message.applied && styles.applyButtonTextDone]}>
+                      {message.applied ? 'Applied to Day 1' : applyingMessageId === message.id ? 'Updating...' : 'Apply to Day 1'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             </View>
           ))}
@@ -215,6 +277,14 @@ function buildAnswer(prompt: string) {
   }
 
   return 'I can help with that. I would keep the main anchor stops, reduce backtracking, and leave one flexible window so the day stays realistic.';
+}
+
+function actionFromSuggestion(value: string): Message['action'] | undefined {
+  const lower = value.toLowerCase();
+  if (lower.includes('coffee') || lower.includes('dinner') || lower.includes('food')) return 'food';
+  if (lower.includes('rain') || lower.includes('weather') || lower.includes('replace')) return 'replace';
+  if (lower.includes('light') || lower.includes('easy') || lower.includes('short') || lower.includes('slow')) return 'lighter';
+  return undefined;
 }
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];
@@ -292,6 +362,28 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     fontSize: 10,
     fontWeight: '800',
     marginTop: spacing.xs,
+  },
+  applyButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.fog,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    gap: 5,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  applyButtonDone: {
+    backgroundColor: colors.teal,
+  },
+  applyButtonText: {
+    color: colors.midnight,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  applyButtonTextDone: {
+    color: colors.surface,
   },
   bottomArea: {
     backgroundColor: colors.ivory,

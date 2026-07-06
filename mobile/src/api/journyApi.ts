@@ -14,6 +14,7 @@ import type {
   SavedPlaceRequest,
   SavedPlaceResponse,
   TripResponse,
+  UserPreferences,
 } from './types';
 
 export const authApi = {
@@ -132,6 +133,13 @@ export const aiApi = {
 export const profileApi = {
   me() {
     return apiRequest<ProfileResponse>('/api/users/me');
+  },
+
+  updatePreferences(preferences: UserPreferences) {
+    return apiRequest<ProfileResponse>('/api/users/me/preferences', {
+      method: 'PUT',
+      body: preferences,
+    });
   },
 };
 

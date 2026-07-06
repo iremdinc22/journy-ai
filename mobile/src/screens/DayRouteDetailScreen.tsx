@@ -32,6 +32,8 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
   const [applyLoading, setApplyLoading] = useState(false);
   const [applySuccess, setApplySuccess] = useState(false);
 
+  const displayTitle = cleanRepeatedPrefix(currentDay.title, 'Lighter');
+  const displaySummary = compactRepeatedSentences(currentDay.summary);
   const paceLabel = currentDay.walkKm <= 4.5 ? 'Relaxed' : currentDay.walkKm >= 7 ? 'Full' : 'Balanced';
   const focusLabel = currentDay.stops.some((stop) => stop.category === 'FOOD' || stop.category === 'COFFEE')
     ? 'Food breaks included'
@@ -110,8 +112,8 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>Day {currentDay.dayNumber} - {destination}</Text>
-          <Text style={styles.title}>{currentDay.title}</Text>
-          <Text style={styles.subtitle}>{currentDay.summary}</Text>
+          <Text style={styles.title}>{displayTitle}</Text>
+          <Text style={styles.subtitle}>{displaySummary}</Text>
           <View style={styles.heroMetaRow}>
             <HeroMetric icon="walk-outline" value={`${currentDay.walkKm.toFixed(1)} km`} label="Walking" colors={colors} styles={styles} />
             <HeroMetric icon="location-outline" value={`${currentDay.stopCount}`} label="Stops" colors={colors} styles={styles} />
@@ -232,10 +234,36 @@ function HeroMetric({
   return (
     <View style={styles.heroMetric}>
       <Ionicons name={icon} size={18} color={colors.teal} />
-      <Text style={styles.heroMetricValue}>{value}</Text>
+      <Text style={styles.heroMetricValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
+        {value}
+      </Text>
       <Text style={styles.heroMetricLabel}>{label}</Text>
     </View>
   );
+}
+
+function cleanRepeatedPrefix(value: string, prefix: string) {
+  const pattern = new RegExp(`^(${prefix}\\s+)+`, 'i');
+  const match = value.match(pattern);
+  if (!match) return value;
+  return `${prefix} ${value.replace(pattern, '')}`;
+}
+
+function compactRepeatedSentences(value: string) {
+  const seen = new Set<string>();
+  return value
+    .split(/(?<=\.)\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .filter((sentence) => {
+      const key = sentence.toLowerCase();
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    })
+    .join(' ');
 }
 
 function ActionChip({
@@ -350,10 +378,21 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       borderRadius: radius.lg,
       borderWidth: 1,
       flex: 1,
+      justifyContent: 'center',
       minHeight: 88,
-      padding: spacing.sm,
+      minWidth: 0,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: spacing.sm,
     },
-    heroMetricValue: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900', marginTop: spacing.xs },
+    heroMetricValue: {
+      color: colors.midnight,
+      fontSize: typography.h3,
+      fontWeight: '900',
+      lineHeight: 26,
+      marginTop: spacing.xs,
+      maxWidth: '100%',
+      textAlign: 'center',
+    },
     heroMetricLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 2 },
     routeCard: {
       backgroundColor: colors.surfaceWarm,

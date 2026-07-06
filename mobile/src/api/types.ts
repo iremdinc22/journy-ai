@@ -151,6 +151,7 @@ export type ProfileResponse = {
     foodPicks: number;
     averageWalkKm: number;
   } | null;
+  preferences: UserPreferences;
   tasteProfile: Array<{
     title: string;
     description: string;
@@ -172,6 +173,14 @@ export type ProfileResponse = {
     imageUrl: string;
     rating: number;
   }>;
+};
+
+export type UserPreferences = {
+  defaultPace: 'RELAXED' | 'BALANCED' | 'FULL';
+  defaultBudget: 'LEAN' | 'BALANCED' | 'COMFORT';
+  foodDiscovery: 'LOCAL_FIRST' | 'BEST_RATED' | 'BUDGET_FRIENDLY';
+  planChangeNotifications: boolean;
+  foodWindowNotifications: boolean;
 };
 
 export type NotificationResponse = {

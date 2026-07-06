@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ImageBackground,
+  Linking,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -74,6 +76,21 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const openMaps = () => {
+    const query = encodeURIComponent(`${place.name}, ${place.city}`);
+    const lat = place.latitude;
+    const lng = place.longitude;
+    const url = lat && lng
+      ? Platform.select({
+          ios: `maps://?q=${query}&ll=${lat},${lng}`,
+          android: `geo:${lat},${lng}?q=${query}`,
+          default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
+        })
+      : `https://www.google.com/maps/search/?api=1&query=${query}`;
+
+    Linking.openURL(url).catch(() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`));
   };
 
   return (
@@ -158,9 +175,9 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
                 {saved ? 'Saved' : 'Save'}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryAction} activeOpacity={0.86}>
+            <TouchableOpacity style={styles.secondaryAction} activeOpacity={0.86} onPress={openMaps}>
               <Ionicons name="navigate-outline" size={17} color={colors.teal} />
-              <Text style={styles.secondaryActionText}>Route</Text>
+              <Text style={styles.secondaryActionText}>Open in Maps</Text>
             </TouchableOpacity>
           </View>
 
