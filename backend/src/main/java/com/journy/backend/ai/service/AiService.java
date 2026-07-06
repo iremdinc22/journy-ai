@@ -2,9 +2,12 @@ package com.journy.backend.ai.service;
 
 import com.journy.backend.ai.dto.AiChatRequest;
 import com.journy.backend.ai.dto.AiChatResponse;
+import com.journy.backend.ai.dto.AiItineraryApplyRequest;
 import com.journy.backend.ai.dto.AiItinerarySuggestionRequest;
 import com.journy.backend.ai.dto.AiItinerarySuggestionResponse;
 import com.journy.backend.common.exception.ResourceNotFoundException;
+import com.journy.backend.itinerary.dto.ItineraryResponse;
+import com.journy.backend.itinerary.mapper.ItineraryMapper;
 import com.journy.backend.itinerary.model.ItineraryDay;
 import com.journy.backend.itinerary.model.ItineraryStop;
 import com.journy.backend.itinerary.repository.ItineraryDayRepository;
@@ -27,6 +30,7 @@ public class AiService {
     private final CurrentUserService currentUserService;
     private final TripRepository tripRepository;
     private final ItineraryDayRepository itineraryDayRepository;
+    private final ItineraryMapper itineraryMapper;
     private final AiConversationRepository aiConversationRepository;
     private final AiMapper aiMapper;
 
@@ -34,12 +38,14 @@ public class AiService {
             CurrentUserService currentUserService,
             TripRepository tripRepository,
             ItineraryDayRepository itineraryDayRepository,
+            ItineraryMapper itineraryMapper,
             AiConversationRepository aiConversationRepository,
             AiMapper aiMapper
     ) {
         this.currentUserService = currentUserService;
         this.tripRepository = tripRepository;
         this.itineraryDayRepository = itineraryDayRepository;
+        this.itineraryMapper = itineraryMapper;
         this.aiConversationRepository = aiConversationRepository;
         this.aiMapper = aiMapper;
     }
@@ -62,6 +68,31 @@ public class AiService {
             return buildReplaceSuggestion(day, trip);
         }
         return buildLighterSuggestion(day, trip);
+    }
+
+    @Transactional
+    public ItineraryResponse.ItineraryDayResponse applyItinerarySuggestion(AiItineraryApplyRequest request) {
+        UserAccount user = currentUserService.currentUser();
+        Trip trip = resolveTrip(user, request.tripId())
+                .orElseThrow(() -> new ResourceNotFoundException("Trip was not found"));
+        ItineraryDay day = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId()).stream()
+                .filter(foundDay -> foundDay.getDayNumber() == request.dayNumber())
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Itinerary day was not found"));
+
+        String action = request.action().toLowerCase();
+        if (action.contains("food")) {
+            applyFoodStop(day, trip);
+        } else if (action.contains("replace")) {
+            applyReplacement(day, trip);
+        } else {
+            applyLighterDay(day);
+        }
+
+        normalizeStopOrder(day);
+        ItineraryDay savedDay = itineraryDayRepository.save(day);
+        refreshTripStats(trip);
+        return itineraryMapper.toDayResponse(savedDay);
     }
 
     @Transactional
@@ -181,6 +212,82 @@ public class AiService {
                 affected,
                 trip.getDestination() + " Day " + day.getDayNumber() + " stays walkable while matching your preferences more closely."
         );
+    }
+
+    private void applyLighterDay(ItineraryDay day) {
+        if (day.getStops().size() <= 2) {
+            day.setSummary(day.getSummary() + " Journy kept the core stops and marked the pace as already light.");
+            day.setWalkKm(Math.max(2.4, Math.round((day.getWalkKm() - 0.4) * 10.0) / 10.0));
+            return;
+        }
+        day.getStops().removeLast();
+        day.setTitle("Lighter " + day.getTitle());
+        day.setSummary("A lighter version of the day with the final optional stop removed and more room between anchors.");
+        day.setWalkKm(Math.max(2.4, Math.round((day.getWalkKm() - 1.1) * 10.0) / 10.0));
+    }
+
+    private void applyFoodStop(ItineraryDay day, Trip trip) {
+        int order = Math.min(day.getStops().size() + 1, 5);
+        ItineraryStop stop = new ItineraryStop(
+                order,
+                trip.getDestination() + " local food break",
+                "FOOD",
+                order >= 4 ? "17:00" : "13:00",
+                "Added by Journy near the current route so the day has a better food window without a long transfer.",
+                coordinateFromDay(day, true, order),
+                coordinateFromDay(day, false, order)
+        );
+        day.addStop(stop);
+        day.setSummary("Updated with a local food break near the route while keeping the day walkable.");
+        day.setWalkKm(Math.round((day.getWalkKm() + 0.4) * 10.0) / 10.0);
+    }
+
+    private void applyReplacement(ItineraryDay day, Trip trip) {
+        if (day.getStops().isEmpty()) {
+            applyFoodStop(day, trip);
+            return;
+        }
+        int index = day.getStops().size() > 2 ? 1 : 0;
+        ItineraryStop oldStop = day.getStops().remove(index);
+        ItineraryStop replacement = new ItineraryStop(
+                oldStop.getStopOrder(),
+                trip.getDestination() + " better-fit stop",
+                oldStop.getCategory(),
+                oldStop.getTimeWindow(),
+                "Replaced by Journy with a better-fit option in the same route window.",
+                oldStop.getLatitude(),
+                oldStop.getLongitude()
+        );
+        day.getStops().add(index, replacement);
+        replacement.setDay(day);
+        day.setSummary("Updated with one better-fit stop while preserving the original route shape.");
+    }
+
+    private double coordinateFromDay(ItineraryDay day, boolean latitude, int order) {
+        ItineraryStop anchor = day.getStops().isEmpty() ? null : day.getStops().getLast();
+        double base = anchor == null ? latitude ? 52.3676 : 4.9041 : latitude ? anchor.getLatitude() : anchor.getLongitude();
+        double delta = order * 0.0015;
+        return latitude ? base - delta : base + delta;
+    }
+
+    private void normalizeStopOrder(ItineraryDay day) {
+        for (int index = 0; index < day.getStops().size(); index++) {
+            day.getStops().get(index).setStopOrder(index + 1);
+        }
+    }
+
+    private void refreshTripStats(Trip trip) {
+        List<ItineraryDay> days = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId());
+        int totalStops = days.stream().mapToInt(day -> day.getStops().size()).sum();
+        int foodPicks = (int) days.stream()
+                .flatMap(day -> day.getStops().stream())
+                .filter(stop -> stop.getCategory().equalsIgnoreCase("FOOD") || stop.getCategory().equalsIgnoreCase("COFFEE"))
+                .count();
+        double averageWalk = days.stream().mapToDouble(ItineraryDay::getWalkKm).average().orElse(0);
+        trip.setTotalStops(totalStops);
+        trip.setFoodPicks(foodPicks);
+        trip.setAverageWalkKm(Math.round(averageWalk * 10.0) / 10.0);
+        tripRepository.save(trip);
     }
 
     private record AiDecision(String message, String suggestedAction, Integer minutesSaved) {

@@ -18,7 +18,7 @@ public class ItineraryMapper {
         );
     }
 
-    private ItineraryResponse.ItineraryDayResponse toDayResponse(ItineraryDay day) {
+    public ItineraryResponse.ItineraryDayResponse toDayResponse(ItineraryDay day) {
         return new ItineraryResponse.ItineraryDayResponse(
                 day.getDayNumber(),
                 day.getTitle(),

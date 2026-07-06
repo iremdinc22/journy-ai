@@ -5,7 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { aiApi } from '../api/journyApi';
-import type { AiItinerarySuggestionResponse, ItineraryStop, PlaceResponse } from '../api/types';
+import type { AiItinerarySuggestionResponse, ItineraryDay, ItineraryStop, PlaceResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DayRouteDetail'>;
@@ -24,13 +24,16 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const { colors } = theme;
   const { tripId, destination, day } = route.params;
+  const [currentDay, setCurrentDay] = useState<ItineraryDay>(day);
   const [selectedAction, setSelectedAction] = useState<ActionKey>('lighter');
   const [suggestion, setSuggestion] = useState<AiItinerarySuggestionResponse | null>(null);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const [suggestionError, setSuggestionError] = useState(false);
+  const [applyLoading, setApplyLoading] = useState(false);
+  const [applySuccess, setApplySuccess] = useState(false);
 
-  const paceLabel = day.walkKm <= 4.5 ? 'Relaxed' : day.walkKm >= 7 ? 'Full' : 'Balanced';
-  const focusLabel = day.stops.some((stop) => stop.category === 'FOOD' || stop.category === 'COFFEE')
+  const paceLabel = currentDay.walkKm <= 4.5 ? 'Relaxed' : currentDay.walkKm >= 7 ? 'Full' : 'Balanced';
+  const focusLabel = currentDay.stops.some((stop) => stop.category === 'FOOD' || stop.category === 'COFFEE')
     ? 'Food breaks included'
     : 'Culture-first flow';
   const fallbackActionMessage = {
@@ -46,7 +49,7 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
     setSuggestionLoading(true);
     setSuggestionError(false);
     try {
-      const response = await aiApi.itinerarySuggestion(tripId, day.dayNumber, action);
+      const response = await aiApi.itinerarySuggestion(tripId, currentDay.dayNumber, action);
       setSuggestion(response);
     } catch {
       setSuggestionError(true);
@@ -54,7 +57,7 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
     } finally {
       setSuggestionLoading(false);
     }
-  }, [day.dayNumber, tripId]);
+  }, [currentDay.dayNumber, tripId]);
 
   useEffect(() => {
     loadSuggestion(selectedAction);
@@ -62,6 +65,25 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
 
   const chooseAction = (action: ActionKey) => {
     setSelectedAction(action);
+    setApplySuccess(false);
+  };
+
+  const applySuggestion = async () => {
+    if (tripId === 'preview-trip' || applyLoading) {
+      return;
+    }
+    setApplyLoading(true);
+    setApplySuccess(false);
+    try {
+      const updatedDay = await aiApi.applyItinerarySuggestion(tripId, currentDay.dayNumber, selectedAction);
+      setCurrentDay(updatedDay);
+      setApplySuccess(true);
+      await loadSuggestion(selectedAction);
+    } catch {
+      setSuggestionError(true);
+    } finally {
+      setApplyLoading(false);
+    }
   };
 
   const openStop = (stop: ItineraryStop) => {
@@ -87,12 +109,12 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>Day {day.dayNumber} - {destination}</Text>
-          <Text style={styles.title}>{day.title}</Text>
-          <Text style={styles.subtitle}>{day.summary}</Text>
+          <Text style={styles.eyebrow}>Day {currentDay.dayNumber} - {destination}</Text>
+          <Text style={styles.title}>{currentDay.title}</Text>
+          <Text style={styles.subtitle}>{currentDay.summary}</Text>
           <View style={styles.heroMetaRow}>
-            <HeroMetric icon="walk-outline" value={`${day.walkKm.toFixed(1)} km`} label="Walking" colors={colors} styles={styles} />
-            <HeroMetric icon="location-outline" value={`${day.stopCount}`} label="Stops" colors={colors} styles={styles} />
+            <HeroMetric icon="walk-outline" value={`${currentDay.walkKm.toFixed(1)} km`} label="Walking" colors={colors} styles={styles} />
+            <HeroMetric icon="location-outline" value={`${currentDay.stopCount}`} label="Stops" colors={colors} styles={styles} />
             <HeroMetric icon="speedometer-outline" value={paceLabel} label="Pace" colors={colors} styles={styles} />
           </View>
         </View>
@@ -117,7 +139,7 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
             <View style={styles.routeLineOne} />
             <View style={styles.routeLineTwo} />
             <View style={styles.routeLineThree} />
-            {day.stops.slice(0, 5).map((stop, index) => (
+            {currentDay.stops.slice(0, 5).map((stop, index) => (
               <TouchableOpacity
                 key={`${stop.order}-${stop.title}`}
                 style={[
@@ -151,16 +173,17 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
             </Text>
             {suggestion?.routeSummary ? <Text style={styles.routeSummary}>{suggestion.routeSummary}</Text> : null}
             {suggestion?.minutesSaved ? <Text style={styles.minutesSaved}>{suggestion.minutesSaved} min saved</Text> : null}
+            {applySuccess ? <Text style={styles.applySuccess}>Plan updated</Text> : null}
             {suggestionError ? <Text style={styles.suggestionError}>Could not refresh suggestion. Showing local guidance.</Text> : null}
           </View>
-          <TouchableOpacity style={styles.applyButton} activeOpacity={0.86}>
-            <Text style={styles.applyButtonText}>Apply</Text>
+          <TouchableOpacity style={[styles.applyButton, applyLoading && styles.applyButtonDisabled]} activeOpacity={0.86} onPress={applySuggestion}>
+            <Text style={styles.applyButtonText}>{applyLoading ? 'Updating' : 'Apply'}</Text>
           </TouchableOpacity>
         </View>
 
         <Text style={styles.sectionTitle}>Stop timeline</Text>
         <View style={styles.stopList}>
-          {day.stops.map((stop, index) => (
+          {currentDay.stops.map((stop, index) => (
             <TouchableOpacity
               key={`${stop.order}-${stop.title}`}
               style={styles.stopRow}
@@ -171,7 +194,7 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
                 <View style={styles.stopNumber}>
                   <Text style={styles.stopNumberText}>{index + 1}</Text>
                 </View>
-                {index !== day.stops.length - 1 ? <View style={styles.verticalLine} /> : null}
+                {index !== currentDay.stops.length - 1 ? <View style={styles.verticalLine} /> : null}
               </View>
               <View style={styles.stopCopy}>
                 <View style={styles.stopTopLine}>
@@ -488,6 +511,18 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       paddingHorizontal: spacing.sm,
       paddingVertical: 3,
     },
+    applySuccess: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.surface,
+      borderRadius: radius.pill,
+      color: colors.teal,
+      fontSize: typography.tiny,
+      fontWeight: '900',
+      marginTop: spacing.xs,
+      overflow: 'hidden',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+    },
     suggestionError: {
       color: colors.slate,
       fontSize: typography.tiny,
@@ -501,6 +536,9 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       borderWidth: 1,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
+    },
+    applyButtonDisabled: {
+      opacity: 0.56,
     },
     applyButtonText: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900' },
     sectionTitle: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900', marginTop: spacing.xl },

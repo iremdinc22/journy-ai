@@ -171,6 +171,8 @@ export default function TripSetupScreen({ navigation }: Props) {
   const previewStops = tripDays ? tripDays * stopsForPace(pace) : 0;
   const previewFocus = selectedInterests.slice(0, 3).join(' - ') || 'Choose taste signals';
   const startSuggestions = cityStartSuggestions[city] ?? defaultStartSuggestions;
+  const estimatedDailyWalk = previewStops ? estimateDailyWalkKm(stopsForPace(pace), pace, budget) : 0;
+  const routeStyle = routeStyleFor({ pace, budget, selectedInterests, startArea });
 
   const selectDay = (day: number) => {
     if (!startDay || !endDay || day <= startDay || endDay !== startDay) {
@@ -429,11 +431,15 @@ export default function TripSetupScreen({ navigation }: Props) {
             {city ? `${city} - ${tripDays || 0} day ${pace.toLowerCase()} route` : 'Choose a city to start shaping your route'}
           </Text>
           <View style={styles.previewMetaRow}>
-            <PreviewMetric icon="walk-outline" label="Pace" value={pace} colors={colors} styles={styles} />
-            <PreviewMetric icon="wallet-outline" label="Budget" value={budget} colors={colors} styles={styles} />
-            <PreviewMetric icon="location-outline" label="Start" value={startArea.trim() || 'Flexible'} colors={colors} styles={styles} />
+            <PreviewMetric icon="location-outline" label="Stops" value={previewStops ? `${previewStops}` : '--'} colors={colors} styles={styles} />
+            <PreviewMetric icon="walk-outline" label="Daily walk" value={estimatedDailyWalk ? `${estimatedDailyWalk.toFixed(1)} km` : '--'} colors={colors} styles={styles} />
+            <PreviewMetric icon="sparkles-outline" label="Route style" value={routeStyle} colors={colors} styles={styles} />
           </View>
-          <Text style={styles.previewFocus}>{previewFocus}</Text>
+          <Text style={styles.previewFocus}>
+            {city && tripDays
+              ? `${previewFocus}. ${startArea.trim() ? `Day 1 starts around ${startArea.trim()}.` : 'First day starts flexibly around your chosen city.'}`
+              : previewFocus}
+          </Text>
         </View>
 
         <View style={styles.startCard}>
@@ -552,6 +558,31 @@ function stopsForPace(value: string) {
   if (value === 'Relaxed') return 3;
   if (value === 'Full') return 5;
   return 4;
+}
+
+function estimateDailyWalkKm(stopsPerDay: number, pace: string, budget: string) {
+  const paceBase = pace === 'Relaxed' ? 1.1 : pace === 'Full' ? 1.55 : 1.35;
+  const budgetAdjustment = budget === 'Lean' ? -0.2 : budget === 'Comfort' ? 0.15 : 0;
+  return Math.max(2.4, Math.round(stopsPerDay * (paceBase + budgetAdjustment) * 10) / 10);
+}
+
+function routeStyleFor({
+  pace,
+  budget,
+  selectedInterests,
+  startArea,
+}: {
+  pace: string;
+  budget: string;
+  selectedInterests: string[];
+  startArea: string;
+}) {
+  if (pace === 'Relaxed') return 'Easy flow';
+  if (budget === 'Lean') return 'Low-cost';
+  if (selectedInterests.includes('Local food')) return 'Food-led';
+  if (selectedInterests.includes('Museums')) return 'Culture-led';
+  if (startArea.trim()) return 'Area-first';
+  return 'Balanced';
 }
 
 function mapInterest(value: string): CreateTripRequest['interests'][number] {

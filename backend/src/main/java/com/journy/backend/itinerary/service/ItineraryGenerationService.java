@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -33,20 +34,13 @@ public class ItineraryGenerationService {
         }
 
         List<Place> candidatePlaces = selectPlaces(trip);
-        List<Place> placePool = new ArrayList<>(candidatePlaces);
+        Set<String> usedPlaceIds = new HashSet<>();
         int days = trip.dayCount();
-        int stopsPerDay = switch (trip.getPace()) {
-            case RELAXED -> 3;
-            case BALANCED -> 4;
-            case FULL -> 5;
-        };
+        int stopsPerDay = stopsPerDay(trip);
 
         List<ItineraryDay> generatedDays = new ArrayList<>();
         for (int dayNumber = 1; dayNumber <= days; dayNumber++) {
-            List<Place> dayPlaces = pickDayPlaces(placePool, trip, stopsPerDay, dayNumber);
-            if (dayPlaces.isEmpty()) {
-                dayPlaces = fallbackPlaces(dayNumber);
-            }
+            List<Place> dayPlaces = pickDayPlaces(candidatePlaces, usedPlaceIds, trip, stopsPerDay, dayNumber);
 
             double walkKm = calculateWalkKm(dayPlaces.size(), trip.getPace());
             ItineraryDay day = new ItineraryDay(
@@ -64,7 +58,7 @@ public class ItineraryGenerationService {
                         place.getName(),
                         place.getCategory().name(),
                         timeWindowFor(order),
-                        place.getDescription(),
+                        noteFor(place, trip, dayNumber, order),
                         coordinateFor(place, dayNumber, order, true),
                         coordinateFor(place, dayNumber, order, false)
                 ));
@@ -85,6 +79,18 @@ public class ItineraryGenerationService {
         trip.setAverageWalkKm(Math.round(averageWalk * 10.0) / 10.0);
     }
 
+    private int stopsPerDay(Trip trip) {
+        int base = switch (trip.getPace()) {
+            case RELAXED -> 3;
+            case BALANCED -> 4;
+            case FULL -> 5;
+        };
+        if (trip.getBudget() == BudgetMode.LEAN && base > 3) {
+            return base - 1;
+        }
+        return base;
+    }
+
     private List<Place> selectPlaces(Trip trip) {
         Set<PlaceCategory> categories = categoriesFor(trip.getInterests());
         List<Place> allPlaces = placeRepository.findAll();
@@ -103,7 +109,7 @@ public class ItineraryGenerationService {
                 allPlaces.stream()
                         .filter(place -> categories.contains(place.getCategory()))
                         .filter(place -> budgetAllows(trip.getBudget(), place.getPriceLevel()))
-                        .sorted(Comparator.comparingDouble((Place place) -> scorePlace(place, trip)).reversed())
+                        .sorted(Comparator.comparingDouble((Place place) -> scorePlace(place, trip, false)).reversed())
                         .toList(),
                 trip
         );
@@ -114,7 +120,7 @@ public class ItineraryGenerationService {
                 .filter(place -> place.getCity().equalsIgnoreCase(city))
                 .filter(place -> categories.contains(place.getCategory()))
                 .filter(place -> budgetAllows(trip.getBudget(), place.getPriceLevel()))
-                .sorted(Comparator.comparingDouble((Place place) -> scorePlace(place, trip)).reversed())
+                .sorted(Comparator.comparingDouble((Place place) -> scorePlace(place, trip, false)).reversed())
                 .toList();
     }
 
@@ -141,13 +147,21 @@ public class ItineraryGenerationService {
         return arranged;
     }
 
-    private List<Place> pickDayPlaces(List<Place> placePool, Trip trip, int stopsPerDay, int dayNumber) {
-        if (placePool.isEmpty()) {
-            return List.of();
-        }
-
+    private List<Place> pickDayPlaces(List<Place> candidatePlaces, Set<String> usedPlaceIds, Trip trip, int stopsPerDay, int dayNumber) {
         List<PlaceCategory> rhythm = rotateRhythm(categoryRhythm(trip.getInterests()), dayNumber - 1);
         List<Place> dayPlaces = new ArrayList<>();
+        List<Place> placePool = candidatePlaces.stream()
+                .filter(place -> !usedPlaceIds.contains(place.getId()))
+                .sorted(Comparator.comparingDouble((Place place) -> scorePlace(place, trip, dayNumber == 1)).reversed())
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+
+        if (dayNumber == 1) {
+            findStartingAreaMatch(placePool, trip).ifPresent(place -> {
+                dayPlaces.add(place);
+                usedPlaceIds.add(place.getId());
+                placePool.remove(place);
+            });
+        }
 
         for (PlaceCategory category : rhythm) {
             if (dayPlaces.size() >= stopsPerDay || placePool.isEmpty()) {
@@ -155,12 +169,16 @@ public class ItineraryGenerationService {
             }
             int matchIndex = firstIndexOfCategory(placePool, category);
             if (matchIndex >= 0) {
-                dayPlaces.add(placePool.remove(matchIndex));
+                Place picked = placePool.remove(matchIndex);
+                dayPlaces.add(picked);
+                usedPlaceIds.add(picked.getId());
             }
         }
 
         while (dayPlaces.size() < stopsPerDay && !placePool.isEmpty()) {
-            dayPlaces.add(placePool.remove(0));
+            Place picked = placePool.remove(0);
+            dayPlaces.add(picked);
+            usedPlaceIds.add(picked.getId());
         }
 
         if (!hasFoodOrCoffee(dayPlaces) && !placePool.isEmpty()) {
@@ -170,11 +188,38 @@ public class ItineraryGenerationService {
             }
             if (breakIndex >= 0 && !dayPlaces.isEmpty()) {
                 dayPlaces.remove(dayPlaces.size() - 1);
-                dayPlaces.add(placePool.remove(breakIndex));
+                Place picked = placePool.remove(breakIndex);
+                dayPlaces.add(picked);
+                usedPlaceIds.add(picked.getId());
             }
         }
 
+        fillWithPlannedStops(dayPlaces, trip, rhythm, stopsPerDay, dayNumber);
         return dayPlaces;
+    }
+
+    private java.util.Optional<Place> findStartingAreaMatch(List<Place> places, Trip trip) {
+        if (trip.getStartingArea() == null || trip.getStartingArea().isBlank()) {
+            return java.util.Optional.empty();
+        }
+        String start = normalize(trip.getStartingArea());
+        return places.stream()
+                .filter(place -> normalize(place.getName()).contains(start)
+                        || normalize(place.getAddress()).contains(start)
+                        || normalize(place.getTags()).contains(start))
+                .max(Comparator.comparingDouble((Place place) -> scorePlace(place, trip, true)));
+    }
+
+    private void fillWithPlannedStops(List<Place> dayPlaces, Trip trip, List<PlaceCategory> rhythm, int stopsPerDay, int dayNumber) {
+        int rhythmIndex = 0;
+        while (dayPlaces.size() < stopsPerDay) {
+            PlaceCategory category = rhythm.get(rhythmIndex % rhythm.size());
+            if (category == PlaceCategory.FREE && trip.getBudget() != BudgetMode.LEAN && dayPlaces.size() > 1) {
+                category = PlaceCategory.WALKING;
+            }
+            dayPlaces.add(plannedStop(trip, category, dayNumber, dayPlaces.size() + 1));
+            rhythmIndex++;
+        }
     }
 
     private List<PlaceCategory> rotateRhythm(List<PlaceCategory> rhythm, int offset) {
@@ -232,7 +277,7 @@ public class ItineraryGenerationService {
         return categories;
     }
 
-    private double scorePlace(Place place, Trip trip) {
+    private double scorePlace(Place place, Trip trip, boolean firstDay) {
         double score = place.getRating();
         if (categoryMatchesInterest(place.getCategory(), trip.getInterests())) {
             score += 1.2;
@@ -246,7 +291,30 @@ public class ItineraryGenerationService {
         if (trip.getPace().name().equals("FULL") && place.getCategory() == PlaceCategory.CULTURE) {
             score += 0.2;
         }
+        if (firstDay && startingAreaMatches(place, trip)) {
+            score += 2.0;
+        }
+        if (trip.getBudget() == BudgetMode.LEAN && place.getCategory() == PlaceCategory.FREE) {
+            score += 0.8;
+        }
+        if (trip.getBudget() == BudgetMode.COMFORT && place.getCategory() == PlaceCategory.FOOD) {
+            score += 0.3;
+        }
         return score;
+    }
+
+    private boolean startingAreaMatches(Place place, Trip trip) {
+        if (trip.getStartingArea() == null || trip.getStartingArea().isBlank()) {
+            return false;
+        }
+        String start = normalize(trip.getStartingArea());
+        return normalize(place.getName()).contains(start)
+                || normalize(place.getAddress()).contains(start)
+                || normalize(place.getTags()).contains(start);
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.toLowerCase().trim();
     }
 
     private boolean categoryMatchesInterest(PlaceCategory category, List<TravelInterest> interests) {
@@ -275,12 +343,41 @@ public class ItineraryGenerationService {
         return places.subList(start, Math.min(start + count, places.size()));
     }
 
-    private List<Place> fallbackPlaces(int dayNumber) {
-        return List.of(
-                new Place("Neighborhood anchor", "Generated", PlaceCategory.CULTURE, "A flexible culture stop for day " + dayNumber + ".", "Free", 4.4, ""),
-                new Place("Local coffee break", "Generated", PlaceCategory.COFFEE, "A calm pause to keep the day realistic.", "Lean", 4.5, ""),
-                new Place("Dinner area", "Generated", PlaceCategory.FOOD, "Finish near the last stop instead of crossing the city.", "Mid", 4.6, "")
+    private Place plannedStop(Trip trip, PlaceCategory category, int dayNumber, int order) {
+        String city = trip.getDestination();
+        String label = switch (category) {
+            case CULTURE -> "Culture window";
+            case COFFEE -> "Coffee pause";
+            case FOOD -> order >= 4 ? "Dinner zone" : "Local food stop";
+            case WALKING -> "Neighborhood walk";
+            case FREE -> "Free local moment";
+        };
+        String note = switch (category) {
+            case CULTURE -> "A curated culture block kept close to the route so the day stays realistic.";
+            case COFFEE -> "A short break window added to prevent the plan from feeling rushed.";
+            case FOOD -> "A food stop selected to match your budget and keep transfers short.";
+            case WALKING -> "A flexible walk that connects nearby areas without adding a reservation.";
+            case FREE -> "A low-cost local experience that keeps the day useful without stretching the budget.";
+        };
+        return new Place(
+                city + " " + label + " " + dayNumber,
+                city,
+                category,
+                note,
+                priceLevelFor(category, trip.getBudget()),
+                4.5,
+                ""
         );
+    }
+
+    private String priceLevelFor(PlaceCategory category, BudgetMode budget) {
+        if (category == PlaceCategory.FREE || budget == BudgetMode.LEAN) {
+            return category == PlaceCategory.FOOD ? "Lean" : "Free";
+        }
+        if (budget == BudgetMode.COMFORT && category == PlaceCategory.FOOD) {
+            return "Comfort";
+        }
+        return "Mid";
     }
 
     private String titleFor(int dayNumber, List<Place> places) {
@@ -298,7 +395,8 @@ public class ItineraryGenerationService {
         String startContext = trip.getStartingArea() == null || trip.getStartingArea().isBlank()
                 ? "your starting point"
                 : trip.getStartingArea();
-        return "A " + paceLabel + " day from " + startContext + " with " + stopCount + " nearby stops, local breaks and enough room to adjust the pace.";
+        String budgetLabel = trip.getBudget().name().toLowerCase();
+        return "A " + paceLabel + ", " + budgetLabel + " day from " + startContext + " with " + stopCount + " stops, local breaks and enough room to adjust the pace.";
     }
 
     private String timeWindowFor(int order) {
@@ -309,6 +407,14 @@ public class ItineraryGenerationService {
             case 4 -> "17:00";
             default -> "19:00";
         };
+    }
+
+    private String noteFor(Place place, Trip trip, int dayNumber, int order) {
+        String duration = place.getEstimatedVisitMinutes() == null ? "" : " Suggested visit: " + place.getEstimatedVisitMinutes() + " min.";
+        String start = dayNumber == 1 && order == 1 && trip.getStartingArea() != null && !trip.getStartingArea().isBlank()
+                ? " Starts near " + trip.getStartingArea() + "."
+                : "";
+        return place.getDescription() + duration + start;
     }
 
     private double calculateWalkKm(int stopCount, com.journy.backend.trip.enums.TripPace pace) {
@@ -326,11 +432,11 @@ public class ItineraryGenerationService {
 
     private double coordinateFor(Place place, int dayNumber, int order, boolean latitude) {
         Double coordinate = latitude ? place.getLatitude() : place.getLongitude();
-        if (coordinate != null) {
-            return coordinate;
-        }
-        double base = latitude ? 52.3676 : 4.9041;
+        double base = coordinate != null ? coordinate : latitude ? 52.3676 : 4.9041;
         double delta = (dayNumber * 0.004) + (order * 0.002);
+        if (coordinate != null) {
+            return latitude ? base - delta : base + delta;
+        }
         return latitude ? base - delta : base + delta;
     }
 }

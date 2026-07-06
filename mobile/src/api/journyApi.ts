@@ -7,6 +7,7 @@ import type {
   CreateTripRequest,
   DestinationResponse,
   ItineraryResponse,
+  ItineraryDay,
   NotificationResponse,
   PlaceResponse,
   ProfileResponse,
@@ -113,6 +114,13 @@ export const aiApi = {
 
   itinerarySuggestion(tripId: string, dayNumber: number, action: string) {
     return apiRequest<AiItinerarySuggestionResponse>('/api/ai/itinerary-suggestion', {
+      method: 'POST',
+      body: { tripId, dayNumber, action },
+    });
+  },
+
+  applyItinerarySuggestion(tripId: string, dayNumber: number, action: string) {
+    return apiRequest<ItineraryDay>('/api/ai/itinerary-apply', {
       method: 'POST',
       body: { tripId, dayNumber, action },
     });

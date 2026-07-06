@@ -2,9 +2,11 @@ package com.journy.backend.ai.controller;
 
 import com.journy.backend.ai.dto.AiChatRequest;
 import com.journy.backend.ai.dto.AiChatResponse;
+import com.journy.backend.ai.dto.AiItineraryApplyRequest;
 import com.journy.backend.ai.dto.AiItinerarySuggestionRequest;
 import com.journy.backend.ai.dto.AiItinerarySuggestionResponse;
 import com.journy.backend.ai.service.AiService;
+import com.journy.backend.itinerary.dto.ItineraryResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,5 +30,10 @@ public class AiController {
     @PostMapping("/itinerary-suggestion")
     public AiItinerarySuggestionResponse itinerarySuggestion(@Valid @RequestBody AiItinerarySuggestionRequest request) {
         return aiService.itinerarySuggestion(request);
+    }
+
+    @PostMapping("/itinerary-apply")
+    public ItineraryResponse.ItineraryDayResponse applyItinerarySuggestion(@Valid @RequestBody AiItineraryApplyRequest request) {
+        return aiService.applyItinerarySuggestion(request);
     }
 }
