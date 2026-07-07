@@ -5,8 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import { destinationApi } from '../api/journyApi';
-import type { CreateTripRequest, DestinationResponse } from '../api/types';
+import { destinationApi, tripApi } from '../api/journyApi';
+import type { CreateTripRequest, DestinationResponse, TripPreviewResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TripSetup'>;
@@ -94,6 +94,9 @@ export default function TripSetupScreen({ navigation }: Props) {
   const [destinations, setDestinations] = useState<DestinationResponse[]>([]);
   const [popularDestinations, setPopularDestinations] = useState<DestinationResponse[]>([]);
   const [destinationLoading, setDestinationLoading] = useState(false);
+  const [backendPreview, setBackendPreview] = useState<TripPreviewResponse | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewLive, setPreviewLive] = useState(false);
   const destinationDetails = useMemo<Record<string, CityDetail>>(() => {
     const mapped = destinations.reduce<Record<string, { image: string; meta: string }>>((acc, destination) => {
       acc[destination.name] = {
@@ -173,6 +176,57 @@ export default function TripSetupScreen({ navigation }: Props) {
   const startSuggestions = cityStartSuggestions[city] ?? defaultStartSuggestions;
   const estimatedDailyWalk = previewStops ? estimateDailyWalkKm(stopsForPace(pace), pace, budget) : 0;
   const routeStyle = routeStyleFor({ pace, budget, selectedInterests, startArea });
+  const resolvedPreviewStops = backendPreview?.estimatedStops ?? previewStops;
+  const resolvedDailyWalk = backendPreview?.dailyWalkKm ?? estimatedDailyWalk;
+  const resolvedRouteStyle = backendPreview?.routeStyle ?? routeStyle;
+  const resolvedPlaceCount = backendPreview?.availablePlaceCount ?? (destinationOptions.find((item) => item.name === city)?.placeCount ?? 0);
+  const previewConfidence = backendPreview?.confidence ?? (city ? 'Draft' : 'Waiting');
+  const previewSummary = backendPreview?.summary;
+
+  useEffect(() => {
+    if (!city.trim()) {
+      setBackendPreview(null);
+      setPreviewLive(false);
+      setPreviewLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    const timer = setTimeout(() => {
+      setPreviewLoading(true);
+      tripApi.preview({
+        destination: city.trim(),
+        startingArea: startArea.trim() || undefined,
+        startDate: startDate ?? undefined,
+        endDate: endDate ?? undefined,
+        budget: mapBudget(budget),
+        pace: mapPace(pace),
+        interests: selectedInterests.map(mapInterest),
+      })
+        .then((response) => {
+          if (mounted) {
+            setBackendPreview(response);
+            setPreviewLive(true);
+          }
+        })
+        .catch(() => {
+          if (mounted) {
+            setBackendPreview(null);
+            setPreviewLive(false);
+          }
+        })
+        .finally(() => {
+          if (mounted) {
+            setPreviewLoading(false);
+          }
+        });
+    }, 360);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timer);
+    };
+  }, [budget, city, endDate, pace, selectedInterests, startArea, startDate]);
 
   const selectDay = (day: number) => {
     if (!startDay || !endDay || day <= startDay || endDay !== startDay) {
@@ -424,21 +478,31 @@ export default function TripSetupScreen({ navigation }: Props) {
             <Text style={styles.previewTitle}>Plan preview</Text>
             <View style={styles.previewBadge}>
               <Ionicons name="sparkles-outline" size={13} color={colors.teal} />
-              <Text style={styles.previewBadgeText}>{[city, startDate && endDate ? 'dates' : '', selectedInterests.length ? 'taste' : '', pace, startArea.trim()].filter(Boolean).length}/5 ready</Text>
+              <Text style={styles.previewBadgeText}>{previewLoading ? 'Updating' : previewLive ? `${previewConfidence} confidence` : `${[city, startDate && endDate ? 'dates' : '', selectedInterests.length ? 'taste' : '', pace, startArea.trim()].filter(Boolean).length}/5 ready`}</Text>
             </View>
           </View>
           <Text style={styles.previewMain}>
-            {city ? `${city} - ${tripDays || 0} day ${pace.toLowerCase()} route` : 'Choose a city to start shaping your route'}
+            {city ? `${city} - ${tripDays || 1} day ${pace.toLowerCase()} route` : 'Choose a city to start shaping your route'}
           </Text>
           <View style={styles.previewMetaRow}>
-            <PreviewMetric icon="location-outline" label="Stops" value={previewStops ? `${previewStops}` : '--'} colors={colors} styles={styles} />
-            <PreviewMetric icon="walk-outline" label="Daily walk" value={estimatedDailyWalk ? `${estimatedDailyWalk.toFixed(1)} km` : '--'} colors={colors} styles={styles} />
-            <PreviewMetric icon="sparkles-outline" label="Route style" value={routeStyle} colors={colors} styles={styles} />
+            <PreviewMetric icon="location-outline" label="Stops" value={resolvedPreviewStops ? `${resolvedPreviewStops}` : '--'} colors={colors} styles={styles} />
+            <PreviewMetric icon="walk-outline" label="Daily walk" value={resolvedDailyWalk ? `${resolvedDailyWalk.toFixed(1)} km` : '--'} colors={colors} styles={styles} />
+            <PreviewMetric icon="sparkles-outline" label="Route style" value={resolvedRouteStyle} colors={colors} styles={styles} />
+          </View>
+          <View style={styles.previewInsightRow}>
+            <View style={styles.previewInsight}>
+              <Ionicons name="albums-outline" size={14} color={colors.teal} />
+              <Text style={styles.previewInsightText}>{resolvedPlaceCount ? `${resolvedPlaceCount} city picks available` : 'City picks appear after selecting a destination'}</Text>
+            </View>
+            <View style={styles.previewInsight}>
+              <Ionicons name={previewLive ? 'cloud-done-outline' : 'phone-portrait-outline'} size={14} color={colors.teal} />
+              <Text style={styles.previewInsightText}>{previewLive ? 'Backend preview' : 'Local fallback'}</Text>
+            </View>
           </View>
           <Text style={styles.previewFocus}>
-            {city && tripDays
+            {previewSummary ?? (city && tripDays
               ? `${previewFocus}. ${startArea.trim() ? `Day 1 starts around ${startArea.trim()}.` : 'First day starts flexibly around your chosen city.'}`
-              : previewFocus}
+              : previewFocus)}
           </Text>
         </View>
 
@@ -1098,6 +1162,28 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   previewMetricLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900', marginTop: spacing.xs },
   previewMetricValue: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900', marginTop: 2 },
+  previewInsightRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  previewInsight: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  previewInsightText: {
+    color: colors.slate,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+  },
   previewFocus: {
     color: colors.slate,
     fontSize: typography.small,

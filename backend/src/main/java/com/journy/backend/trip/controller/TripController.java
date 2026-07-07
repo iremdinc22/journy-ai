@@ -1,6 +1,8 @@
 package com.journy.backend.trip.controller;
 
 import com.journy.backend.trip.dto.CreateTripRequest;
+import com.journy.backend.trip.dto.TripPreviewRequest;
+import com.journy.backend.trip.dto.TripPreviewResponse;
 import com.journy.backend.trip.dto.TripResponse;
 import com.journy.backend.trip.service.TripService;
 import jakarta.validation.Valid;
@@ -34,6 +36,11 @@ public class TripController {
     @GetMapping("/current")
     public TripResponse currentTrip() {
         return tripService.currentTrip();
+    }
+
+    @PostMapping("/preview")
+    public TripPreviewResponse preview(@RequestBody TripPreviewRequest request) {
+        return tripService.preview(request);
     }
 
     @GetMapping("/{tripId}")

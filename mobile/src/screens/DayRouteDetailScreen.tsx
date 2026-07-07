@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Linking, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import MapView, { Marker, Polyline, type LatLng } from 'react-native-maps';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { aiApi } from '../api/journyApi';
@@ -38,6 +39,10 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
   const focusLabel = currentDay.stops.some((stop) => stop.category === 'FOOD' || stop.category === 'COFFEE')
     ? 'Food breaks included'
     : 'Culture-first flow';
+  const mapRef = useRef<MapView | null>(null);
+  const routeCoordinates = useMemo(() => stopsToCoordinates(currentDay.stops), [currentDay.stops]);
+  const mapRegion = useMemo(() => regionForCoordinates(routeCoordinates), [routeCoordinates]);
+  const mappedWalkKm = useMemo(() => estimateRouteDistanceKm(currentDay.stops), [currentDay.stops]);
   const fallbackActionMessage = {
     lighter: 'Journy would remove the longest transfer and keep the strongest stops.',
     food: 'Journy would add a nearby food or coffee stop without stretching the route.',
@@ -92,6 +97,10 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
     navigation.navigate('PlaceDetail', { place: toPlaceDetail(stop, destination) });
   };
 
+  const startRoute = () => {
+    openRouteInMaps(routeCoordinates);
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
@@ -104,7 +113,7 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
           >
             <Ionicons name="arrow-back" size={21} color={colors.midnight} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.startButton} activeOpacity={0.88}>
+          <TouchableOpacity style={styles.startButton} activeOpacity={0.88} onPress={startRoute}>
             <Ionicons name="navigate-outline" size={16} color={colors.surface} />
             <Text style={styles.startButtonText}>Start route</Text>
           </TouchableOpacity>
@@ -134,30 +143,60 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.mapCanvas}>
-            <View style={styles.mapWater} />
-            <View style={[styles.mapRoad, styles.roadOne]} />
-            <View style={[styles.mapRoad, styles.roadTwo]} />
-            <View style={[styles.mapRoad, styles.roadThree]} />
-            <View style={styles.routeLineOne} />
-            <View style={styles.routeLineTwo} />
-            <View style={styles.routeLineThree} />
-            {currentDay.stops.slice(0, 5).map((stop, index) => (
-              <TouchableOpacity
-                key={`${stop.order}-${stop.title}`}
-                style={[
-                  styles.mapPin,
-                  index === 0 && styles.pinOne,
-                  index === 1 && styles.pinTwo,
-                  index === 2 && styles.pinThree,
-                  index === 3 && styles.pinFour,
-                  index >= 4 && styles.pinFive,
-                ]}
-                activeOpacity={0.86}
-                onPress={() => openStop(stop)}
-              >
-                <Text style={styles.mapPinText}>{index + 1}</Text>
-              </TouchableOpacity>
-            ))}
+            <MapView
+              ref={mapRef}
+              style={styles.nativeMap}
+              initialRegion={mapRegion}
+              onMapReady={() => {
+                if (routeCoordinates.length > 1) {
+                  mapRef.current?.fitToCoordinates(routeCoordinates, {
+                    edgePadding: { top: 56, right: 46, bottom: 58, left: 46 },
+                    animated: true,
+                  });
+                }
+              }}
+              showsCompass={false}
+              showsPointsOfInterest
+              showsUserLocation={false}
+              toolbarEnabled={false}
+            >
+              {routeCoordinates.length > 1 ? (
+                <Polyline
+                  coordinates={routeCoordinates}
+                  strokeColor={colors.teal}
+                  strokeWidth={5}
+                  lineCap="round"
+                  lineJoin="round"
+                />
+              ) : null}
+              {currentDay.stops.map((stop, index) => {
+                if (!Number.isFinite(stop.latitude) || !Number.isFinite(stop.longitude)) {
+                  return null;
+                }
+                const isLast = index === currentDay.stops.length - 1;
+                return (
+                  <Marker
+                    key={`${stop.order}-${stop.title}`}
+                    coordinate={{ latitude: stop.latitude, longitude: stop.longitude }}
+                    title={`${index + 1}. ${stop.title}`}
+                    description={stop.timeWindow}
+                    onCalloutPress={() => openStop(stop)}
+                  >
+                    <View style={[styles.mapMarker, index === 0 && styles.mapMarkerStart, isLast && styles.mapMarkerEnd]}>
+                      <Text style={[styles.mapMarkerText, isLast && styles.mapMarkerTextEnd]}>{index + 1}</Text>
+                    </View>
+                  </Marker>
+                );
+              })}
+            </MapView>
+            <View style={styles.routeDistanceBadge}>
+              <Ionicons name="walk-outline" size={13} color={colors.teal} />
+              <Text style={styles.routeDistanceText}>{mappedWalkKm.toFixed(1)} km mapped</Text>
+            </View>
+            <TouchableOpacity style={styles.openMapsPill} activeOpacity={0.86} onPress={startRoute}>
+              <Ionicons name="open-outline" size={13} color={colors.teal} />
+              <Text style={styles.openMapsText}>Open in Maps</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -380,6 +419,142 @@ function previewWalkImpact(action: ActionKey, minutesSaved?: number | null) {
   return 'Lower effort';
 }
 
+function stopsToCoordinates(stops: ItineraryStop[]): LatLng[] {
+  return stops
+    .filter((stop) => Number.isFinite(stop.latitude) && Number.isFinite(stop.longitude))
+    .map((stop) => ({ latitude: stop.latitude, longitude: stop.longitude }));
+}
+
+function regionForCoordinates(coordinates: LatLng[]) {
+  if (!coordinates.length) {
+    return {
+      latitude: 52.3676,
+      longitude: 4.9041,
+      latitudeDelta: 0.06,
+      longitudeDelta: 0.06,
+    };
+  }
+
+  const latitudes = coordinates.map((coordinate) => coordinate.latitude);
+  const longitudes = coordinates.map((coordinate) => coordinate.longitude);
+  const minLat = Math.min(...latitudes);
+  const maxLat = Math.max(...latitudes);
+  const minLon = Math.min(...longitudes);
+  const maxLon = Math.max(...longitudes);
+
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLon + maxLon) / 2,
+    latitudeDelta: Math.max(0.018, (maxLat - minLat) * 1.8),
+    longitudeDelta: Math.max(0.018, (maxLon - minLon) * 1.8),
+  };
+}
+
+function openRouteInMaps(coordinates: LatLng[]) {
+  if (!coordinates.length) {
+    return;
+  }
+
+  const origin = coordinates[0];
+  const destination = coordinates[coordinates.length - 1];
+  const waypoints = coordinates.slice(1, -1);
+  const url = Platform.select({
+    ios: `http://maps.apple.com/?saddr=${origin.latitude},${origin.longitude}&daddr=${destination.latitude},${destination.longitude}&dirflg=w`,
+    android: `https://www.google.com/maps/dir/?api=1&origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&travelmode=walking${waypoints.length ? `&waypoints=${waypoints.map((point) => `${point.latitude},${point.longitude}`).join('|')}` : ''}`,
+    default: `https://www.google.com/maps/dir/?api=1&origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&travelmode=walking`,
+  });
+
+  if (url) {
+    Linking.openURL(url).catch(() => undefined);
+  }
+}
+
+type RoutePoint = {
+  order: number;
+  title: string;
+  x: number;
+  y: number;
+  latitude: number;
+  longitude: number;
+  stop: ItineraryStop;
+};
+
+function buildRoutePoints(stops: ItineraryStop[]): RoutePoint[] {
+  const validStops = stops.filter((stop) => Number.isFinite(stop.latitude) && Number.isFinite(stop.longitude));
+  if (!validStops.length) {
+    return stops.map((stop, index) => ({
+      order: stop.order,
+      title: stop.title,
+      x: 18 + index * 16,
+      y: index % 2 === 0 ? 36 : 58,
+      latitude: stop.latitude,
+      longitude: stop.longitude,
+      stop,
+    }));
+  }
+
+  const latitudes = validStops.map((stop) => stop.latitude);
+  const longitudes = validStops.map((stop) => stop.longitude);
+  const minLat = Math.min(...latitudes);
+  const maxLat = Math.max(...latitudes);
+  const minLon = Math.min(...longitudes);
+  const maxLon = Math.max(...longitudes);
+  const latRange = Math.max(0.0001, maxLat - minLat);
+  const lonRange = Math.max(0.0001, maxLon - minLon);
+
+  return stops.map((stop, index) => {
+    const longitude = Number.isFinite(stop.longitude) ? stop.longitude : minLon + lonRange / 2;
+    const latitude = Number.isFinite(stop.latitude) ? stop.latitude : minLat + latRange / 2;
+    return {
+      order: stop.order,
+      title: stop.title,
+      x: 14 + ((longitude - minLon) / lonRange) * 72,
+      y: 18 + (1 - (latitude - minLat) / latRange) * 64 + (index % 2 === 0 ? 0 : 4),
+      latitude,
+      longitude,
+      stop,
+    };
+  });
+}
+
+function routeSegment(from: RoutePoint, to: RoutePoint) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const width = Math.max(10, Math.sqrt(dx * dx + dy * dy));
+  return {
+    left: from.x,
+    top: from.y,
+    width,
+    angle: Math.atan2(dy, dx) * (180 / Math.PI),
+  };
+}
+
+function estimateRouteDistanceKm(stops: ItineraryStop[]) {
+  if (stops.length < 2) {
+    return 0;
+  }
+  return stops.slice(1).reduce((sum, stop, index) => {
+    const previous = stops[index];
+    if (![previous.latitude, previous.longitude, stop.latitude, stop.longitude].every(Number.isFinite)) {
+      return sum;
+    }
+    return sum + haversineKm(previous.latitude, previous.longitude, stop.latitude, stop.longitude);
+  }, 0);
+}
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const radiusKm = 6371;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) ** 2;
+  return radiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function toRadians(value: number) {
+  return value * (Math.PI / 180);
+}
+
 function formatCategory(category: string) {
   return category.toLowerCase().replace(/_/g, ' ');
 }
@@ -500,6 +675,38 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       overflow: 'hidden',
       position: 'relative',
     },
+    nativeMap: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    mapMarker: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.teal,
+      borderRadius: radius.pill,
+      borderWidth: 3,
+      height: 38,
+      justifyContent: 'center',
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
+      width: 38,
+    },
+    mapMarkerStart: {
+      borderColor: colors.midnight,
+    },
+    mapMarkerEnd: {
+      backgroundColor: colors.midnight,
+      borderColor: colors.midnight,
+    },
+    mapMarkerText: {
+      color: colors.midnight,
+      fontSize: typography.tiny,
+      fontWeight: '900',
+    },
+    mapMarkerTextEnd: {
+      color: colors.surface,
+    },
     mapWater: {
       backgroundColor: isDark ? 'rgba(169,185,167,0.34)' : 'rgba(169,185,167,0.42)',
       borderRadius: 140,
@@ -550,6 +757,51 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       transform: [{ rotate: '32deg' }],
       width: 82,
     },
+    routeSegment: {
+      backgroundColor: colors.teal,
+      borderRadius: radius.pill,
+      height: 5,
+      opacity: 0.9,
+      position: 'absolute',
+    },
+    routeDistanceBadge: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.mist,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      bottom: 12,
+      flexDirection: 'row',
+      gap: 5,
+      left: 12,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      position: 'absolute',
+    },
+    openMapsPill: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.mist,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      bottom: 12,
+      flexDirection: 'row',
+      gap: 5,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      position: 'absolute',
+      right: 12,
+    },
+    openMapsText: {
+      color: colors.midnight,
+      fontSize: typography.tiny,
+      fontWeight: '900',
+    },
+    routeDistanceText: {
+      color: colors.midnight,
+      fontSize: typography.tiny,
+      fontWeight: '900',
+    },
     mapPin: {
       alignItems: 'center',
       backgroundColor: colors.surface,
@@ -558,8 +810,17 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       borderWidth: 3,
       height: 40,
       justifyContent: 'center',
+      marginLeft: -20,
+      marginTop: -20,
       position: 'absolute',
       width: 40,
+    },
+    mapPinStart: {
+      borderColor: colors.midnight,
+    },
+    mapPinEnd: {
+      backgroundColor: colors.midnight,
+      borderColor: colors.midnight,
     },
     pinOne: { left: 48, top: 84 },
     pinTwo: { left: 144, top: 128 },
@@ -567,6 +828,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
     pinFour: { left: 194, top: 196 },
     pinFive: { left: 274, top: 178 },
     mapPinText: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900' },
+    mapPinTextEnd: { color: colors.surface },
     actionRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',

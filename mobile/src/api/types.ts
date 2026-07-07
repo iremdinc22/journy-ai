@@ -50,6 +50,20 @@ export type CreateTripRequest = {
   >;
 };
 
+export type TripPreviewRequest = Partial<Pick<
+  CreateTripRequest,
+  'destination' | 'startingArea' | 'startDate' | 'endDate' | 'budget' | 'pace' | 'interests'
+>>;
+
+export type TripPreviewResponse = {
+  estimatedStops: number;
+  dailyWalkKm: number;
+  routeStyle: string;
+  availablePlaceCount: number;
+  confidence: string;
+  summary: string;
+};
+
 export type ItineraryStop = {
   order: number;
   title: string;

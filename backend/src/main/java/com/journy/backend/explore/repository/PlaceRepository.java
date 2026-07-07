@@ -5,6 +5,7 @@ import com.journy.backend.place.enums.PlaceCategory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +18,8 @@ public interface PlaceRepository extends JpaRepository<Place, String> {
     List<String> findDistinctCities();
 
     long countByCityIgnoreCase(String city);
+
+    long countByCityIgnoreCaseAndCategoryIn(String city, Collection<PlaceCategory> categories);
 
     Optional<Place> findByNameIgnoreCaseAndCityIgnoreCase(String name, String city);
 }

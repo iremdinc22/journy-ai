@@ -15,6 +15,8 @@ import type {
   SavedPlaceRequest,
   SavedPlaceResponse,
   TripResponse,
+  TripPreviewRequest,
+  TripPreviewResponse,
   UserPreferences,
 } from './types';
 
@@ -62,6 +64,13 @@ export const tripApi = {
 
   current() {
     return apiRequest<TripResponse>('/api/trips/current');
+  },
+
+  preview(request: TripPreviewRequest) {
+    return apiRequest<TripPreviewResponse>('/api/trips/preview', {
+      method: 'POST',
+      body: request,
+    });
   },
 
   detail(tripId: string) {
