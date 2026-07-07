@@ -12,8 +12,9 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { aiApi } from '../api/journyApi';
+import { agentApi } from '../api/journyApi';
 import { session } from '../api/session';
+import type { AgentActionPreview, AgentIntent } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type Message = {
@@ -21,7 +22,8 @@ type Message = {
   role: 'ai' | 'user';
   text: string;
   time?: string;
-  action?: 'lighter' | 'food' | 'replace';
+  intent?: AgentIntent;
+  preview?: AgentActionPreview;
   applied?: boolean;
 };
 
@@ -29,28 +31,24 @@ const quickPrompts = [
   {
     label: 'Make today lighter',
     prompt: 'Can you make today lighter?',
-    action: 'lighter' as const,
     answer:
       'Yes. I would keep Museumplein as the main anchor, move the canal walk before lunch, and remove the optional market stop. Your day becomes about 22 minutes shorter with a longer afternoon break.',
   },
   {
     label: 'Coffee nearby',
     prompt: 'Find a quiet coffee spot near me.',
-    action: 'food' as const,
     answer:
       'I would add a quiet coffee stop near De Pijp before the canal loop. It keeps the detour under 10 minutes and gives you a calm break before the next stop.',
   },
   {
     label: 'Dinner idea',
     prompt: 'Suggest dinner near the last stop.',
-    action: 'food' as const,
     answer:
       'For dinner, stay near the final neighborhood instead of crossing the city. A small local bistro around the evening area fits the route and keeps the night relaxed.',
   },
   {
     label: 'Rain backup',
     prompt: 'Rebuild the plan if it rains.',
-    action: 'replace' as const,
     answer:
       'If it rains, move the outdoor canal walk to tomorrow morning and keep today focused on one museum, a covered food stop, and a longer cafe window.',
   },
@@ -105,16 +103,30 @@ export default function AssistantScreen() {
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
 
     try {
-      const response = await aiApi.chat(cleanPrompt, session.getCurrentTrip()?.id);
-      const action = actionFromSuggestion(response.suggestedAction ?? cleanPrompt);
+      const response = await agentApi.message(cleanPrompt, session.getCurrentTrip()?.id, 1);
       setMessages((current) => [
         ...current,
-        { id: `${timestamp}-ai`, role: 'ai', text: response.message, time: 'Now', action },
+        {
+          id: `${timestamp}-ai`,
+          role: 'ai',
+          text: response.message,
+          time: response.preview?.requiresConfirmation ? 'Agent preview' : 'Now',
+          intent: response.intent,
+          preview: response.preview,
+        },
       ]);
     } catch {
+      const intent = intentFromSuggestion(cleanPrompt);
       setMessages((current) => [
         ...current,
-        { id: `${timestamp}-ai`, role: 'ai', text: fallbackAnswer ?? buildAnswer(cleanPrompt), time: 'Offline preview', action: actionFromSuggestion(cleanPrompt) },
+        {
+          id: `${timestamp}-ai`,
+          role: 'ai',
+          text: fallbackAnswer ?? buildAnswer(cleanPrompt),
+          time: 'Offline preview',
+          intent,
+          preview: offlinePreview(intent, cleanPrompt),
+        },
       ]);
     } finally {
       setSending(false);
@@ -124,13 +136,13 @@ export default function AssistantScreen() {
 
   const applyAction = async (message: Message) => {
     const trip = session.getCurrentTrip();
-    if (!trip?.id || !message.action || applyingMessageId) {
+    if (!trip?.id || !message.intent || applyingMessageId || message.intent === 'GENERAL_GUIDANCE') {
       return;
     }
 
     setApplyingMessageId(message.id);
     try {
-      const updatedDay = await aiApi.applyItinerarySuggestion(trip.id, 1, message.action);
+      const updatedDay = await agentApi.apply(trip.id, 1, message.intent);
       setMessages((current) => current.map((item) => (
         item.id === message.id ? { ...item, applied: true } : item
       )));
@@ -193,7 +205,38 @@ export default function AssistantScreen() {
               <View style={message.role === 'ai' ? styles.aiBubble : styles.userBubble}>
                 <Text style={message.role === 'ai' ? styles.aiText : styles.userText}>{message.text}</Text>
                 {message.role === 'ai' && message.time ? <Text style={styles.messageTime}>{message.time}</Text> : null}
-                {message.role === 'ai' && message.action ? (
+                {message.role === 'ai' && message.preview ? (
+                  <View style={styles.previewCard}>
+                    <View style={styles.previewTop}>
+                      <Ionicons name="git-branch-outline" size={14} color={colors.teal} />
+                      <Text style={styles.previewTitle}>{message.preview.title}</Text>
+                    </View>
+                    <Text style={styles.previewText}>{message.preview.message}</Text>
+                    <View style={styles.previewMetaRow}>
+                      <View style={styles.previewMeta}>
+                        <Text style={styles.previewMetaLabel}>Change</Text>
+                        <Text style={styles.previewMetaValue}>{message.preview.suggestedAction}</Text>
+                      </View>
+                      <View style={styles.previewMeta}>
+                        <Text style={styles.previewMetaLabel}>Impact</Text>
+                        <Text style={styles.previewMetaValue}>{message.preview.minutesSaved ? `${message.preview.minutesSaved} min saved` : 'Route fit'}</Text>
+                      </View>
+                    </View>
+                    {message.preview.affectedStops.length ? (
+                      <Text style={styles.previewRoute}>Affects: {message.preview.affectedStops.join(', ')}</Text>
+                    ) : null}
+                    <Text style={styles.previewRoute}>{message.preview.routeSummary}</Text>
+                    <View style={styles.reasonList}>
+                      {message.preview.reasons.slice(0, 3).map((reason) => (
+                        <View key={reason} style={styles.reasonRow}>
+                          <Ionicons name="checkmark-circle" size={13} color={colors.teal} />
+                          <Text style={styles.reasonText}>{reason}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
+                {message.role === 'ai' && message.preview?.requiresConfirmation ? (
                   <TouchableOpacity
                     style={[styles.applyButton, message.applied && styles.applyButtonDone]}
                     activeOpacity={0.86}
@@ -206,7 +249,7 @@ export default function AssistantScreen() {
                       color={message.applied ? colors.surface : colors.teal}
                     />
                     <Text style={[styles.applyButtonText, message.applied && styles.applyButtonTextDone]}>
-                      {message.applied ? 'Applied to Day 1' : applyingMessageId === message.id ? 'Updating...' : 'Apply to Day 1'}
+                      {message.applied ? 'Applied to Day 1' : applyingMessageId === message.id ? 'Updating...' : 'Apply changes'}
                     </Text>
                   </TouchableOpacity>
                 ) : null}
@@ -279,12 +322,51 @@ function buildAnswer(prompt: string) {
   return 'I can help with that. I would keep the main anchor stops, reduce backtracking, and leave one flexible window so the day stays realistic.';
 }
 
-function actionFromSuggestion(value: string): Message['action'] | undefined {
+function intentFromSuggestion(value: string): AgentIntent {
   const lower = value.toLowerCase();
-  if (lower.includes('coffee') || lower.includes('dinner') || lower.includes('food')) return 'food';
-  if (lower.includes('rain') || lower.includes('weather') || lower.includes('replace')) return 'replace';
-  if (lower.includes('light') || lower.includes('easy') || lower.includes('short') || lower.includes('slow')) return 'lighter';
-  return undefined;
+  if (lower.includes('budget') || lower.includes('cheap') || lower.includes('ucuz') || lower.includes('bütçe')) return 'BUDGET_OPTIMIZE';
+  if (lower.includes('rain') || lower.includes('weather') || lower.includes('yağmur')) return 'RAIN_REPLAN';
+  if (lower.includes('coffee') || lower.includes('dinner') || lower.includes('food') || lower.includes('kahve') || lower.includes('yemek')) return 'ADD_FOOD_STOP';
+  if (lower.includes('replace') || lower.includes('change') || lower.includes('değiştir')) return 'REPLACE_STOP';
+  if (lower.includes('light') || lower.includes('easy') || lower.includes('short') || lower.includes('slow') || lower.includes('yorul') || lower.includes('hafif')) return 'MAKE_DAY_LIGHTER';
+  return 'GENERAL_GUIDANCE';
+}
+
+function offlinePreview(intent: AgentIntent, prompt: string): AgentActionPreview {
+  const title = {
+    MAKE_DAY_LIGHTER: 'Make today lighter',
+    ADD_FOOD_STOP: 'Add a better food break',
+    REPLACE_STOP: 'Replace one flexible stop',
+    BUDGET_OPTIMIZE: 'Optimize for budget',
+    RAIN_REPLAN: 'Rebuild around rain',
+    GENERAL_GUIDANCE: 'Journy can adjust your route',
+  }[intent];
+  const requiresConfirmation = intent !== 'GENERAL_GUIDANCE';
+
+  return {
+    intent,
+    title,
+    message: buildAnswer(prompt),
+    suggestedAction: {
+      MAKE_DAY_LIGHTER: 'Remove optional final stop',
+      ADD_FOOD_STOP: 'Add food or coffee stop near route',
+      REPLACE_STOP: 'Swap one stop in the same area',
+      BUDGET_OPTIMIZE: 'Replace expensive flexible stop',
+      RAIN_REPLAN: 'Move route toward indoor stops',
+      GENERAL_GUIDANCE: 'Ask for a route adjustment',
+    }[intent],
+    minutesSaved: intent === 'MAKE_DAY_LIGHTER' ? 22 : intent === 'RAIN_REPLAN' ? 12 : null,
+    affectedStops: [],
+    routeSummary: requiresConfirmation
+      ? 'Connect to the backend to apply this preview to your current itinerary.'
+      : 'Ask Journy to make the day lighter, cheaper, food-focused or weather-ready.',
+    reasons: [
+      'Uses your current trip context when the backend is available',
+      'Shows preview before changing the plan',
+      'Applies only after confirmation',
+    ],
+    requiresConfirmation,
+  };
 }
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];
@@ -362,6 +444,78 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     fontSize: 10,
     fontWeight: '800',
     marginTop: spacing.xs,
+  },
+  previewCard: {
+    backgroundColor: colors.surfaceWarm,
+    borderColor: colors.mist,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+  },
+  previewTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+  },
+  previewTitle: {
+    color: colors.midnight,
+    flex: 1,
+    fontSize: typography.small,
+    fontWeight: '900',
+  },
+  previewText: {
+    color: colors.slate,
+    fontSize: typography.tiny,
+    fontWeight: '800',
+    lineHeight: 17,
+    marginTop: spacing.xs,
+  },
+  previewMetaRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  previewMeta: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    flex: 1,
+    padding: spacing.xs,
+  },
+  previewMetaLabel: {
+    color: colors.slate,
+    fontSize: 9,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  previewMetaValue: {
+    color: colors.midnight,
+    fontSize: 11,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  previewRoute: {
+    color: colors.slate,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 16,
+    marginTop: spacing.xs,
+  },
+  reasonList: {
+    gap: 4,
+    marginTop: spacing.sm,
+  },
+  reasonRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+  },
+  reasonText: {
+    color: colors.midnight,
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 15,
   },
   applyButton: {
     alignItems: 'center',

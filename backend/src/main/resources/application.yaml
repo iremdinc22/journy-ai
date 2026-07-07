@@ -23,3 +23,5 @@ app:
     jwt-secret: ${JWT_SECRET:journy-local-development-secret-change-before-production}
     jwt-expiration-seconds: ${JWT_EXPIRATION_SECONDS:86400}
     refresh-token-expiration-seconds: ${REFRESH_TOKEN_EXPIRATION_SECONDS:2592000}
+  ai-agent:
+    base-url: ${AI_AGENT_BASE_URL:http://localhost:8001}

@@ -2,6 +2,8 @@ import { apiRequest } from './client';
 import { session } from './session';
 import type {
   AiChatResponse,
+  AgentIntent,
+  AgentMessageResponse,
   AiItinerarySuggestionResponse,
   AddPlaceToPlanRequest,
   AuthResponse,
@@ -168,6 +170,22 @@ export const aiApi = {
     return apiRequest<ItineraryDay>('/api/ai/itinerary-apply', {
       method: 'POST',
       body: { tripId, dayNumber, action },
+    });
+  },
+};
+
+export const agentApi = {
+  message(message: string, tripId?: string, dayNumber = 1) {
+    return apiRequest<AgentMessageResponse>('/api/agent/message', {
+      method: 'POST',
+      body: { tripId, dayNumber, message },
+    });
+  },
+
+  apply(tripId: string, dayNumber: number, intent: AgentIntent) {
+    return apiRequest<ItineraryDay>('/api/agent/apply', {
+      method: 'POST',
+      body: { tripId, dayNumber, intent },
     });
   },
 };

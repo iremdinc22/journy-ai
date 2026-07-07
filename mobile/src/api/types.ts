@@ -127,6 +127,33 @@ export type AiChatResponse = {
   minutesSaved: number | null;
 };
 
+export type AgentIntent =
+  | 'MAKE_DAY_LIGHTER'
+  | 'ADD_FOOD_STOP'
+  | 'REPLACE_STOP'
+  | 'BUDGET_OPTIMIZE'
+  | 'RAIN_REPLAN'
+  | 'GENERAL_GUIDANCE';
+
+export type AgentActionPreview = {
+  intent: AgentIntent;
+  title: string;
+  message: string;
+  suggestedAction: string;
+  minutesSaved: number | null;
+  affectedStops: string[];
+  routeSummary: string;
+  reasons: string[];
+  requiresConfirmation: boolean;
+};
+
+export type AgentMessageResponse = {
+  conversationId: string;
+  message: string;
+  intent: AgentIntent;
+  preview: AgentActionPreview;
+};
+
 export type AiItinerarySuggestionResponse = {
   title: string;
   message: string;

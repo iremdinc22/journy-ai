@@ -39,6 +39,15 @@ backend/build/
 backend/.gradle/
 backend/out/
 
+# Python AI agent
+ai-agent/.venv/
+ai-agent/__pycache__/
+ai-agent/**/__pycache__/
+ai-agent/.pytest_cache/
+ai-agent/.ruff_cache/
+ai-agent/*.pyc
+ai-agent/**/*.pyc
+
 # Local database / Docker artifacts
 postgres-data/
 *.db
