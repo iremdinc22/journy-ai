@@ -22,11 +22,11 @@ public class PythonAgentClient {
                 .build();
     }
 
-    public Optional<AgentMessageResponse> message(String message, Trip trip, ItineraryDay day) {
+    public Optional<AgentMessageResponse> message(String message, Trip trip, ItineraryDay day, List<ItineraryDay> itineraryDays) {
         try {
             AgentMessageResponse response = restClient.post()
                     .uri("/v1/agent/message")
-                    .body(toRequest(message, trip, day))
+                    .body(toRequest(message, trip, day, itineraryDays))
                     .retrieve()
                     .body(AgentMessageResponse.class);
             return Optional.ofNullable(response);
@@ -35,7 +35,7 @@ public class PythonAgentClient {
         }
     }
 
-    private PythonAgentMessageRequest toRequest(String message, Trip trip, ItineraryDay day) {
+    private PythonAgentMessageRequest toRequest(String message, Trip trip, ItineraryDay day, List<ItineraryDay> itineraryDays) {
         return new PythonAgentMessageRequest(
                 message,
                 new PythonTripContext(
@@ -46,14 +46,19 @@ public class PythonAgentClient {
                         trip.getInterests().stream().map(Enum::name).toList(),
                         trip.getStartingArea()
                 ),
-                new PythonDayContext(
-                        day.getDayNumber(),
-                        day.getTitle(),
-                        day.getSummary(),
-                        day.getWalkKm(),
-                        day.getStops().size(),
-                        day.getStops().stream().map(this::toStop).toList()
-                )
+                toDay(day),
+                itineraryDays.stream().map(this::toDay).toList()
+        );
+    }
+
+    private PythonDayContext toDay(ItineraryDay day) {
+        return new PythonDayContext(
+                day.getDayNumber(),
+                day.getTitle(),
+                day.getSummary(),
+                day.getWalkKm(),
+                day.getStops().size(),
+                day.getStops().stream().map(this::toStop).toList()
         );
     }
 
@@ -72,7 +77,8 @@ public class PythonAgentClient {
     private record PythonAgentMessageRequest(
             String message,
             PythonTripContext trip,
-            PythonDayContext day
+            PythonDayContext day,
+            List<PythonDayContext> itineraryDays
     ) {
     }
 

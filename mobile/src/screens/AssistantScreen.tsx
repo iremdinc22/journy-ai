@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { agentApi } from '../api/journyApi';
 import { session } from '../api/session';
-import type { AgentActionPreview, AgentIntent, ItineraryDay } from '../api/types';
+import type { AgentActionPreview, AgentIntent, ItineraryDay, TripResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type Message = {
@@ -31,7 +31,14 @@ type Message = {
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
-const quickPrompts = [
+type QuickPrompt = {
+  label: string;
+  icon: IoniconName;
+  prompt: string;
+  answer: string;
+};
+
+const defaultQuickPrompts: QuickPrompt[] = [
   {
     label: 'Make today lighter',
     icon: 'walk-outline',
@@ -80,7 +87,9 @@ export default function AssistantScreen() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [sending, setSending] = useState(false);
   const [applyingMessageId, setApplyingMessageId] = useState<string | null>(null);
+  const [currentTrip] = useState(() => session.getCurrentTrip());
   const scrollRef = useRef<ScrollView>(null);
+  const quickPrompts = useMemo(() => buildQuickPrompts(currentTrip), [currentTrip]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -343,7 +352,7 @@ export default function AssistantScreen() {
                 activeOpacity={0.86}
                 onPress={() => sendPrompt(item.prompt, item.answer)}
               >
-                <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={13} color={colors.teal} />
+                <Ionicons name={item.icon} size={13} color={colors.teal} />
                 <Text style={styles.quickChipText}>{item.label}</Text>
               </TouchableOpacity>
             ))}
@@ -392,6 +401,65 @@ function buildAnswer(prompt: string) {
   }
 
   return 'I can help with that. I would keep the main anchor stops, reduce backtracking, and leave one flexible window so the day stays realistic.';
+}
+
+function buildQuickPrompts(trip?: TripResponse): QuickPrompt[] {
+  if (!trip) {
+    return defaultQuickPrompts;
+  }
+
+  const prompts: QuickPrompt[] = [];
+  const addPrompt = (prompt: QuickPrompt) => {
+    if (!prompts.some((item) => item.label === prompt.label)) {
+      prompts.push(prompt);
+    }
+  };
+  const interests = trip.interests.map((item) => item.toUpperCase());
+  const isFoodFocused = interests.includes('COFFEE') || interests.includes('LOCAL_FOOD');
+  const isWalkHeavy = trip.stats.averageWalkKm >= 4.5 || trip.stats.stops >= 5 || trip.pace === 'RELAXED';
+
+  if (isWalkHeavy) {
+    addPrompt({
+      label: 'Lighten this day',
+      icon: 'walk-outline',
+      prompt: 'Can you make today lighter based on my full trip?',
+      answer: 'I would compare today against the rest of your trip, keep the anchor stops, and reduce the most flexible route pressure.',
+    });
+  }
+
+  if (isFoodFocused || trip.stats.foodPicks < Math.max(1, trip.days)) {
+    addPrompt({
+      label: 'Add a food break',
+      icon: 'restaurant-outline',
+      prompt: 'Can you add a local food or coffee break without stretching the route?',
+      answer: 'I would place a food or coffee break near your existing route cluster so the day feels better paced without extra travel.',
+    });
+  }
+
+  if (trip.budget === 'LEAN') {
+    addPrompt({
+      label: 'Cheaper options',
+      icon: 'wallet-outline',
+      prompt: 'Can you make today more budget friendly?',
+      answer: 'I would keep the core stops and swap the most flexible paid or food stop for a lower-cost local alternative.',
+    });
+  }
+
+  addPrompt({
+    label: 'Rain backup',
+    icon: 'rainy-outline',
+    prompt: 'Rebuild the plan if it rains and keep the route realistic.',
+    answer: 'I would look for outdoor-heavy parts of the day and swap them into indoor culture, cafe, or covered local stops.',
+  });
+
+  addPrompt({
+    label: 'Best day to slow down',
+    icon: 'analytics-outline',
+    prompt: 'Which day should I slow down based on the whole trip?',
+    answer: 'I would compare every day by walking distance, stop count, food breaks, and outdoor pressure, then suggest the best day to soften.',
+  });
+
+  return prompts.slice(0, 4);
 }
 
 function intentFromSuggestion(value: string): AgentIntent {

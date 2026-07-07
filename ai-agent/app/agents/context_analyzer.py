@@ -24,11 +24,73 @@ class DayAnalysis:
     signals: list[str]
 
 
+@dataclass(frozen=True)
+class TripAnalysis:
+    day_count: int
+    total_stops: int
+    average_walk_km: float
+    busiest_day_number: int | None
+    lightest_day_number: int | None
+    food_gap_day_numbers: list[int]
+    outdoor_heavy_day_numbers: list[int]
+    balance_summary: str
+    signals: list[str]
+
+
 class TripContextAnalyzer:
     FOOD_CATEGORIES = {"FOOD", "COFFEE"}
     INDOOR_CATEGORIES = {"MUSEUM", "CULTURE", "FOOD", "COFFEE", "SHOPPING"}
     OUTDOOR_CATEGORIES = {"WALKING", "FREE", "LANDMARK", "PARK"}
     ANCHOR_CATEGORIES = {"MUSEUM", "CULTURE", "LANDMARK"}
+
+    def analyze_trip(self, trip: AgentTripContext, days: list[AgentDayContext]) -> TripAnalysis:
+        if not days:
+            return TripAnalysis(
+                day_count=0,
+                total_stops=0,
+                average_walk_km=0,
+                busiest_day_number=None,
+                lightest_day_number=None,
+                food_gap_day_numbers=[],
+                outdoor_heavy_day_numbers=[],
+                balance_summary="No itinerary days are available yet.",
+                signals=["Trip context is not complete"],
+            )
+
+        analyses = [(day, self.analyze_day(trip, day)) for day in days]
+        total_stops = sum(day.stopCount for day in days)
+        average_walk_km = round(sum(day.walkKm for day in days) / len(days), 1)
+        busiest = max(days, key=lambda day: (day.walkKm, day.stopCount))
+        lightest = min(days, key=lambda day: (day.walkKm, day.stopCount))
+        food_gap_days = [day.dayNumber for day, analysis in analyses if analysis.food_break_count == 0]
+        outdoor_heavy_days = [day.dayNumber for day, analysis in analyses if analysis.outdoor_stop_count >= 2]
+
+        signals = [
+            f"{len(days)} planned days in {trip.destination}",
+            f"Average daily walk is {average_walk_km} km",
+            f"Busiest day is Day {busiest.dayNumber}",
+            f"Lightest day is Day {lightest.dayNumber}",
+        ]
+        if food_gap_days:
+            signals.append(f"Days without a food or coffee break: {', '.join(map(str, food_gap_days))}")
+        if outdoor_heavy_days:
+            signals.append(f"Outdoor-heavy days: {', '.join(map(str, outdoor_heavy_days))}")
+
+        return TripAnalysis(
+            day_count=len(days),
+            total_stops=total_stops,
+            average_walk_km=average_walk_km,
+            busiest_day_number=busiest.dayNumber,
+            lightest_day_number=lightest.dayNumber,
+            food_gap_day_numbers=food_gap_days,
+            outdoor_heavy_day_numbers=outdoor_heavy_days,
+            balance_summary=(
+                f"{trip.destination} has {len(days)} days, {total_stops} stops and "
+                f"{average_walk_km} km average walking per day. "
+                f"Day {busiest.dayNumber} carries the most pressure; Day {lightest.dayNumber} is the lightest."
+            ),
+            signals=signals,
+        )
 
     def analyze_day(self, trip: AgentTripContext, day: AgentDayContext) -> DayAnalysis:
         walk_pressure = self._walk_pressure(trip.pace, day.walkKm)

@@ -44,6 +44,7 @@ class AgentMessageRequest(BaseModel):
     message: str
     trip: AgentTripContext
     day: AgentDayContext
+    itineraryDays: list[AgentDayContext] = Field(default_factory=list)
 
 
 class AgentActionPreview(BaseModel):

@@ -50,8 +50,9 @@ public class AgentService {
     public AgentMessageResponse message(AgentMessageRequest request) {
         UserAccount user = currentUserService.currentUser();
         Trip trip = resolveTrip(user, request.tripId());
-        ItineraryDay day = resolveDay(trip, request.dayNumber());
-        AgentMessageResponse pythonResponse = pythonAgentClient.message(request.message(), trip, day).orElse(null);
+        List<ItineraryDay> itineraryDays = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId());
+        ItineraryDay day = resolveDay(itineraryDays, request.dayNumber(), request.message());
+        AgentMessageResponse pythonResponse = pythonAgentClient.message(request.message(), trip, day, itineraryDays).orElse(null);
         if (pythonResponse != null) {
             return new AgentMessageResponse(
                     "agent_" + trip.getId(),
@@ -62,11 +63,11 @@ public class AgentService {
         }
 
         AgentIntent intent = detectIntent(request.message());
-        AgentActionPreview preview = buildPreview(intent, trip, day);
+        AgentActionPreview preview = buildPreview(intent, trip, day, itineraryDays);
 
         return new AgentMessageResponse(
                 "agent_" + trip.getId(),
-                buildAgentMessage(intent, trip, day, preview),
+                buildAgentMessage(intent, trip, day, preview, itineraryDays),
                 intent,
                 preview
         );
@@ -85,7 +86,7 @@ public class AgentService {
         ));
     }
 
-    private AgentActionPreview buildPreview(AgentIntent intent, Trip trip, ItineraryDay day) {
+    private AgentActionPreview buildPreview(AgentIntent intent, Trip trip, ItineraryDay day, List<ItineraryDay> itineraryDays) {
         if (intent == AgentIntent.BUDGET_OPTIMIZE) {
             return budgetPreview(trip, day);
         }
@@ -110,7 +111,7 @@ public class AgentService {
                 suggestion.minutesSaved(),
                 suggestion.stopsAffected(),
                 suggestion.routeSummary(),
-                explain(intent, trip, day, suggestion.stopsAffected()),
+                explain(intent, trip, day, suggestion.stopsAffected(), itineraryDays),
                 true
         );
     }
@@ -179,12 +180,23 @@ public class AgentService {
         );
     }
 
-    private String buildAgentMessage(AgentIntent intent, Trip trip, ItineraryDay day, AgentActionPreview preview) {
+    private String buildAgentMessage(
+            AgentIntent intent,
+            Trip trip,
+            ItineraryDay day,
+            AgentActionPreview preview,
+            List<ItineraryDay> itineraryDays
+    ) {
         if (!preview.requiresConfirmation()) {
             return preview.message();
         }
+        ItineraryDay busiestDay = findBusiestDay(itineraryDays);
         return switch (intent) {
-            case MAKE_DAY_LIGHTER -> "I checked Day " + day.getDayNumber() + ". I can make it lighter by reducing pressure around the optional stop and keeping the main anchors.";
+            case MAKE_DAY_LIGHTER -> busiestDay.getDayNumber() == day.getDayNumber() && itineraryDays.size() > 1
+                    ? "I checked the full trip. Day " + day.getDayNumber() + " carries the most pressure with "
+                    + day.getWalkKm() + " km of walking and " + day.getStops().size()
+                    + " stops, so I prepared a lighter version while keeping the main anchors."
+                    : "I checked Day " + day.getDayNumber() + ". I can make it lighter by reducing pressure around the optional stop and keeping the main anchors.";
             case ADD_FOOD_STOP -> "I found a way to add a local food break without stretching the route too much.";
             case REPLACE_STOP -> "I can replace the weakest-fit stop while preserving the same route area.";
             case BUDGET_OPTIMIZE -> "I can make this day more budget-friendly by adjusting flexible food or activity stops.";
@@ -193,13 +205,22 @@ public class AgentService {
         };
     }
 
-    private List<String> explain(AgentIntent intent, Trip trip, ItineraryDay day, List<String> affectedStops) {
+    private List<String> explain(
+            AgentIntent intent,
+            Trip trip,
+            ItineraryDay day,
+            List<String> affectedStops,
+            List<ItineraryDay> itineraryDays
+    ) {
         String affected = affectedStops.isEmpty() ? "the flexible route window" : affectedStops.getFirst();
+        ItineraryDay busiestDay = findBusiestDay(itineraryDays);
         return switch (intent) {
             case MAKE_DAY_LIGHTER -> List.of(
                     affected + " is the easiest place to reduce effort",
                     "Day " + day.getDayNumber() + " is currently " + day.getWalkKm() + " km of walking",
-                    "The core " + trip.getDestination() + " anchors stay in the plan"
+                    busiestDay.getDayNumber() == day.getDayNumber() && itineraryDays.size() > 1
+                            ? "This is the busiest day in the current trip"
+                            : "The core " + trip.getDestination() + " anchors stay in the plan"
             );
             case ADD_FOOD_STOP -> List.of(
                     "A food break matches your local discovery goal",
@@ -268,13 +289,45 @@ public class AgentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Current trip was not found"));
     }
 
-    private ItineraryDay resolveDay(Trip trip, Integer requestedDayNumber) {
+    private ItineraryDay resolveDay(List<ItineraryDay> itineraryDays, Integer requestedDayNumber, String message) {
+        if (isTripWideQuestion(message)) {
+            return findBusiestDay(itineraryDays);
+        }
         int dayNumber = requestedDayNumber == null ? 1 : requestedDayNumber;
-        return itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId()).stream()
+        return itineraryDays.stream()
                 .filter(day -> day.getDayNumber() == dayNumber)
                 .findFirst()
-                .orElseGet(() -> itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId()).stream()
+                .orElseGet(() -> itineraryDays.stream()
                         .findFirst()
                         .orElseThrow(() -> new ResourceNotFoundException("Itinerary day was not found")));
+    }
+
+    private boolean isTripWideQuestion(String message) {
+        String text = message == null ? "" : message.toLowerCase();
+        return containsAny(
+                text,
+                "whole trip",
+                "full trip",
+                "which day",
+                "best day",
+                "all days",
+                "trip overall",
+                "tüm seyahat",
+                "seyahat geneli",
+                "hangi gün",
+                "en yoğun gün"
+        );
+    }
+
+    private ItineraryDay findBusiestDay(List<ItineraryDay> itineraryDays) {
+        return itineraryDays.stream()
+                .max((first, second) -> {
+                    int walkingCompare = Double.compare(first.getWalkKm(), second.getWalkKm());
+                    if (walkingCompare != 0) {
+                        return walkingCompare;
+                    }
+                    return Integer.compare(first.getStops().size(), second.getStops().size());
+                })
+                .orElseThrow(() -> new ResourceNotFoundException("Itinerary day was not found"));
     }
 }

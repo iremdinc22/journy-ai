@@ -6,7 +6,7 @@ from typing import Any
 from openai import OpenAI
 from pydantic import ValidationError
 
-from app.agents.context_analyzer import DayAnalysis, TripContextAnalyzer
+from app.agents.context_analyzer import DayAnalysis, TripAnalysis, TripContextAnalyzer
 from app.agents.food_agent import FoodAgent
 from app.agents.pace_agent import PaceAgent
 from app.agents.weather_agent import WeatherAgent
@@ -29,16 +29,19 @@ class TravelAgent:
 
     def decide(self, request: AgentMessageRequest) -> AgentMessageResponse:
         analysis = self.context_analyzer.analyze_day(request.trip, request.day)
+        itinerary_days = request.itineraryDays or [request.day]
+        trip_analysis = self.context_analyzer.analyze_trip(request.trip, itinerary_days)
         if self.client:
-            response = self._decide_with_openai(request, analysis)
+            response = self._decide_with_openai(request, analysis, trip_analysis)
             if response:
                 return response
-        return self._decide_with_rules(request, analysis)
+        return self._decide_with_rules(request, analysis, trip_analysis)
 
     def _decide_with_openai(
         self,
         request: AgentMessageRequest,
         analysis: DayAnalysis,
+        trip_analysis: TripAnalysis,
     ) -> AgentMessageResponse | None:
         try:
             completion = self.client.chat.completions.create(
@@ -49,7 +52,8 @@ class TravelAgent:
                         "role": "system",
                         "content": (
                             "You are Journy's travel planning agent. "
-                            "Analyze the route context before deciding. "
+                            "Analyze the active day and the full multi-day trip context before deciding. "
+                            "Use tripAnalysis to notice the busiest day, missing food breaks and weather-heavy days. "
                             "If the user asks for an easier/lighter/less tiring day, use MAKE_DAY_LIGHTER. "
                             "If the user asks for food, dinner, coffee or a cafe, use ADD_FOOD_STOP. "
                             "If the user mentions rain or weather, use RAIN_REPLAN. "
@@ -63,7 +67,7 @@ class TravelAgent:
                     },
                     {
                         "role": "user",
-                        "content": json.dumps(self._prompt_payload(request, analysis), ensure_ascii=False),
+                        "content": json.dumps(self._prompt_payload(request, analysis, trip_analysis), ensure_ascii=False),
                     },
                 ],
                 temperature=0.2,
@@ -96,11 +100,12 @@ class TravelAgent:
         self,
         request: AgentMessageRequest,
         analysis: DayAnalysis,
+        trip_analysis: TripAnalysis,
     ) -> AgentMessageResponse:
         intent = self._detect_intent(request.message)
         preview = self._preview_for(intent, request, analysis)
         return AgentMessageResponse(
-            message=self._message_for(intent, request, analysis),
+            message=self._message_for(intent, request, analysis, trip_analysis),
             intent=intent,
             preview=preview,
         )
@@ -198,26 +203,40 @@ class TravelAgent:
         intent: AgentIntent,
         request: AgentMessageRequest,
         analysis: DayAnalysis,
+        trip_analysis: TripAnalysis,
     ) -> str:
         if intent == AgentIntent.GENERAL_GUIDANCE:
             return (
                 f"I checked Day {request.day.dayNumber}: "
-                f"{analysis.route_summary} Tell me if you want it lighter, cheaper, food-focused or weather-ready."
+                f"{analysis.route_summary} Across the trip, {trip_analysis.balance_summary} "
+                "Tell me if you want it lighter, cheaper, food-focused or weather-ready."
             )
         if intent == AgentIntent.MAKE_DAY_LIGHTER:
+            busiest_note = ""
+            if trip_analysis.busiest_day_number == request.day.dayNumber:
+                busiest_note = " This is also the busiest day in the trip, so reducing pressure makes sense."
             return (
                 f"I analyzed Day {request.day.dayNumber}. "
                 f"The route pressure is {analysis.route_pressure}, so I prepared a lighter-day preview."
+                f"{busiest_note}"
             )
         if intent == AgentIntent.ADD_FOOD_STOP:
+            food_note = ""
+            if request.day.dayNumber in trip_analysis.food_gap_day_numbers:
+                food_note = " This day has no food or coffee break yet."
             return (
                 f"I checked Day {request.day.dayNumber} for a better break window. "
                 "I prepared a food or coffee preview that keeps the route shape intact."
+                f"{food_note}"
             )
         if intent == AgentIntent.RAIN_REPLAN:
+            weather_note = ""
+            if request.day.dayNumber in trip_analysis.outdoor_heavy_day_numbers:
+                weather_note = " This day is outdoor-heavy, so a rain backup is useful."
             return (
                 f"I checked Day {request.day.dayNumber} for weather-sensitive stops. "
                 "I prepared a rain-ready preview before changing the plan."
+                f"{weather_note}"
             )
         return f"I checked Day {request.day.dayNumber}. I can prepare this change as a preview before applying it."
 
@@ -269,11 +288,17 @@ class TravelAgent:
             "Journy applies it only after your confirmation",
         ]
 
-    def _prompt_payload(self, request: AgentMessageRequest, analysis: DayAnalysis) -> dict[str, Any]:
+    def _prompt_payload(
+        self,
+        request: AgentMessageRequest,
+        analysis: DayAnalysis,
+        trip_analysis: TripAnalysis,
+    ) -> dict[str, Any]:
         return {
             "userMessage": request.message,
             "trip": request.trip.model_dump(),
             "day": request.day.model_dump(),
+            "itineraryDays": [day.model_dump() for day in request.itineraryDays],
             "contextAnalysis": {
                 "walkPressure": analysis.walk_pressure,
                 "stopPressure": analysis.stop_pressure,
@@ -292,6 +317,17 @@ class TravelAgent:
                 "estimatedMinutesSaved": analysis.estimated_minutes_saved,
                 "routeSummary": analysis.route_summary,
                 "signals": analysis.signals,
+            },
+            "tripAnalysis": {
+                "dayCount": trip_analysis.day_count,
+                "totalStops": trip_analysis.total_stops,
+                "averageWalkKm": trip_analysis.average_walk_km,
+                "busiestDayNumber": trip_analysis.busiest_day_number,
+                "lightestDayNumber": trip_analysis.lightest_day_number,
+                "foodGapDayNumbers": trip_analysis.food_gap_day_numbers,
+                "outdoorHeavyDayNumbers": trip_analysis.outdoor_heavy_day_numbers,
+                "balanceSummary": trip_analysis.balance_summary,
+                "signals": trip_analysis.signals,
             },
             "supportedIntents": [intent.value for intent in AgentIntent],
         }
