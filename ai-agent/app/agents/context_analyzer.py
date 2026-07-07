@@ -16,6 +16,9 @@ class DayAnalysis:
     anchor_stop_count: int
     flexible_stop: AgentStop | None
     heaviest_stop: AgentStop | None
+    break_after_stop: AgentStop | None
+    break_before_stop: AgentStop | None
+    weather_sensitive_stop: AgentStop | None
     estimated_minutes_saved: int
     route_summary: str
     signals: list[str]
@@ -37,6 +40,8 @@ class TripContextAnalyzer:
         outdoor_stop_count = self._count_categories(day.stops, self.OUTDOOR_CATEGORIES)
         indoor_stop_count = self._count_categories(day.stops, self.INDOOR_CATEGORIES)
         anchor_stop_count = self._count_categories(day.stops, self.ANCHOR_CATEGORIES)
+        break_after_stop, break_before_stop = self._find_break_window(day.stops)
+        weather_sensitive_stop = self._find_weather_sensitive_stop(day.stops)
         estimated_minutes_saved = self._estimate_minutes_saved(day, route_pressure, flexible_stop)
 
         return DayAnalysis(
@@ -49,6 +54,9 @@ class TripContextAnalyzer:
             anchor_stop_count=anchor_stop_count,
             flexible_stop=flexible_stop,
             heaviest_stop=heaviest_stop,
+            break_after_stop=break_after_stop,
+            break_before_stop=break_before_stop,
+            weather_sensitive_stop=weather_sensitive_stop,
             estimated_minutes_saved=estimated_minutes_saved,
             route_summary=self._route_summary(trip, day, route_pressure, anchor_stop_count, food_break_count),
             signals=self._signals(trip, day, route_pressure, food_break_count, outdoor_stop_count),
@@ -115,6 +123,26 @@ class TripContextAnalyzer:
     def _find_heaviest_stop(self, stops: list[AgentStop]) -> AgentStop | None:
         anchors = [stop for stop in stops if stop.category.upper() in self.ANCHOR_CATEGORIES]
         return anchors[-1] if anchors else self._find_flexible_stop(stops)
+
+    def _find_break_window(self, stops: list[AgentStop]) -> tuple[AgentStop | None, AgentStop | None]:
+        if not stops:
+            return None, None
+        if len(stops) == 1:
+            return stops[0], None
+
+        for index, stop in enumerate(stops[:-1]):
+            next_stop = stops[index + 1]
+            category = stop.category.upper()
+            next_category = next_stop.category.upper()
+            if category in self.ANCHOR_CATEGORIES or next_category in self.ANCHOR_CATEGORIES:
+                return stop, next_stop
+
+        midpoint = max(0, min(len(stops) - 2, len(stops) // 2 - 1))
+        return stops[midpoint], stops[midpoint + 1]
+
+    def _find_weather_sensitive_stop(self, stops: list[AgentStop]) -> AgentStop | None:
+        outdoor = [stop for stop in stops if stop.category.upper() in self.OUTDOOR_CATEGORIES]
+        return outdoor[-1] if outdoor else self._find_flexible_stop(stops)
 
     def _count_categories(self, stops: list[AgentStop], categories: set[str]) -> int:
         return len([stop for stop in stops if stop.category.upper() in categories])

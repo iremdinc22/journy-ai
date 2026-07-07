@@ -7,7 +7,9 @@ from openai import OpenAI
 from pydantic import ValidationError
 
 from app.agents.context_analyzer import DayAnalysis, TripContextAnalyzer
+from app.agents.food_agent import FoodAgent
 from app.agents.pace_agent import PaceAgent
+from app.agents.weather_agent import WeatherAgent
 from app.core.settings import settings
 from app.schemas.agent import (
     AgentActionPreview,
@@ -22,6 +24,8 @@ class TravelAgent:
         self.client = OpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
         self.context_analyzer = TripContextAnalyzer()
         self.pace_agent = PaceAgent()
+        self.food_agent = FoodAgent()
+        self.weather_agent = WeatherAgent()
 
     def decide(self, request: AgentMessageRequest) -> AgentMessageResponse:
         analysis = self.context_analyzer.analyze_day(request.trip, request.day)
@@ -47,6 +51,8 @@ class TravelAgent:
                             "You are Journy's travel planning agent. "
                             "Analyze the route context before deciding. "
                             "If the user asks for an easier/lighter/less tiring day, use MAKE_DAY_LIGHTER. "
+                            "If the user asks for food, dinner, coffee or a cafe, use ADD_FOOD_STOP. "
+                            "If the user mentions rain or weather, use RAIN_REPLAN. "
                             "Prefer safe previews that preserve anchor stops and explain why. "
                             "Return only valid JSON matching this shape: "
                             "{message:string,intent:string,preview:{intent:string,title:string,message:string,"
@@ -63,9 +69,28 @@ class TravelAgent:
                 temperature=0.2,
             )
             content = completion.choices[0].message.content or "{}"
-            return AgentMessageResponse.model_validate_json(content)
+            response = AgentMessageResponse.model_validate_json(content)
+            return self._with_tool_preview(response, request, analysis)
         except (ValidationError, json.JSONDecodeError, Exception):
             return None
+
+    def _with_tool_preview(
+        self,
+        response: AgentMessageResponse,
+        request: AgentMessageRequest,
+        analysis: DayAnalysis,
+    ) -> AgentMessageResponse:
+        if response.intent in {
+            AgentIntent.MAKE_DAY_LIGHTER,
+            AgentIntent.ADD_FOOD_STOP,
+            AgentIntent.RAIN_REPLAN,
+        }:
+            return AgentMessageResponse(
+                message=response.message,
+                intent=response.intent,
+                preview=self._preview_for(response.intent, request, analysis),
+            )
+        return response
 
     def _decide_with_rules(
         self,
@@ -102,6 +127,10 @@ class TravelAgent:
     ) -> AgentActionPreview:
         if intent == AgentIntent.MAKE_DAY_LIGHTER:
             return self.pace_agent.build_lighter_day_preview(request, analysis)
+        if intent == AgentIntent.ADD_FOOD_STOP:
+            return self.food_agent.build_food_break_preview(request, analysis)
+        if intent == AgentIntent.RAIN_REPLAN:
+            return self.weather_agent.build_rain_replan_preview(request, analysis)
 
         day = request.day
         trip = request.trip
@@ -180,6 +209,16 @@ class TravelAgent:
                 f"I analyzed Day {request.day.dayNumber}. "
                 f"The route pressure is {analysis.route_pressure}, so I prepared a lighter-day preview."
             )
+        if intent == AgentIntent.ADD_FOOD_STOP:
+            return (
+                f"I checked Day {request.day.dayNumber} for a better break window. "
+                "I prepared a food or coffee preview that keeps the route shape intact."
+            )
+        if intent == AgentIntent.RAIN_REPLAN:
+            return (
+                f"I checked Day {request.day.dayNumber} for weather-sensitive stops. "
+                "I prepared a rain-ready preview before changing the plan."
+            )
         return f"I checked Day {request.day.dayNumber}. I can prepare this change as a preview before applying it."
 
     def _affected_stops(self, intent: AgentIntent, request: AgentMessageRequest) -> list[str]:
@@ -245,6 +284,11 @@ class TravelAgent:
                 "anchorStopCount": analysis.anchor_stop_count,
                 "flexibleStop": analysis.flexible_stop.model_dump() if analysis.flexible_stop else None,
                 "heaviestStop": analysis.heaviest_stop.model_dump() if analysis.heaviest_stop else None,
+                "breakAfterStop": analysis.break_after_stop.model_dump() if analysis.break_after_stop else None,
+                "breakBeforeStop": analysis.break_before_stop.model_dump() if analysis.break_before_stop else None,
+                "weatherSensitiveStop": (
+                    analysis.weather_sensitive_stop.model_dump() if analysis.weather_sensitive_stop else None
+                ),
                 "estimatedMinutesSaved": analysis.estimated_minutes_saved,
                 "routeSummary": analysis.route_summary,
                 "signals": analysis.signals,
