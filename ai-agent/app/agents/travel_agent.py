@@ -6,6 +6,8 @@ from typing import Any
 from openai import OpenAI
 from pydantic import ValidationError
 
+from app.agents.context_analyzer import DayAnalysis, TripContextAnalyzer
+from app.agents.pace_agent import PaceAgent
 from app.core.settings import settings
 from app.schemas.agent import (
     AgentActionPreview,
@@ -18,15 +20,22 @@ from app.schemas.agent import (
 class TravelAgent:
     def __init__(self) -> None:
         self.client = OpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
+        self.context_analyzer = TripContextAnalyzer()
+        self.pace_agent = PaceAgent()
 
     def decide(self, request: AgentMessageRequest) -> AgentMessageResponse:
+        analysis = self.context_analyzer.analyze_day(request.trip, request.day)
         if self.client:
-            response = self._decide_with_openai(request)
+            response = self._decide_with_openai(request, analysis)
             if response:
                 return response
-        return self._decide_with_rules(request)
+        return self._decide_with_rules(request, analysis)
 
-    def _decide_with_openai(self, request: AgentMessageRequest) -> AgentMessageResponse | None:
+    def _decide_with_openai(
+        self,
+        request: AgentMessageRequest,
+        analysis: DayAnalysis,
+    ) -> AgentMessageResponse | None:
         try:
             completion = self.client.chat.completions.create(
                 model=settings.openai_model,
@@ -36,6 +45,9 @@ class TravelAgent:
                         "role": "system",
                         "content": (
                             "You are Journy's travel planning agent. "
+                            "Analyze the route context before deciding. "
+                            "If the user asks for an easier/lighter/less tiring day, use MAKE_DAY_LIGHTER. "
+                            "Prefer safe previews that preserve anchor stops and explain why. "
                             "Return only valid JSON matching this shape: "
                             "{message:string,intent:string,preview:{intent:string,title:string,message:string,"
                             "suggestedAction:string,minutesSaved:number|null,affectedStops:string[],"
@@ -45,7 +57,7 @@ class TravelAgent:
                     },
                     {
                         "role": "user",
-                        "content": json.dumps(self._prompt_payload(request), ensure_ascii=False),
+                        "content": json.dumps(self._prompt_payload(request, analysis), ensure_ascii=False),
                     },
                 ],
                 temperature=0.2,
@@ -55,11 +67,15 @@ class TravelAgent:
         except (ValidationError, json.JSONDecodeError, Exception):
             return None
 
-    def _decide_with_rules(self, request: AgentMessageRequest) -> AgentMessageResponse:
+    def _decide_with_rules(
+        self,
+        request: AgentMessageRequest,
+        analysis: DayAnalysis,
+    ) -> AgentMessageResponse:
         intent = self._detect_intent(request.message)
-        preview = self._preview_for(intent, request)
+        preview = self._preview_for(intent, request, analysis)
         return AgentMessageResponse(
-            message=self._message_for(intent, request),
+            message=self._message_for(intent, request, analysis),
             intent=intent,
             preview=preview,
         )
@@ -78,7 +94,15 @@ class TravelAgent:
             return AgentIntent.MAKE_DAY_LIGHTER
         return AgentIntent.GENERAL_GUIDANCE
 
-    def _preview_for(self, intent: AgentIntent, request: AgentMessageRequest) -> AgentActionPreview:
+    def _preview_for(
+        self,
+        intent: AgentIntent,
+        request: AgentMessageRequest,
+        analysis: DayAnalysis,
+    ) -> AgentActionPreview:
+        if intent == AgentIntent.MAKE_DAY_LIGHTER:
+            return self.pace_agent.build_lighter_day_preview(request, analysis)
+
         day = request.day
         trip = request.trip
         affected = self._affected_stops(intent, request)
@@ -88,8 +112,8 @@ class TravelAgent:
                 "title": f"Make Day {day.dayNumber} lighter",
                 "message": "I can remove pressure from the most flexible part of the day while keeping the main anchors.",
                 "action": "Remove optional final stop",
-                "minutes": max(14, round(day.walkKm * 3.4)),
-                "summary": f"{trip.destination} Day {day.dayNumber} becomes calmer with fewer transitions.",
+                "minutes": analysis.estimated_minutes_saved,
+                "summary": analysis.route_summary,
             },
             AgentIntent.ADD_FOOD_STOP: {
                 "title": "Add a local food break",
@@ -124,7 +148,7 @@ class TravelAgent:
                 "message": "Tell me if you want the day lighter, cheaper, food-focused or weather-ready.",
                 "action": "Ask for a route adjustment",
                 "minutes": None,
-                "summary": f"{trip.destination} Day {day.dayNumber} has {day.stopCount} stops and {day.walkKm} km of walking.",
+                "summary": analysis.route_summary,
             },
         }[intent]
 
@@ -136,13 +160,26 @@ class TravelAgent:
             minutesSaved=data["minutes"],
             affectedStops=affected,
             routeSummary=data["summary"],
-            reasons=self._reasons_for(intent, request, affected),
+            reasons=self._reasons_for(intent, request, affected, analysis),
             requiresConfirmation=intent != AgentIntent.GENERAL_GUIDANCE,
         )
 
-    def _message_for(self, intent: AgentIntent, request: AgentMessageRequest) -> str:
+    def _message_for(
+        self,
+        intent: AgentIntent,
+        request: AgentMessageRequest,
+        analysis: DayAnalysis,
+    ) -> str:
         if intent == AgentIntent.GENERAL_GUIDANCE:
-            return "I can read your current route and create a safe preview before changing it."
+            return (
+                f"I checked Day {request.day.dayNumber}: "
+                f"{analysis.route_summary} Tell me if you want it lighter, cheaper, food-focused or weather-ready."
+            )
+        if intent == AgentIntent.MAKE_DAY_LIGHTER:
+            return (
+                f"I analyzed Day {request.day.dayNumber}. "
+                f"The route pressure is {analysis.route_pressure}, so I prepared a lighter-day preview."
+            )
         return f"I checked Day {request.day.dayNumber}. I can prepare this change as a preview before applying it."
 
     def _affected_stops(self, intent: AgentIntent, request: AgentMessageRequest) -> list[str]:
@@ -159,7 +196,13 @@ class TravelAgent:
             return outdoor[:2]
         return [stops[min(1, len(stops) - 1)].title]
 
-    def _reasons_for(self, intent: AgentIntent, request: AgentMessageRequest, affected: list[str]) -> list[str]:
+    def _reasons_for(
+        self,
+        intent: AgentIntent,
+        request: AgentMessageRequest,
+        affected: list[str],
+        analysis: DayAnalysis,
+    ) -> list[str]:
         trip = request.trip
         day = request.day
         anchor = affected[0] if affected else "the flexible route window"
@@ -183,15 +226,29 @@ class TravelAgent:
             ]
         return [
             f"This matches your {trip.pace.lower()} pace",
-            "The change keeps stop order in mind",
+            analysis.route_summary,
             "Journy applies it only after your confirmation",
         ]
 
-    def _prompt_payload(self, request: AgentMessageRequest) -> dict[str, Any]:
+    def _prompt_payload(self, request: AgentMessageRequest, analysis: DayAnalysis) -> dict[str, Any]:
         return {
             "userMessage": request.message,
             "trip": request.trip.model_dump(),
             "day": request.day.model_dump(),
+            "contextAnalysis": {
+                "walkPressure": analysis.walk_pressure,
+                "stopPressure": analysis.stop_pressure,
+                "routePressure": analysis.route_pressure,
+                "foodBreakCount": analysis.food_break_count,
+                "outdoorStopCount": analysis.outdoor_stop_count,
+                "indoorStopCount": analysis.indoor_stop_count,
+                "anchorStopCount": analysis.anchor_stop_count,
+                "flexibleStop": analysis.flexible_stop.model_dump() if analysis.flexible_stop else None,
+                "heaviestStop": analysis.heaviest_stop.model_dump() if analysis.heaviest_stop else None,
+                "estimatedMinutesSaved": analysis.estimated_minutes_saved,
+                "routeSummary": analysis.route_summary,
+                "signals": analysis.signals,
+            },
             "supportedIntents": [intent.value for intent in AgentIntent],
         }
 
