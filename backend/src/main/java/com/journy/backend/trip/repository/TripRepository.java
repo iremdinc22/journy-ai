@@ -14,4 +14,6 @@ public interface TripRepository extends JpaRepository<Trip, String> {
     List<Trip> findTop5ByOrderByCreatedAtDesc();
 
     List<Trip> findTop5ByUserEmailIgnoreCaseOrderByCreatedAtDesc(String email);
+
+    List<Trip> findByUserEmailIgnoreCaseOrderByCreatedAtDesc(String email);
 }

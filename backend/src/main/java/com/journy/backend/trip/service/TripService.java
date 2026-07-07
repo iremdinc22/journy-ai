@@ -1,6 +1,7 @@
 package com.journy.backend.trip.service;
 
 import com.journy.backend.common.exception.ResourceNotFoundException;
+import com.journy.backend.itinerary.repository.ItineraryDayRepository;
 import com.journy.backend.itinerary.service.ItineraryGenerationService;
 import com.journy.backend.trip.dto.CreateTripRequest;
 import com.journy.backend.trip.dto.TripResponse;
@@ -12,23 +13,37 @@ import com.journy.backend.user.model.UserAccount;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 public class TripService {
     private final TripRepository tripRepository;
+    private final ItineraryDayRepository itineraryDayRepository;
     private final ItineraryGenerationService itineraryGenerationService;
     private final TripMapper tripMapper;
     private final CurrentUserService currentUserService;
 
     public TripService(
             TripRepository tripRepository,
+            ItineraryDayRepository itineraryDayRepository,
             ItineraryGenerationService itineraryGenerationService,
             TripMapper tripMapper,
             CurrentUserService currentUserService
     ) {
         this.tripRepository = tripRepository;
+        this.itineraryDayRepository = itineraryDayRepository;
         this.itineraryGenerationService = itineraryGenerationService;
         this.tripMapper = tripMapper;
         this.currentUserService = currentUserService;
+    }
+
+    @Transactional(readOnly = true)
+    public List<TripResponse> trips() {
+        UserAccount user = currentUserService.currentUser();
+        return tripRepository.findByUserEmailIgnoreCaseOrderByCreatedAtDesc(user.getEmail())
+                .stream()
+                .map(tripMapper::toResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -36,6 +51,12 @@ public class TripService {
         UserAccount user = currentUserService.currentUser();
         Trip trip = tripRepository.findFirstByUserEmailIgnoreCaseAndCurrentTripTrueOrderByCreatedAtDesc(user.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("Current trip was not found"));
+        return tripMapper.toResponse(trip);
+    }
+
+    @Transactional(readOnly = true)
+    public TripResponse trip(String tripId) {
+        Trip trip = ownedTrip(tripId);
         return tripMapper.toResponse(trip);
     }
 
@@ -80,5 +101,43 @@ public class TripService {
 
         itineraryGenerationService.generateIfMissing(trip);
         return tripMapper.toResponse(tripRepository.save(trip));
+    }
+
+    @Transactional
+    public TripResponse makeCurrent(String tripId) {
+        UserAccount user = currentUserService.currentUser();
+        Trip selectedTrip = ownedTrip(tripId);
+
+        tripRepository.findByUserEmailIgnoreCaseOrderByCreatedAtDesc(user.getEmail())
+                .forEach(trip -> trip.setCurrentTrip(trip.getId().equals(selectedTrip.getId())));
+
+        return tripMapper.toResponse(tripRepository.save(selectedTrip));
+    }
+
+    @Transactional
+    public void deleteTrip(String tripId) {
+        UserAccount user = currentUserService.currentUser();
+        Trip trip = ownedTrip(tripId);
+        boolean wasCurrent = trip.isCurrentTrip();
+
+        itineraryDayRepository.deleteByTripId(trip.getId());
+        tripRepository.delete(trip);
+
+        if (wasCurrent) {
+            tripRepository.findByUserEmailIgnoreCaseOrderByCreatedAtDesc(user.getEmail())
+                    .stream()
+                    .findFirst()
+                    .ifPresent(nextTrip -> {
+                        nextTrip.setCurrentTrip(true);
+                        tripRepository.save(nextTrip);
+                    });
+        }
+    }
+
+    private Trip ownedTrip(String tripId) {
+        UserAccount user = currentUserService.currentUser();
+        return tripRepository.findById(tripId)
+                .filter(foundTrip -> foundTrip.getUser().getId().equals(user.getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Trip was not found"));
     }
 }

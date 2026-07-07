@@ -56,8 +56,16 @@ export const authApi = {
 };
 
 export const tripApi = {
+  list() {
+    return apiRequest<TripResponse[]>('/api/trips');
+  },
+
   current() {
     return apiRequest<TripResponse>('/api/trips/current');
+  },
+
+  detail(tripId: string) {
+    return apiRequest<TripResponse>(`/api/trips/${tripId}`);
   },
 
   async create(request: CreateTripRequest) {
@@ -86,6 +94,23 @@ export const tripApi = {
       method: 'POST',
       body: place,
     });
+  },
+
+  async makeCurrent(tripId: string) {
+    const trip = await apiRequest<TripResponse>(`/api/trips/${tripId}/current`, {
+      method: 'PUT',
+    });
+    session.setCurrentTrip(trip);
+    return trip;
+  },
+
+  async delete(tripId: string) {
+    await apiRequest<void>(`/api/trips/${tripId}`, {
+      method: 'DELETE',
+    });
+    if (session.getCurrentTrip()?.id === tripId) {
+      session.clearCurrentTrip();
+    }
   },
 };
 

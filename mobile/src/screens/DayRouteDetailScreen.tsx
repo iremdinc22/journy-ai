@@ -167,20 +167,42 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
           <ActionChip label="Replace stop" icon="swap-horizontal-outline" active={selectedAction === 'replace'} onPress={() => chooseAction('replace')} styles={styles} />
         </View>
         <View style={styles.aiNote}>
-          <Ionicons name="sparkles-outline" size={18} color={colors.teal} />
-          <View style={styles.aiNoteCopy}>
-            <Text style={styles.aiNoteLabel}>{suggestion?.title ?? 'Suggested adjustment'}</Text>
-            <Text style={styles.aiNoteText}>
-              {suggestionLoading ? 'Checking your route context...' : suggestion?.message ?? fallbackActionMessage}
-            </Text>
-            {suggestion?.routeSummary ? <Text style={styles.routeSummary}>{suggestion.routeSummary}</Text> : null}
-            {suggestion?.minutesSaved ? <Text style={styles.minutesSaved}>{suggestion.minutesSaved} min saved</Text> : null}
-            {applySuccess ? <Text style={styles.applySuccess}>Plan updated</Text> : null}
-            {suggestionError ? <Text style={styles.suggestionError}>Could not refresh suggestion. Showing local guidance.</Text> : null}
+          <View style={styles.aiNoteHeader}>
+            <View style={styles.aiIconWrap}>
+              <Ionicons name="sparkles-outline" size={18} color={colors.teal} />
+            </View>
+            <View style={styles.aiNoteCopy}>
+              <Text style={styles.aiNoteLabel}>Preview change</Text>
+              <Text style={styles.aiNoteTitle}>{suggestion?.title ?? 'Suggested adjustment'}</Text>
+            </View>
           </View>
-          <TouchableOpacity style={[styles.applyButton, applyLoading && styles.applyButtonDisabled]} activeOpacity={0.86} onPress={applySuggestion}>
-            <Text style={styles.applyButtonText}>{applyLoading ? 'Updating' : 'Apply'}</Text>
-          </TouchableOpacity>
+          <Text style={styles.aiNoteText}>
+            {suggestionLoading ? 'Checking your route context...' : suggestion?.message ?? fallbackActionMessage}
+          </Text>
+
+          <View style={styles.previewGrid}>
+            <PreviewRow icon="git-branch-outline" label="Change" value={suggestion?.suggestedAction ?? previewFallbackAction(selectedAction)} styles={styles} />
+            <PreviewRow icon="location-outline" label="Affected stop" value={previewAffectedStop(suggestion)} styles={styles} />
+            <PreviewRow icon="walk-outline" label="Walk impact" value={previewWalkImpact(selectedAction, suggestion?.minutesSaved)} styles={styles} />
+          </View>
+
+          {suggestion?.routeSummary ? <Text style={styles.routeSummary}>{suggestion.routeSummary}</Text> : null}
+          {applySuccess ? <Text style={styles.applySuccess}>Plan updated. Timeline and route metrics refreshed.</Text> : null}
+          {suggestionError ? <Text style={styles.suggestionError}>Could not refresh suggestion. Showing local guidance.</Text> : null}
+
+          <View style={styles.previewActions}>
+            <TouchableOpacity
+              style={styles.previewSecondaryButton}
+              activeOpacity={0.86}
+              onPress={() => loadSuggestion(selectedAction)}
+              disabled={suggestionLoading || tripId === 'preview-trip'}
+            >
+              <Text style={styles.previewSecondaryText}>{suggestionLoading ? 'Checking' : 'Refresh'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.applyButton, applyLoading && styles.applyButtonDisabled]} activeOpacity={0.86} onPress={applySuggestion}>
+              <Text style={styles.applyButtonText}>{applyLoading ? 'Applying...' : 'Apply changes'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Text style={styles.sectionTitle}>Stop timeline</Text>
@@ -287,6 +309,30 @@ function ActionChip({
   );
 }
 
+function PreviewRow({
+  icon,
+  label,
+  value,
+  styles,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  value: string;
+  styles: DetailStyles;
+}) {
+  return (
+    <View style={styles.previewRow}>
+      <View style={styles.previewIcon}>
+        <Ionicons name={icon} size={15} style={styles.previewIconGlyph} />
+      </View>
+      <View style={styles.previewCopy}>
+        <Text style={styles.previewLabel}>{label}</Text>
+        <Text style={styles.previewValue}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
 function toPlaceDetail(stop: ItineraryStop, destination: string): PlaceResponse {
   const category = stop.category || 'WALKING';
 
@@ -306,6 +352,32 @@ function toPlaceDetail(stop: ItineraryStop, destination: string): PlaceResponse 
     estimatedVisitMinutes: category === 'FOOD' || category === 'COFFEE' ? 45 : 60,
     tags: `${formatCategory(category)}, Walkable`,
   };
+}
+
+function previewFallbackAction(action: ActionKey) {
+  if (action === 'food') return 'Add nearby food break';
+  if (action === 'replace') return 'Swap one stop';
+  return 'Lighten route';
+}
+
+function previewAffectedStop(suggestion: AiItinerarySuggestionResponse | null) {
+  if (!suggestion?.stopsAffected?.length) {
+    return 'Route rhythm';
+  }
+  return suggestion.stopsAffected.slice(0, 2).join(', ');
+}
+
+function previewWalkImpact(action: ActionKey, minutesSaved?: number | null) {
+  if (typeof minutesSaved === 'number' && minutesSaved > 0) {
+    return `${minutesSaved} min saved`;
+  }
+  if (action === 'food') {
+    return 'Small detour';
+  }
+  if (action === 'replace') {
+    return 'Similar distance';
+  }
+  return 'Lower effort';
 }
 
 function formatCategory(category: string) {
@@ -518,19 +590,67 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
     actionText: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900' },
     actionTextActive: { color: colors.surface },
     aiNote: {
-      alignItems: 'center',
       backgroundColor: colors.lilac,
       borderColor: colors.mist,
-      borderRadius: radius.lg,
+      borderRadius: radius.xl,
       borderWidth: 1,
-      flexDirection: 'row',
-      gap: spacing.sm,
       marginTop: spacing.sm,
       padding: spacing.md,
     },
+    aiNoteHeader: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    aiIconWrap: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      height: 42,
+      justifyContent: 'center',
+      width: 42,
+    },
     aiNoteCopy: { flex: 1 },
     aiNoteLabel: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
-    aiNoteText: { color: colors.midnight, fontSize: typography.small, fontWeight: '800', lineHeight: 19, marginTop: 3 },
+    aiNoteTitle: { color: colors.midnight, fontSize: typography.body, fontWeight: '900', marginTop: 2 },
+    aiNoteText: { color: colors.slate, fontSize: typography.small, fontWeight: '800', lineHeight: 19, marginTop: spacing.sm },
+    previewGrid: {
+      backgroundColor: colors.surface,
+      borderColor: colors.mist,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      gap: spacing.xs,
+      marginTop: spacing.md,
+      padding: spacing.sm,
+    },
+    previewRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+      minHeight: 44,
+    },
+    previewIcon: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaceWarm,
+      borderRadius: radius.md,
+      height: 34,
+      justifyContent: 'center',
+      width: 34,
+    },
+    previewIconGlyph: { color: colors.teal },
+    previewCopy: { flex: 1, minWidth: 0 },
+    previewLabel: {
+      color: colors.slate,
+      fontSize: typography.tiny,
+      fontWeight: '900',
+      textTransform: 'uppercase',
+    },
+    previewValue: {
+      color: colors.midnight,
+      fontSize: typography.small,
+      fontWeight: '900',
+      marginTop: 1,
+    },
     routeSummary: {
       color: colors.slate,
       fontSize: typography.tiny,
@@ -568,18 +688,38 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       fontWeight: '800',
       marginTop: spacing.xs,
     },
-    applyButton: {
+    previewActions: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginTop: spacing.md,
+    },
+    previewSecondaryButton: {
+      alignItems: 'center',
       backgroundColor: colors.surface,
       borderColor: colors.mist,
       borderRadius: radius.pill,
       borderWidth: 1,
+      flex: 1,
+      justifyContent: 'center',
+      minHeight: 46,
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
+    },
+    previewSecondaryText: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900' },
+    applyButton: {
+      alignItems: 'center',
+      backgroundColor: colors.midnight,
+      borderColor: colors.midnight,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      flex: 1.35,
+      justifyContent: 'center',
+      minHeight: 46,
+      paddingHorizontal: spacing.md,
     },
     applyButtonDisabled: {
       opacity: 0.56,
     },
-    applyButtonText: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900' },
+    applyButtonText: { color: colors.surface, fontSize: typography.tiny, fontWeight: '900' },
     sectionTitle: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900', marginTop: spacing.xl },
     stopList: {
       backgroundColor: colors.surface,

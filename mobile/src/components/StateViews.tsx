@@ -44,6 +44,28 @@ export function InlineError({
   );
 }
 
+export function InlineEmpty({
+  title = 'Nothing here yet',
+  description = 'Create or save something and it will appear here.',
+}: {
+  title?: string;
+  description?: string;
+}) {
+  const { theme } = useAppTheme();
+  const styles = createStyles(theme);
+  const { colors } = theme;
+
+  return (
+    <View style={styles.stateCard}>
+      <View style={styles.iconBubble}>
+        <Ionicons name="sparkles-outline" size={18} color={colors.teal} />
+      </View>
+      <Text style={styles.stateTitle}>{title}</Text>
+      <Text style={styles.stateText}>{description}</Text>
+    </View>
+  );
+}
+
 function createStyles({ colors, radius, spacing, typography }: ReturnType<typeof useAppTheme>['theme']) {
   return StyleSheet.create({
     stateCard: {

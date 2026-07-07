@@ -113,13 +113,16 @@ export default function ProfileScreen() {
   const displaySavedPlans = profile?.savedPlans?.length
     ? profile.savedPlans.map((plan, index) => ({
         key: plan.id,
+        id: plan.id,
         city: plan.destination,
         detail: plan.summary,
         image: savedPlans[index % savedPlans.length].image,
         stops: plan.stops,
         walk: plan.averageWalkKm,
       }))
-    : savedPlans.map((plan, index) => ({ ...plan, key: `${plan.city}-${index}`, stops: 18, walk: 6.2 }));
+    : profile
+      ? []
+      : savedPlans.map((plan, index) => ({ ...plan, key: `${plan.city}-${index}`, id: `preview-${index}`, stops: 18, walk: 6.2 }));
   const displayFavoritePlaces = profile
     ? (profile.savedPlaces ?? []).map((place) => ({
         title: place.name,
@@ -223,11 +226,18 @@ export default function ProfileScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Saved plans</Text>
-          <Text style={styles.sectionAction}>View all</Text>
+          <TouchableOpacity activeOpacity={0.82} onPress={() => navigation.navigate('SavedPlans')}>
+            <Text style={styles.sectionAction}>View all</Text>
+          </TouchableOpacity>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedRail}>
           {displaySavedPlans.map((plan) => (
-            <TouchableOpacity key={plan.key} style={styles.savedCard} activeOpacity={0.88}>
+            <TouchableOpacity
+              key={plan.key}
+              style={styles.savedCard}
+              activeOpacity={0.88}
+              onPress={() => navigation.navigate('SavedPlans')}
+            >
               <Image source={{ uri: plan.image }} style={styles.savedImage} />
               <View style={styles.savedBody}>
                 <Text style={styles.savedCity}>{plan.city}</Text>
@@ -245,6 +255,15 @@ export default function ProfileScreen() {
               </View>
             </TouchableOpacity>
           ))}
+          {!displaySavedPlans.length ? (
+            <TouchableOpacity style={styles.savedEmptyCard} activeOpacity={0.86} onPress={() => navigation.navigate('TripSetup')}>
+              <View style={styles.savedEmptyIcon}>
+                <Ionicons name="map-outline" size={22} color={colors.teal} />
+              </View>
+              <Text style={styles.savedCity}>No saved plans yet</Text>
+              <Text style={styles.savedDetail}>Create a trip and Journy will keep it ready here.</Text>
+            </TouchableOpacity>
+          ) : null}
         </ScrollView>
 
         <View style={styles.sectionHeader}>
@@ -524,6 +543,25 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     borderWidth: 1,
     overflow: 'hidden',
     width: 252,
+  },
+  savedEmptyCard: {
+    alignItems: 'flex-start',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    minHeight: 188,
+    padding: spacing.md,
+    width: 252,
+  },
+  savedEmptyIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    height: 48,
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+    width: 48,
   },
   savedImage: { height: 126, width: '100%' },
   savedBody: { padding: spacing.md },

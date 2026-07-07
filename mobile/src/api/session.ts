@@ -59,4 +59,8 @@ export const session = {
   getCurrentTrip() {
     return state.currentTrip;
   },
+  clearCurrentTrip() {
+    state.currentTrip = undefined;
+    AsyncStorage.removeItem(TRIP_STORAGE_KEY).catch(() => undefined);
+  },
 };

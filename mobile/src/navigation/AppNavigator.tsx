@@ -13,6 +13,7 @@ import PlaceDetailScreen from '../screens/PlaceDetailScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import DayRouteDetailScreen from '../screens/DayRouteDetailScreen';
+import SavedPlansScreen from '../screens/SavedPlansScreen';
 
 import HomeScreen from '../screens/HomeScreen';
 import ItineraryScreen from '../screens/ItineraryScreen';
@@ -33,6 +34,7 @@ export type RootStackParamList = {
   PlaceDetail: { place: PlaceResponse };
   Notifications: undefined;
   Settings: undefined;
+  SavedPlans: undefined;
   DayRouteDetail: {
     tripId: string;
     destination: string;
@@ -150,6 +152,7 @@ export default function AppNavigator() {
       <Stack.Screen name="PlaceDetail" component={PlaceDetailScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="SavedPlans" component={SavedPlansScreen} />
       <Stack.Screen name="DayRouteDetail" component={DayRouteDetailScreen} />
     </Stack.Navigator>
   );
