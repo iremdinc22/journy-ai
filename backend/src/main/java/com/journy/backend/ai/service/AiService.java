@@ -83,6 +83,10 @@ public class AiService {
         String action = request.action().toLowerCase();
         if (action.contains("food")) {
             applyFoodStop(day, trip);
+        } else if (action.contains("rain") || action.contains("weather")) {
+            applyRainReplan(day, trip);
+        } else if (action.contains("budget") || action.contains("cheap")) {
+            applyBudgetOptimization(day, trip);
         } else if (action.contains("replace")) {
             applyReplacement(day, trip);
         } else {
@@ -256,19 +260,24 @@ public class AiService {
     }
 
     private void applyFoodStop(ItineraryDay day, Trip trip) {
-        int order = Math.min(day.getStops().size() + 1, 5);
+        int insertIndex = bestBreakInsertIndex(day);
+        int order = insertIndex + 1;
+        ItineraryStop anchor = day.getStops().isEmpty()
+                ? null
+                : day.getStops().get(Math.max(0, Math.min(insertIndex - 1, day.getStops().size() - 1)));
         ItineraryStop stop = new ItineraryStop(
                 order,
-                trip.getDestination() + " local food break",
-                "FOOD",
-                order >= 4 ? "17:00" : "13:00",
-                "Added by Journy near the current route so the day has a better food window without a long transfer.",
-                coordinateFromDay(day, true, order),
-                coordinateFromDay(day, false, order)
+                foodStopTitle(trip),
+                foodStopCategory(trip),
+                foodTimeWindow(order),
+                "Added by Journy inside the current route window so the day has a better local break without a long transfer.",
+                coordinateNear(anchor, true, order),
+                coordinateNear(anchor, false, order)
         );
-        day.addStop(stop);
-        day.setSummary("Updated with a local food break near the route while keeping the day walkable.");
-        day.setWalkKm(Math.round((day.getWalkKm() + 0.4) * 10.0) / 10.0);
+        day.getStops().add(insertIndex, stop);
+        stop.setDay(day);
+        day.setSummary("Updated with a local break placed inside the route window while keeping the day walkable.");
+        day.setWalkKm(Math.round((day.getWalkKm() + 0.5) * 10.0) / 10.0);
     }
 
     private void applyReplacement(ItineraryDay day, Trip trip) {
@@ -292,11 +301,148 @@ public class AiService {
         day.setSummary("Updated with one better-fit stop while preserving the original route shape.");
     }
 
-    private double coordinateFromDay(ItineraryDay day, boolean latitude, int order) {
-        ItineraryStop anchor = day.getStops().isEmpty() ? null : day.getStops().getLast();
+    private void applyRainReplan(ItineraryDay day, Trip trip) {
+        if (day.getStops().isEmpty()) {
+            applyFoodStop(day, trip);
+            day.setSummary("Updated with a covered food or cafe window so the route is safer in rain.");
+            return;
+        }
+
+        int index = weatherSensitiveStopIndex(day);
+        ItineraryStop oldStop = day.getStops().remove(index);
+        ItineraryStop replacement = new ItineraryStop(
+                oldStop.getStopOrder(),
+                trip.getDestination() + " indoor culture window",
+                indoorCategoryFor(oldStop),
+                oldStop.getTimeWindow(),
+                "Replanned by Journy for rain with a covered culture, cafe or local indoor stop in the same route window.",
+                oldStop.getLatitude(),
+                oldStop.getLongitude()
+        );
+        day.getStops().add(index, replacement);
+        replacement.setDay(day);
+        day.setTitle(rainTitle(day.getTitle()));
+        day.setSummary("Rain-ready version of the day with the most weather-sensitive stop moved indoors while preserving route rhythm.");
+        day.setWalkKm(Math.max(2.2, Math.round((day.getWalkKm() - 0.3) * 10.0) / 10.0));
+    }
+
+    private void applyBudgetOptimization(ItineraryDay day, Trip trip) {
+        if (day.getStops().isEmpty()) {
+            applyFoodStop(day, trip);
+            return;
+        }
+
+        int index = budgetFlexibleStopIndex(day);
+        ItineraryStop oldStop = day.getStops().remove(index);
+        ItineraryStop replacement = new ItineraryStop(
+                oldStop.getStopOrder(),
+                trip.getDestination() + " local budget pick",
+                budgetCategoryFor(oldStop),
+                oldStop.getTimeWindow(),
+                "Replaced by Journy with a lower-cost local option that keeps the same area and avoids an extra transfer.",
+                oldStop.getLatitude(),
+                oldStop.getLongitude()
+        );
+        day.getStops().add(index, replacement);
+        replacement.setDay(day);
+        day.setSummary("Budget-aware version of the day with one flexible stop changed to a lower-cost local option.");
+        day.setWalkKm(Math.max(2.2, Math.round((day.getWalkKm() - 0.2) * 10.0) / 10.0));
+    }
+
+    private double coordinateNear(ItineraryStop anchor, boolean latitude, int order) {
         double base = anchor == null ? latitude ? 52.3676 : 4.9041 : latitude ? anchor.getLatitude() : anchor.getLongitude();
         double delta = order * 0.0015;
         return latitude ? base - delta : base + delta;
+    }
+
+    private int bestBreakInsertIndex(ItineraryDay day) {
+        if (day.getStops().size() <= 1) {
+            return day.getStops().size();
+        }
+        for (int index = 0; index < day.getStops().size() - 1; index++) {
+            ItineraryStop current = day.getStops().get(index);
+            ItineraryStop next = day.getStops().get(index + 1);
+            if (isAnchor(current) || isAnchor(next)) {
+                return index + 1;
+            }
+        }
+        return Math.max(1, day.getStops().size() / 2);
+    }
+
+    private int weatherSensitiveStopIndex(ItineraryDay day) {
+        for (int index = day.getStops().size() - 1; index >= 0; index--) {
+            ItineraryStop stop = day.getStops().get(index);
+            if (isOutdoor(stop)) {
+                return index;
+            }
+        }
+        return Math.max(0, day.getStops().size() - 1);
+    }
+
+    private int budgetFlexibleStopIndex(ItineraryDay day) {
+        for (int index = 0; index < day.getStops().size(); index++) {
+            ItineraryStop stop = day.getStops().get(index);
+            if (stop.getCategory().equalsIgnoreCase("FOOD") || stop.getCategory().equalsIgnoreCase("COFFEE")) {
+                return index;
+            }
+        }
+        for (int index = day.getStops().size() - 1; index >= 0; index--) {
+            if (!isAnchor(day.getStops().get(index))) {
+                return index;
+            }
+        }
+        return Math.max(0, day.getStops().size() - 1);
+    }
+
+    private boolean isAnchor(ItineraryStop stop) {
+        return stop.getCategory().equalsIgnoreCase("MUSEUM")
+                || stop.getCategory().equalsIgnoreCase("CULTURE")
+                || stop.getCategory().equalsIgnoreCase("LANDMARK");
+    }
+
+    private boolean isOutdoor(ItineraryStop stop) {
+        return stop.getCategory().equalsIgnoreCase("WALKING")
+                || stop.getCategory().equalsIgnoreCase("FREE")
+                || stop.getCategory().equalsIgnoreCase("PARK")
+                || stop.getCategory().equalsIgnoreCase("LANDMARK");
+    }
+
+    private String foodStopTitle(Trip trip) {
+        boolean coffee = trip.getInterests().stream().anyMatch(interest -> interest.name().equalsIgnoreCase("COFFEE"));
+        return coffee ? trip.getDestination() + " coffee pause" : trip.getDestination() + " local food break";
+    }
+
+    private String foodStopCategory(Trip trip) {
+        boolean coffee = trip.getInterests().stream().anyMatch(interest -> interest.name().equalsIgnoreCase("COFFEE"));
+        return coffee ? "COFFEE" : "FOOD";
+    }
+
+    private String foodTimeWindow(int order) {
+        if (order <= 2) {
+            return "11:30";
+        }
+        if (order >= 5) {
+            return "17:30";
+        }
+        return "14:00";
+    }
+
+    private String indoorCategoryFor(ItineraryStop oldStop) {
+        if (oldStop.getCategory().equalsIgnoreCase("FOOD") || oldStop.getCategory().equalsIgnoreCase("COFFEE")) {
+            return oldStop.getCategory();
+        }
+        return "CULTURE";
+    }
+
+    private String budgetCategoryFor(ItineraryStop oldStop) {
+        if (oldStop.getCategory().equalsIgnoreCase("COFFEE")) {
+            return "COFFEE";
+        }
+        return "FOOD";
+    }
+
+    private String rainTitle(String title) {
+        return title.toLowerCase().startsWith("rain-ready ") ? title : "Rain-ready " + title;
     }
 
     private void normalizeStopOrder(ItineraryDay day) {

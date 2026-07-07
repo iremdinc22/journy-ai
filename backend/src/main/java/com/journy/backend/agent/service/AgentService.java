@@ -251,7 +251,9 @@ public class AgentService {
     private String actionFor(AgentIntent intent) {
         return switch (intent) {
             case ADD_FOOD_STOP -> "food";
-            case REPLACE_STOP, BUDGET_OPTIMIZE, RAIN_REPLAN -> "replace";
+            case RAIN_REPLAN -> "rain";
+            case BUDGET_OPTIMIZE -> "budget";
+            case REPLACE_STOP -> "replace";
             default -> "lighter";
         };
     }

@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { agentApi } from '../api/journyApi';
 import { session } from '../api/session';
-import type { AgentActionPreview, AgentIntent } from '../api/types';
+import type { AgentActionPreview, AgentIntent, ItineraryDay } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type Message = {
@@ -25,29 +25,37 @@ type Message = {
   intent?: AgentIntent;
   preview?: AgentActionPreview;
   applied?: boolean;
+  result?: ItineraryDay;
+  appliedIntent?: AgentIntent;
 };
+
+type IoniconName = keyof typeof Ionicons.glyphMap;
 
 const quickPrompts = [
   {
     label: 'Make today lighter',
+    icon: 'walk-outline',
     prompt: 'Can you make today lighter?',
     answer:
       'Yes. I would keep Museumplein as the main anchor, move the canal walk before lunch, and remove the optional market stop. Your day becomes about 22 minutes shorter with a longer afternoon break.',
   },
   {
     label: 'Coffee nearby',
+    icon: 'cafe-outline',
     prompt: 'Find a quiet coffee spot near me.',
     answer:
       'I would add a quiet coffee stop near De Pijp before the canal loop. It keeps the detour under 10 minutes and gives you a calm break before the next stop.',
   },
   {
     label: 'Dinner idea',
+    icon: 'restaurant-outline',
     prompt: 'Suggest dinner near the last stop.',
     answer:
       'For dinner, stay near the final neighborhood instead of crossing the city. A small local bistro around the evening area fits the route and keeps the night relaxed.',
   },
   {
     label: 'Rain backup',
+    icon: 'rainy-outline',
     prompt: 'Rebuild the plan if it rains.',
     answer:
       'If it rains, move the outdoor canal walk to tomorrow morning and keep today focused on one museum, a covered food stop, and a longer cafe window.',
@@ -136,13 +144,14 @@ export default function AssistantScreen() {
 
   const applyAction = async (message: Message) => {
     const trip = session.getCurrentTrip();
-    if (!trip?.id || !message.intent || applyingMessageId || message.intent === 'GENERAL_GUIDANCE') {
+    const intent = message.intent;
+    if (!trip?.id || !intent || applyingMessageId || intent === 'GENERAL_GUIDANCE') {
       return;
     }
 
     setApplyingMessageId(message.id);
     try {
-      const updatedDay = await agentApi.apply(trip.id, 1, message.intent);
+      const updatedDay = await agentApi.apply(trip.id, 1, intent);
       setMessages((current) => current.map((item) => (
         item.id === message.id ? { ...item, applied: true } : item
       )));
@@ -151,8 +160,10 @@ export default function AssistantScreen() {
         {
           id: `${Date.now()}-applied`,
           role: 'ai',
-          text: `Done. Day 1 is now updated as "${updatedDay.title}" with ${updatedDay.stopCount} stops and ${updatedDay.walkKm.toFixed(1)} km of walking.`,
+          text: buildApplyResultMessage(intent, updatedDay),
           time: 'Plan updated',
+          result: updatedDay,
+          appliedIntent: intent,
         },
       ]);
     } catch {
@@ -194,7 +205,11 @@ export default function AssistantScreen() {
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
-          {messages.map((message) => (
+          {messages.map((message) => {
+            const previewVisual = message.preview ? agentVisual(message.preview.intent) : null;
+            const resultVisual = message.appliedIntent ? agentVisual(message.appliedIntent) : null;
+
+            return (
             <View key={message.id} style={[styles.messageLine, message.role === 'user' && styles.messageLineUser]}>
               {message.role === 'ai' ? (
                 <View style={styles.smallAvatar}>
@@ -207,26 +222,43 @@ export default function AssistantScreen() {
                 {message.role === 'ai' && message.time ? <Text style={styles.messageTime}>{message.time}</Text> : null}
                 {message.role === 'ai' && message.preview ? (
                   <View style={styles.previewCard}>
-                    <View style={styles.previewTop}>
-                      <Ionicons name="git-branch-outline" size={14} color={colors.teal} />
-                      <Text style={styles.previewTitle}>{message.preview.title}</Text>
+                    <View style={styles.previewHeader}>
+                      <View style={styles.intentBadge}>
+                        <Ionicons name={previewVisual?.icon ?? 'sparkles-outline'} size={12} color={colors.teal} />
+                        <Text style={styles.intentBadgeText}>{previewVisual?.label ?? 'Agent preview'}</Text>
+                      </View>
+                      <Text style={styles.previewConfidence}>Preview</Text>
                     </View>
+                    <Text style={styles.previewTitle}>{message.preview.title}</Text>
                     <Text style={styles.previewText}>{message.preview.message}</Text>
                     <View style={styles.previewMetaRow}>
                       <View style={styles.previewMeta}>
-                        <Text style={styles.previewMetaLabel}>Change</Text>
+                        <Text style={styles.previewMetaLabel}>Plan change</Text>
                         <Text style={styles.previewMetaValue}>{message.preview.suggestedAction}</Text>
                       </View>
                       <View style={styles.previewMeta}>
-                        <Text style={styles.previewMetaLabel}>Impact</Text>
-                        <Text style={styles.previewMetaValue}>{message.preview.minutesSaved ? `${message.preview.minutesSaved} min saved` : 'Route fit'}</Text>
+                        <Text style={styles.previewMetaLabel}>Route impact</Text>
+                        <Text style={styles.previewMetaValue}>{previewImpactLabel(message.preview)}</Text>
                       </View>
                     </View>
                     {message.preview.affectedStops.length ? (
-                      <Text style={styles.previewRoute}>Affects: {message.preview.affectedStops.join(', ')}</Text>
+                      <View style={styles.affectedBlock}>
+                        <Text style={styles.blockLabel}>Route window</Text>
+                        <View style={styles.stopChipRow}>
+                          {message.preview.affectedStops.slice(0, 3).map((stop) => (
+                            <View key={stop} style={styles.stopChip}>
+                              <Text style={styles.stopChipText}>{stop}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
                     ) : null}
-                    <Text style={styles.previewRoute}>{message.preview.routeSummary}</Text>
+                    <View style={styles.summaryStrip}>
+                      <Ionicons name="map-outline" size={13} color={colors.teal} />
+                      <Text style={styles.previewRoute}>{message.preview.routeSummary}</Text>
+                    </View>
                     <View style={styles.reasonList}>
+                      <Text style={styles.blockLabel}>Why this fits</Text>
                       {message.preview.reasons.slice(0, 3).map((reason) => (
                         <View key={reason} style={styles.reasonRow}>
                           <Ionicons name="checkmark-circle" size={13} color={colors.teal} />
@@ -236,26 +268,65 @@ export default function AssistantScreen() {
                     </View>
                   </View>
                 ) : null}
+                {message.role === 'ai' && message.result ? (
+                  <View style={styles.resultCard}>
+                    <View style={styles.resultTop}>
+                      <View style={styles.resultIcon}>
+                        <Ionicons name={resultVisual?.icon ?? 'checkmark'} size={15} color={colors.surface} />
+                      </View>
+                      <View style={styles.resultTitleWrap}>
+                        <Text style={styles.resultEyebrow}>Updated route</Text>
+                        <Text style={styles.resultTitle}>{message.result.title}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.resultStats}>
+                      <View style={styles.resultStat}>
+                        <Text style={styles.resultStatValue}>{message.result.stopCount}</Text>
+                        <Text style={styles.resultStatLabel}>Stops</Text>
+                      </View>
+                      <View style={styles.resultStat}>
+                        <Text style={styles.resultStatValue}>{message.result.walkKm.toFixed(1)} km</Text>
+                        <Text style={styles.resultStatLabel}>Walking</Text>
+                      </View>
+                      <View style={styles.resultStat}>
+                        <Text style={styles.resultStatValue}>{resultVisual?.short ?? 'Done'}</Text>
+                        <Text style={styles.resultStatLabel}>Change</Text>
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
                 {message.role === 'ai' && message.preview?.requiresConfirmation ? (
-                  <TouchableOpacity
-                    style={[styles.applyButton, message.applied && styles.applyButtonDone]}
-                    activeOpacity={0.86}
-                    disabled={message.applied || applyingMessageId === message.id}
-                    onPress={() => applyAction(message)}
-                  >
-                    <Ionicons
-                      name={message.applied ? 'checkmark' : applyingMessageId === message.id ? 'hourglass-outline' : 'sparkles-outline'}
-                      size={13}
-                      color={message.applied ? colors.surface : colors.teal}
-                    />
-                    <Text style={[styles.applyButtonText, message.applied && styles.applyButtonTextDone]}>
-                      {message.applied ? 'Applied to Day 1' : applyingMessageId === message.id ? 'Updating...' : 'Apply changes'}
-                    </Text>
-                  </TouchableOpacity>
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity
+                      style={[styles.applyButton, message.applied && styles.applyButtonDone]}
+                      activeOpacity={0.86}
+                      disabled={message.applied || applyingMessageId === message.id}
+                      onPress={() => applyAction(message)}
+                    >
+                      <Ionicons
+                        name={message.applied ? 'checkmark' : applyingMessageId === message.id ? 'hourglass-outline' : 'sparkles-outline'}
+                        size={13}
+                        color={message.applied ? colors.surface : colors.teal}
+                      />
+                      <Text style={[styles.applyButtonText, message.applied && styles.applyButtonTextDone]}>
+                        {message.applied ? 'Applied' : applyingMessageId === message.id ? 'Updating...' : 'Apply to plan'}
+                      </Text>
+                    </TouchableOpacity>
+                    {!message.applied ? (
+                      <TouchableOpacity
+                        style={styles.dismissButton}
+                        activeOpacity={0.86}
+                        onPress={() => setMessages((current) => current.filter((item) => item.id !== message.id))}
+                      >
+                        <Text style={styles.dismissButtonText}>Dismiss</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
                 ) : null}
               </View>
             </View>
-          ))}
+            );
+          })}
         </ScrollView>
 
         <View style={[styles.bottomArea, { paddingBottom: keyboardHeight || 88 }]}>
@@ -272,6 +343,7 @@ export default function AssistantScreen() {
                 activeOpacity={0.86}
                 onPress={() => sendPrompt(item.prompt, item.answer)}
               >
+                <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={13} color={colors.teal} />
                 <Text style={styles.quickChipText}>{item.label}</Text>
               </TouchableOpacity>
             ))}
@@ -369,6 +441,84 @@ function offlinePreview(intent: AgentIntent, prompt: string): AgentActionPreview
   };
 }
 
+function previewImpactLabel(preview: AgentActionPreview) {
+  if (preview.minutesSaved && preview.minutesSaved > 0) {
+    return `${preview.minutesSaved} min saved`;
+  }
+  if (preview.intent === 'ADD_FOOD_STOP') {
+    return 'Better break';
+  }
+  if (preview.intent === 'RAIN_REPLAN') {
+    return 'Indoor-ready';
+  }
+  if (preview.intent === 'BUDGET_OPTIMIZE') {
+    return 'Lower cost';
+  }
+  return 'Route fit';
+}
+
+type AgentVisual = {
+  label: string;
+  short: string;
+  icon: IoniconName;
+};
+
+function agentVisual(intent: AgentIntent): AgentVisual {
+  const visuals: Record<AgentIntent, AgentVisual> = {
+    MAKE_DAY_LIGHTER: {
+      label: 'Pace Agent',
+      short: 'Lighter',
+      icon: 'walk-outline',
+    },
+    ADD_FOOD_STOP: {
+      label: 'Food Agent',
+      short: 'Break',
+      icon: 'restaurant-outline',
+    },
+    REPLACE_STOP: {
+      label: 'Route Agent',
+      short: 'Swap',
+      icon: 'git-branch-outline',
+    },
+    BUDGET_OPTIMIZE: {
+      label: 'Budget Agent',
+      short: 'Budget',
+      icon: 'wallet-outline',
+    },
+    RAIN_REPLAN: {
+      label: 'Weather Agent',
+      short: 'Rain',
+      icon: 'rainy-outline',
+    },
+    GENERAL_GUIDANCE: {
+      label: 'Journy Agent',
+      short: 'Guide',
+      icon: 'sparkles-outline',
+    },
+  };
+  return visuals[intent];
+}
+
+function buildApplyResultMessage(intent: AgentIntent, updatedDay: ItineraryDay) {
+  const base = `Day ${updatedDay.dayNumber} is now "${updatedDay.title}" with ${updatedDay.stopCount} stops and ${updatedDay.walkKm.toFixed(1)} km of walking.`;
+  if (intent === 'ADD_FOOD_STOP') {
+    return `Done. I added a local break to the route. ${base}`;
+  }
+  if (intent === 'RAIN_REPLAN') {
+    return `Done. I made the day more rain-ready with an indoor-friendly adjustment. ${base}`;
+  }
+  if (intent === 'BUDGET_OPTIMIZE') {
+    return `Done. I switched one flexible part of the route toward a lower-cost local option. ${base}`;
+  }
+  if (intent === 'MAKE_DAY_LIGHTER') {
+    return `Done. I reduced pressure on the day while keeping the main anchors. ${base}`;
+  }
+  if (intent === 'REPLACE_STOP') {
+    return `Done. I replaced one stop while preserving the route shape. ${base}`;
+  }
+  return `Done. ${base}`;
+}
+
 type Theme = ReturnType<typeof useAppTheme>['theme'];
 
 function createStyles({ colors, radius, spacing, typography }: Theme) {
@@ -448,21 +598,44 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   previewCard: {
     backgroundColor: colors.surfaceWarm,
     borderColor: colors.mist,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     marginTop: spacing.sm,
-    padding: spacing.sm,
+    padding: spacing.md,
   },
-  previewTop: {
+  previewHeader: {
     alignItems: 'center',
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  intentBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
     gap: 5,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+  },
+  intentBadgeText: {
+    color: colors.midnight,
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  previewConfidence: {
+    color: colors.softMuted,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   previewTitle: {
     color: colors.midnight,
-    flex: 1,
-    fontSize: typography.small,
+    fontSize: typography.body,
     fontWeight: '900',
+    lineHeight: 22,
   },
   previewText: {
     color: colors.slate,
@@ -473,14 +646,17 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   previewMetaRow: {
     flexDirection: 'row',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   previewMeta: {
     backgroundColor: colors.surface,
-    borderRadius: radius.sm,
+    borderColor: colors.mist,
+    borderRadius: radius.md,
+    borderWidth: 1,
     flex: 1,
-    padding: spacing.xs,
+    minHeight: 70,
+    padding: spacing.sm,
   },
   previewMetaLabel: {
     color: colors.slate,
@@ -490,16 +666,55 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   previewMetaValue: {
     color: colors.midnight,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  affectedBlock: {
+    marginTop: spacing.md,
+  },
+  blockLabel: {
+    color: colors.softMuted,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+  },
+  stopChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  stopChip: {
+    backgroundColor: colors.fog,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+  },
+  stopChipText: {
+    color: colors.midnight,
     fontSize: 11,
     fontWeight: '900',
-    marginTop: 2,
+  },
+  summaryStrip: {
+    alignItems: 'flex-start',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    padding: spacing.sm,
   },
   previewRoute: {
     color: colors.slate,
     fontSize: 11,
     fontWeight: '800',
+    flex: 1,
     lineHeight: 16,
-    marginTop: spacing.xs,
   },
   reasonList: {
     gap: 4,
@@ -519,14 +734,21 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   applyButton: {
     alignItems: 'center',
-    alignSelf: 'flex-start',
     backgroundColor: colors.fog,
     borderRadius: radius.pill,
     flexDirection: 'row',
-    gap: 5,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    flex: 1,
+    gap: spacing.xs,
+    height: 42,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  actionRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    width: '100%',
   },
   applyButtonDone: {
     backgroundColor: colors.teal,
@@ -539,6 +761,81 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   applyButtonTextDone: {
     color: colors.surface,
   },
+  dismissButton: {
+    alignItems: 'center',
+    borderColor: colors.mist,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
+    minWidth: 96,
+    paddingHorizontal: spacing.md,
+  },
+  dismissButtonText: {
+    color: colors.slate,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  resultCard: {
+    backgroundColor: colors.surfaceWarm,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginTop: spacing.sm,
+    padding: spacing.md,
+  },
+  resultTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  resultIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.teal,
+    borderRadius: radius.md,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  resultTitleWrap: {
+    flex: 1,
+  },
+  resultEyebrow: {
+    color: colors.softMuted,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  resultTitle: {
+    color: colors.midnight,
+    fontSize: typography.small,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  resultStats: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+  },
+  resultStat: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flex: 1,
+    padding: spacing.sm,
+  },
+  resultStatValue: {
+    color: colors.midnight,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  resultStatLabel: {
+    color: colors.slate,
+    fontSize: 10,
+    fontWeight: '800',
+    marginTop: 2,
+  },
   bottomArea: {
     backgroundColor: colors.ivory,
     paddingHorizontal: spacing.lg,
@@ -549,10 +846,13 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     paddingBottom: spacing.sm,
   },
   quickChip: {
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.mist,
     borderRadius: radius.pill,
     borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
