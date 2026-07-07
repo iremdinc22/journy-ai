@@ -166,14 +166,14 @@ public class DatabaseSeeder implements CommandLineRunner {
                 destination(
                         "Tokyo",
                         "Japan",
-                        "Tokyo is on the roadmap. Journy can create a draft now, but curated local data is not fully available yet.",
+                        "Tokyo is strong for neighborhood-led food routes, quiet coffee windows, culture anchors and transit-friendly walking days.",
                         "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=900&q=88",
-                        "Food, Neighborhoods, Transit",
-                        "Draft planning only",
-                        0,
+                        "Food, Coffee, Neighborhoods",
+                        "Ramen streets, design shops, gardens",
+                        6,
                         7.1,
-                        false,
-                        false
+                        true,
+                        true
                 ),
                 destination(
                         "London",
@@ -222,6 +222,78 @@ public class DatabaseSeeder implements CommandLineRunner {
                         5.9,
                         true,
                         true
+                ),
+                destination(
+                        "Berlin",
+                        "Germany",
+                        "Berlin works well for flexible culture days, independent coffee, low-cost food and neighborhood-heavy routes.",
+                        "https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=900&q=88",
+                        "Galleries, Coffee, Nightlife",
+                        "Culture, budget food, creative neighborhoods",
+                        5,
+                        6.4,
+                        true,
+                        true
+                ),
+                destination(
+                        "Copenhagen",
+                        "Denmark",
+                        "Copenhagen is ideal for calm design routes, bakery stops, waterfront walks and compact food neighborhoods.",
+                        "https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?auto=format&fit=crop&w=900&q=88",
+                        "Design, Bakeries, Waterfront",
+                        "Slow design days, coffee, easy walking",
+                        5,
+                        5.1,
+                        true,
+                        true
+                ),
+                destination(
+                        "Istanbul",
+                        "Turkey",
+                        "Istanbul supports layered city days with historic anchors, ferry windows, local food streets and scenic walks.",
+                        "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=900&q=88",
+                        "History, Ferries, Food",
+                        "Historic routes, local food, views",
+                        5,
+                        6.0,
+                        true,
+                        true
+                ),
+                destination(
+                        "New York",
+                        "United States",
+                        "New York is strong for neighborhood-by-neighborhood plans with museums, coffee, parks and food windows.",
+                        "https://images.unsplash.com/photo-1485871981521-5b1fd3805eee?auto=format&fit=crop&w=900&q=88",
+                        "Museums, Parks, Food",
+                        "Neighborhood walks, galleries, dinner zones",
+                        5,
+                        7.4,
+                        true,
+                        false
+                ),
+                destination(
+                        "Kyoto",
+                        "Japan",
+                        "Kyoto is built for gentle temple routes, tea breaks, garden walks and culture-heavy days with realistic pacing.",
+                        "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=900&q=88",
+                        "Temples, Tea, Gardens",
+                        "Culture, tea stops, slower walks",
+                        5,
+                        5.3,
+                        true,
+                        false
+                ),
+                destination(
+                        "Madrid",
+                        "Spain",
+                        "Madrid works well for art anchors, tapas windows, markets and late-evening neighborhood plans.",
+                        "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&w=900&q=88",
+                        "Art, Markets, Tapas",
+                        "Museums, food, evening routes",
+                        5,
+                        5.7,
+                        true,
+                        false
                 )
         ).forEach(this::upsertDestination);
     }
@@ -328,7 +400,44 @@ public class DatabaseSeeder implements CommandLineRunner {
                 new Place("MuseumsQuartier Window", "Vienna", PlaceCategory.CULTURE, "A premium-feeling culture anchor with cafes and flexible indoor backup nearby.", "Mid", 4.8, "https://images.unsplash.com/photo-1516550893923-42d28e5677af?auto=format&fit=crop&w=700&q=85", "MuseumsQuartier, Vienna", 48.2034, 16.3597, "10:00 - 18:00", 120, "culture,museums,indoor"),
                 new Place("Naschmarkt Food Route", "Vienna", PlaceCategory.FOOD, "A market-led food stop with broad options and short route friction.", "Mid", 4.6, "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=700&q=85", "Naschmarkt, Vienna", 48.1990, 16.3640, "09:00 - 18:30", 75, "food,market,local"),
                 new Place("Cafe Central Pause", "Vienna", PlaceCategory.COFFEE, "A classic coffee window that fits culture-heavy days without feeling random.", "Comfort", 4.7, "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=700&q=85", "Innere Stadt, Vienna", 48.2102, 16.3654, "08:00 - 21:00", 55, "coffee,classic,central"),
-                new Place("Ringstrasse Easy Walk", "Vienna", PlaceCategory.FREE, "A low-cost architectural walk that gives structure to the afternoon.", "Free", 4.6, "https://images.unsplash.com/photo-1573599852326-2bcc1299b0ff?auto=format&fit=crop&w=700&q=85", "Ringstrasse, Vienna", 48.2082, 16.3738, "Open route window", 80, "free,walking,architecture")
+                new Place("Ringstrasse Easy Walk", "Vienna", PlaceCategory.FREE, "A low-cost architectural walk that gives structure to the afternoon.", "Free", 4.6, "https://images.unsplash.com/photo-1573599852326-2bcc1299b0ff?auto=format&fit=crop&w=700&q=85", "Ringstrasse, Vienna", 48.2082, 16.3738, "Open route window", 80, "free,walking,architecture"),
+
+                new Place("Yanaka Morning Walk", "Tokyo", PlaceCategory.WALKING, "A slower neighborhood route with small shops, temples and a gentler Tokyo rhythm.", "Free", 4.7, "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=700&q=85", "Yanaka, Tokyo", 35.7255, 139.7706, "Open route window", 80, "walking,local,temples"),
+                new Place("Kiyosumi Coffee Stop", "Tokyo", PlaceCategory.COFFEE, "A calm specialty coffee window that fits between culture and food-heavy stops.", "Mid", 4.8, "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=700&q=85", "Kiyosumi-Shirakawa, Tokyo", 35.6811, 139.7988, "08:00 - 18:00", 45, "coffee,specialty,break"),
+                new Place("Ueno Culture Window", "Tokyo", PlaceCategory.CULTURE, "A culture anchor that groups museums, park walking and easy food nearby.", "Mid", 4.7, "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?auto=format&fit=crop&w=700&q=85", "Ueno, Tokyo", 35.7148, 139.7730, "09:30 - 17:00", 120, "culture,museum,park"),
+                new Place("Ebisu Dinner Lane", "Tokyo", PlaceCategory.FOOD, "A compact dinner zone with local restaurants and low route friction at night.", "Mid", 4.7, "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=700&q=85", "Ebisu, Tokyo", 35.6467, 139.7101, "17:00 - 23:00", 90, "food,dinner,local"),
+                new Place("Daikanyama Design Drift", "Tokyo", PlaceCategory.FREE, "A free design-led walking window with shops, side streets and flexible pauses.", "Free", 4.6, "https://images.unsplash.com/photo-1505069446780-4ef442b5207f?auto=format&fit=crop&w=700&q=85", "Daikanyama, Tokyo", 35.6496, 139.7033, "Open route window", 70, "free,design,walking"),
+                new Place("Tsukiji Breakfast Window", "Tokyo", PlaceCategory.FOOD, "A morning food stop that gives the day a local anchor before museums or gardens.", "Mid", 4.8, "https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=700&q=85", "Tsukiji, Tokyo", 35.6655, 139.7708, "07:00 - 14:00", 75, "food,market,breakfast"),
+
+                new Place("Museum Island Anchor", "Berlin", PlaceCategory.CULTURE, "A strong culture anchor that can be paired with riverside walking and coffee.", "Mid", 4.8, "https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=700&q=85", "Museum Island, Berlin", 52.5169, 13.4010, "10:00 - 18:00", 120, "culture,museum,indoor"),
+                new Place("Kreuzberg Coffee Break", "Berlin", PlaceCategory.COFFEE, "A relaxed neighborhood coffee stop that works well between galleries and food.", "Lean", 4.6, "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=700&q=85", "Kreuzberg, Berlin", 52.4996, 13.4218, "08:00 - 18:00", 45, "coffee,local,break"),
+                new Place("Markthalle Lunch", "Berlin", PlaceCategory.FOOD, "A flexible food hall stop with plenty of budget choices and local atmosphere.", "Lean", 4.6, "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=700&q=85", "Kreuzberg, Berlin", 52.5021, 13.4317, "12:00 - 21:00", 70, "food,market,budget"),
+                new Place("Tiergarten Reset", "Berlin", PlaceCategory.FREE, "A free park window that reduces pressure on a culture-heavy day.", "Free", 4.5, "https://images.unsplash.com/photo-1533929736458-ca588d08c8be?auto=format&fit=crop&w=700&q=85", "Tiergarten, Berlin", 52.5145, 13.3501, "Open route window", 80, "free,park,walking"),
+
+                new Place("Nyhavn Waterfront Walk", "Copenhagen", PlaceCategory.WALKING, "A scenic waterfront window that keeps the route compact and easy to follow.", "Free", 4.7, "https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?auto=format&fit=crop&w=700&q=85", "Nyhavn, Copenhagen", 55.6797, 12.5911, "Open route window", 65, "walking,waterfront,free"),
+                new Place("Norrebro Coffee Pause", "Copenhagen", PlaceCategory.COFFEE, "A design-forward coffee stop in a neighborhood that feels local and relaxed.", "Mid", 4.7, "https://images.unsplash.com/photo-1511920170033-f8396924c348?auto=format&fit=crop&w=700&q=85", "Norrebro, Copenhagen", 55.6937, 12.5480, "08:00 - 18:00", 45, "coffee,design,local"),
+                new Place("Torvehallerne Food Stop", "Copenhagen", PlaceCategory.FOOD, "A practical food market window for mixed tastes and flexible timing.", "Mid", 4.6, "https://images.unsplash.com/photo-1551218808-94e220e084d2?auto=format&fit=crop&w=700&q=85", "Torvehallerne, Copenhagen", 55.6838, 12.5715, "10:00 - 19:00", 70, "food,market,local"),
+                new Place("Designmuseum Window", "Copenhagen", PlaceCategory.CULTURE, "A compact design culture stop that pairs well with waterfront walking.", "Mid", 4.6, "https://images.unsplash.com/photo-1564399579883-451a5d44ec08?auto=format&fit=crop&w=700&q=85", "Frederiksstaden, Copenhagen", 55.6869, 12.5934, "10:00 - 18:00", 100, "culture,design,indoor"),
+
+                new Place("Sultanahmet Culture Anchor", "Istanbul", PlaceCategory.CULTURE, "A historic anchor that works best as a focused morning window before crowds build.", "Mid", 4.8, "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=700&q=85", "Sultanahmet, Istanbul", 41.0086, 28.9802, "09:00 - 18:00", 120, "culture,history,anchor"),
+                new Place("Karakoy Coffee Break", "Istanbul", PlaceCategory.COFFEE, "A compact coffee stop between historic areas, galleries and ferry windows.", "Lean", 4.7, "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=700&q=85", "Karakoy, Istanbul", 41.0246, 28.9784, "08:00 - 20:00", 45, "coffee,local,break"),
+                new Place("Kadikoy Food Streets", "Istanbul", PlaceCategory.FOOD, "A local food zone that works well as an evening destination after a ferry.", "Mid", 4.8, "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=700&q=85", "Kadikoy, Istanbul", 40.9909, 29.0294, "12:00 - 23:00", 90, "food,local,dinner"),
+                new Place("Bosphorus Ferry Window", "Istanbul", PlaceCategory.FREE, "A scenic low-cost route reset that connects neighborhoods without more walking.", "Free", 4.9, "https://images.unsplash.com/photo-1541432901042-2d8bd64b4a9b?auto=format&fit=crop&w=700&q=85", "Eminonu, Istanbul", 41.0177, 28.9707, "Open route window", 75, "free,ferry,views"),
+
+                new Place("Met Museum Window", "New York", PlaceCategory.CULTURE, "A major culture anchor that benefits from a focused visit and nearby park break.", "Mid", 4.8, "https://images.unsplash.com/photo-1485871981521-5b1fd3805eee?auto=format&fit=crop&w=700&q=85", "Upper East Side, New York", 40.7794, -73.9632, "10:00 - 17:00", 140, "culture,museum,anchor"),
+                new Place("West Village Coffee", "New York", PlaceCategory.COFFEE, "A calm coffee stop in a walkable neighborhood with dinner options nearby.", "Mid", 4.6, "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=700&q=85", "West Village, New York", 40.7358, -74.0036, "08:00 - 18:00", 45, "coffee,neighborhood,break"),
+                new Place("Chelsea Market Lunch", "New York", PlaceCategory.FOOD, "A flexible food stop with broad options and easy walking connections.", "Mid", 4.6, "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=700&q=85", "Chelsea, New York", 40.7424, -74.0060, "10:00 - 21:00", 80, "food,market,flexible"),
+                new Place("High Line Walk", "New York", PlaceCategory.FREE, "A free elevated walking route that works as a scenic connector.", "Free", 4.7, "https://images.unsplash.com/photo-1534270804882-6b5048b1c1fc?auto=format&fit=crop&w=700&q=85", "Chelsea, New York", 40.7480, -74.0048, "Open route window", 70, "free,walking,views"),
+
+                new Place("Higashiyama Temple Route", "Kyoto", PlaceCategory.CULTURE, "A temple-led route that needs realistic pacing and gentle walking windows.", "Mid", 4.8, "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=700&q=85", "Higashiyama, Kyoto", 35.0037, 135.7788, "08:00 - 17:00", 130, "culture,temples,walking"),
+                new Place("Gion Tea Pause", "Kyoto", PlaceCategory.COFFEE, "A quiet tea or coffee break that keeps a culture-heavy day from feeling rushed.", "Mid", 4.7, "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=700&q=85", "Gion, Kyoto", 35.0038, 135.7750, "10:00 - 18:00", 50, "tea,coffee,break"),
+                new Place("Nishiki Food Window", "Kyoto", PlaceCategory.FOOD, "A local food market stop that works well for lunch without a formal reservation.", "Mid", 4.6, "https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=700&q=85", "Nishiki Market, Kyoto", 35.0050, 135.7647, "10:00 - 18:00", 75, "food,market,local"),
+                new Place("Philosopher Path Walk", "Kyoto", PlaceCategory.FREE, "A calm free walking window that supports a slower Kyoto rhythm.", "Free", 4.7, "https://images.unsplash.com/photo-1492571350019-22de08371fd3?auto=format&fit=crop&w=700&q=85", "Sakyo, Kyoto", 35.0266, 135.7948, "Open route window", 85, "free,walking,gardens"),
+
+                new Place("Prado Culture Anchor", "Madrid", PlaceCategory.CULTURE, "A focused art anchor that pairs naturally with park walking and tapas later.", "Mid", 4.8, "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&w=700&q=85", "Paseo del Prado, Madrid", 40.4138, -3.6921, "10:00 - 20:00", 120, "culture,art,museum"),
+                new Place("Malasana Coffee Window", "Madrid", PlaceCategory.COFFEE, "A neighborhood coffee break near shops, galleries and flexible evening routes.", "Lean", 4.6, "https://images.unsplash.com/photo-1511920170033-f8396924c348?auto=format&fit=crop&w=700&q=85", "Malasana, Madrid", 40.4266, -3.7038, "08:30 - 19:00", 45, "coffee,local,break"),
+                new Place("Mercado Tapas Stop", "Madrid", PlaceCategory.FOOD, "A compact tapas market window with easy choices and strong local flavor.", "Mid", 4.7, "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=700&q=85", "Centro, Madrid", 40.4154, -3.7089, "10:00 - 22:00", 80, "food,tapas,market"),
+                new Place("Retiro Park Reset", "Madrid", PlaceCategory.FREE, "A free green-space break after culture-heavy morning plans.", "Free", 4.7, "https://images.unsplash.com/photo-1604670632876-121b3d4b7fd5?auto=format&fit=crop&w=700&q=85", "Retiro, Madrid", 40.4153, -3.6844, "Open route window", 70, "free,park,walking")
         ).forEach(this::upsertPlace);
     }
 

@@ -39,10 +39,66 @@ const cityDetails = {
       'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=900&q=88',
     meta: 'Museums - bakeries - walks',
   },
+  Tokyo: {
+    image:
+      'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=900&q=88',
+    meta: 'Food - coffee - neighborhoods',
+  },
+  London: {
+    image:
+      'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=900&q=88',
+    meta: 'Markets - parks - culture',
+  },
+  Lisbon: {
+    image:
+      'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=900&q=88',
+    meta: 'Views - cafes - seafood',
+  },
+  Prague: {
+    image:
+      'https://images.unsplash.com/photo-1519677100203-a0e668c92439?auto=format&fit=crop&w=900&q=88',
+    meta: 'Old Town - river - cafes',
+  },
+  Vienna: {
+    image:
+      'https://images.unsplash.com/photo-1516550893923-42d28e5677af?auto=format&fit=crop&w=900&q=88',
+    meta: 'Museums - cafes - markets',
+  },
+  Berlin: {
+    image:
+      'https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=900&q=88',
+    meta: 'Galleries - coffee - nightlife',
+  },
+  Copenhagen: {
+    image:
+      'https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?auto=format&fit=crop&w=900&q=88',
+    meta: 'Design - bakeries - waterfront',
+  },
+  Istanbul: {
+    image:
+      'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=900&q=88',
+    meta: 'History - ferries - food',
+  },
+  'New York': {
+    image:
+      'https://images.unsplash.com/photo-1485871981521-5b1fd3805eee?auto=format&fit=crop&w=900&q=88',
+    meta: 'Museums - parks - food',
+  },
+  Kyoto: {
+    image:
+      'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=900&q=88',
+    meta: 'Temples - tea - gardens',
+  },
+  Madrid: {
+    image:
+      'https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&w=900&q=88',
+    meta: 'Art - markets - tapas',
+  },
 };
 const cities = Object.keys(cityDetails).filter((item) => item !== 'Discover');
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const years = [2026, 2027, 2028];
+const defaultCalendarDate = getDefaultCalendarDate();
+const years = Array.from({ length: 3 }, (_, index) => defaultCalendarDate.year + index);
 const weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const interests: Array<{ label: string; icon: IconName }> = [
   { label: 'Coffee', icon: 'cafe-outline' },
@@ -59,19 +115,47 @@ const cityStartSuggestions: Record<string, string[]> = {
   Paris: ['Saint-Germain', 'Le Marais', 'Latin Quarter', 'Montmartre'],
   Rome: ['Trastevere', 'Centro Storico', 'Monti', 'Termini'],
   Barcelona: ['Eixample', 'Gothic Quarter', 'Gracia', 'El Born'],
+  Tokyo: ['Shinjuku', 'Shibuya', 'Ueno', 'Ginza'],
+  London: ['South Bank', 'Soho', 'Covent Garden', 'Shoreditch'],
+  Lisbon: ['Chiado', 'Alfama', 'Baixa', 'Cais do Sodre'],
+  Prague: ['Old Town', 'Mala Strana', 'Vinohrady', 'Kampa'],
+  Vienna: ['Innere Stadt', 'MuseumsQuartier', 'Naschmarkt', 'Leopoldstadt'],
+  Berlin: ['Mitte', 'Kreuzberg', 'Prenzlauer Berg', 'Friedrichshain'],
+  Copenhagen: ['Indre By', 'Norrebro', 'Vesterbro', 'Nyhavn'],
+  Istanbul: ['Sultanahmet', 'Karakoy', 'Kadikoy', 'Galata'],
+  'New York': ['West Village', 'SoHo', 'Upper East Side', 'Chelsea'],
+  Kyoto: ['Gion', 'Higashiyama', 'Arashiyama', 'Kyoto Station'],
+  Madrid: ['Centro', 'Malasana', 'Retiro', 'La Latina'],
+};
+const countryByCity: Record<string, string> = {
+  Amsterdam: 'Netherlands',
+  Paris: 'France',
+  Rome: 'Italy',
+  Barcelona: 'Spain',
+  Tokyo: 'Japan',
+  London: 'United Kingdom',
+  Lisbon: 'Portugal',
+  Prague: 'Czechia',
+  Vienna: 'Austria',
+  Berlin: 'Germany',
+  Copenhagen: 'Denmark',
+  Istanbul: 'Turkey',
+  'New York': 'United States',
+  Kyoto: 'Japan',
+  Madrid: 'Spain',
 };
 const fallbackDestinations: DestinationResponse[] = cities.map((name) => ({
   id: `fallback-${name.toLowerCase()}`,
   name,
-  country: name === 'Amsterdam' ? 'Netherlands' : name === 'Paris' ? 'France' : name === 'Rome' ? 'Italy' : 'Spain',
+  country: countryByCity[name] ?? 'Global',
   description: cityDetails[name as keyof typeof cityDetails].meta,
   imageUrl: cityDetails[name as keyof typeof cityDetails].image,
   tags: cityDetails[name as keyof typeof cityDetails].meta,
   bestFor: cityDetails[name as keyof typeof cityDetails].meta,
-  placeCount: 4,
-  averageDailyWalkKm: 5.4,
+  placeCount: name === 'Amsterdam' ? 9 : name === 'Tokyo' ? 6 : 5,
+  averageDailyWalkKm: name === 'Tokyo' || name === 'New York' ? 7.1 : 5.6,
   available: true,
-  popular: true,
+  popular: ['Amsterdam', 'Paris', 'Rome', 'Barcelona', 'Tokyo', 'London', 'Lisbon', 'Prague', 'Vienna'].includes(name),
 }));
 
 export default function TripSetupScreen({ navigation }: Props) {
@@ -82,8 +166,8 @@ export default function TripSetupScreen({ navigation }: Props) {
   const [citySearch, setCitySearch] = useState('');
   const [cityOpen, setCityOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [monthIndex, setMonthIndex] = useState(9);
-  const [year, setYear] = useState(2026);
+  const [monthIndex, setMonthIndex] = useState(defaultCalendarDate.monthIndex);
+  const [year, setYear] = useState(defaultCalendarDate.year);
   const [startDay, setStartDay] = useState<number | null>(null);
   const [endDay, setEndDay] = useState<number | null>(null);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
@@ -588,6 +672,14 @@ function toDateString(year: number, monthIndex: number, day: number) {
   const month = String(monthIndex + 1).padStart(2, '0');
   const date = String(day).padStart(2, '0');
   return `${year}-${month}-${date}`;
+}
+
+function getDefaultCalendarDate() {
+  const today = new Date();
+  return {
+    year: today.getFullYear(),
+    monthIndex: today.getMonth(),
+  };
 }
 
 function mapTravelerType(value: string): CreateTripRequest['travelerType'] {
