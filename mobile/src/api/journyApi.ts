@@ -3,6 +3,7 @@ import { session } from './session';
 import type {
   AiChatResponse,
   AiItinerarySuggestionResponse,
+  AddPlaceToPlanRequest,
   AuthResponse,
   CreateTripRequest,
   DestinationResponse,
@@ -78,6 +79,13 @@ export const tripApi = {
 
   itinerary(tripId: string) {
     return apiRequest<ItineraryResponse>(`/api/trips/${tripId}/itinerary`);
+  },
+
+  addPlaceToDay(tripId: string, dayNumber: number, place: AddPlaceToPlanRequest) {
+    return apiRequest<ItineraryDay>(`/api/trips/${tripId}/itinerary/days/${dayNumber}/stops`, {
+      method: 'POST',
+      body: place,
+    });
   },
 };
 

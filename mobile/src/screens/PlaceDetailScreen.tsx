@@ -16,8 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import { savedPlaceApi } from '../api/journyApi';
-import type { PlaceResponse, SavedPlaceRequest } from '../api/types';
+import { savedPlaceApi, tripApi } from '../api/journyApi';
+import { session } from '../api/session';
+import type { AddPlaceToPlanRequest, PlaceResponse, SavedPlaceRequest } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PlaceDetail'>;
@@ -30,6 +31,8 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addedToPlan, setAddedToPlan] = useState(false);
+  const [addingToPlan, setAddingToPlan] = useState(false);
+  const [addToPlanError, setAddToPlanError] = useState(false);
   const categoryLabel = formatCategory(place.category);
   const role = roleForCategory(place.category);
   const walkTime = estimatedWalkTime(place.category);
@@ -91,6 +94,28 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
       : `https://www.google.com/maps/search/?api=1&query=${query}`;
 
     Linking.openURL(url).catch(() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`));
+  };
+
+  const addToTodayPlan = async () => {
+    if (addingToPlan || addedToPlan) {
+      return;
+    }
+
+    setAddingToPlan(true);
+    setAddToPlanError(false);
+    try {
+      let currentTrip = session.getCurrentTrip();
+      if (!currentTrip?.id) {
+        currentTrip = await tripApi.current();
+        session.setCurrentTrip(currentTrip);
+      }
+      await tripApi.addPlaceToDay(currentTrip.id, 1, toAddPlaceToPlanRequest(place));
+      setAddedToPlan(true);
+    } catch {
+      setAddToPlanError(true);
+    } finally {
+      setAddingToPlan(false);
+    }
   };
 
   return (
@@ -200,15 +225,37 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
           <TouchableOpacity
             style={[styles.primaryButton, addedToPlan && styles.primaryButtonActive]}
             activeOpacity={0.9}
-            onPress={() => setAddedToPlan((value) => !value)}
+            disabled={addingToPlan || addedToPlan}
+            onPress={addToTodayPlan}
           >
-            <Text style={styles.primaryButtonText}>{addedToPlan ? "Added to today's plan" : "Add to today's plan"}</Text>
-            <Ionicons name={addedToPlan ? 'checkmark' : 'add'} size={20} color={colors.surface} />
+            <Text style={styles.primaryButtonText}>
+              {addingToPlan ? 'Adding to plan...' : addedToPlan ? "Added to today's plan" : "Add to today's plan"}
+            </Text>
+            <Ionicons name={addingToPlan ? 'hourglass-outline' : addedToPlan ? 'checkmark' : 'add'} size={20} color={colors.surface} />
           </TouchableOpacity>
+          {addToPlanError ? <Text style={styles.addError}>Could not add this place. Check the backend connection and try again.</Text> : null}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function toAddPlaceToPlanRequest(place: PlaceResponse): AddPlaceToPlanRequest {
+  return {
+    placeId: place.id,
+    name: place.name || 'Route stop',
+    city: place.city || 'Current city',
+    category: place.category || 'WALKING',
+    description: place.description || 'Added from Explore.',
+    priceLevel: place.priceLevel || 'Mid',
+    rating: place.rating || 4.6,
+    address: place.address,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    openingHours: place.openingHours,
+    estimatedVisitMinutes: place.estimatedVisitMinutes,
+    tags: place.tags,
+  };
 }
 
 function toSavedPlaceRequest(place: PlaceResponse): SavedPlaceRequest {
@@ -563,6 +610,14 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     color: colors.surface,
     fontSize: typography.body,
     fontWeight: '900',
+  },
+  addError: {
+    color: colors.teal,
+    fontSize: typography.tiny,
+    fontWeight: '800',
+    lineHeight: 16,
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
 });
 }

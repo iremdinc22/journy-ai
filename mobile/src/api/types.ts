@@ -140,6 +140,22 @@ export type SavedPlaceResponse = {
 
 export type SavedPlaceRequest = Omit<SavedPlaceResponse, 'id'>;
 
+export type AddPlaceToPlanRequest = {
+  placeId: string;
+  name: string;
+  city: string;
+  category: string;
+  description: string;
+  priceLevel: string;
+  rating: number;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  openingHours?: string;
+  estimatedVisitMinutes?: number;
+  tags?: string;
+};
+
 export type ProfileResponse = {
   id: string;
   fullName: string;
