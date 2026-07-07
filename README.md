@@ -14,6 +14,8 @@
     <img alt="Expo" src="https://img.shields.io/badge/Expo-Mobile-111827?style=flat-square&logo=expo&logoColor=white" />
     <img alt="React Native" src="https://img.shields.io/badge/React_Native-TypeScript-61DAFB?style=flat-square&logo=react&logoColor=111827" />
     <img alt="Spring Boot" src="https://img.shields.io/badge/Spring_Boot-API-6DB33F?style=flat-square&logo=springboot&logoColor=white" />
+    <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-AI_Agent-009688?style=flat-square&logo=fastapi&logoColor=white" />
+    <img alt="OpenAI" src="https://img.shields.io/badge/OpenAI-Agent-412991?style=flat-square&logo=openai&logoColor=white" />
     <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=flat-square&logo=postgresql&logoColor=white" />
   </p>
 </div>
@@ -55,6 +57,45 @@ Journy is built around one question:
 | Local discovery | Food, coffee, culture, neighborhoods, free activities, and hidden spots |
 | AI assistant | Ask for lighter days, dinner ideas, nearby coffee, or rain-friendly plans |
 | Profile | Saved plans, taste profile, current trip, and preference learning |
+
+---
+
+## AI Agent Layer
+
+Journy now includes a separate Python AI Agent service. The mobile app talks to the Spring Boot API, and Spring Boot sends the active trip/day context to the agent service when the user asks for a plan change.
+
+```txt
+Mobile app
+  -> Spring Boot API
+  -> Python AI Agent
+  -> OpenAI, with deterministic fallback
+```
+
+The agent does not blindly rewrite the trip. It creates a preview first, explains why the change fits, and waits for the user to apply it.
+
+| Agent | What it understands |
+| --- | --- |
+| Pace Agent | "Make today lighter", less walking, easier rhythm |
+| Food Agent | Coffee breaks, dinner ideas, local food windows |
+| Weather Agent | Rain-ready replanning and indoor alternatives |
+| Context Analyzer | Walking pressure, stop density, anchor stops, flexible stops, break windows |
+
+Example requests:
+
+```txt
+Can we make today lighter?
+Add a coffee stop near the route.
+It might rain, can we make this day indoor?
+Find dinner near the last stop.
+```
+
+The agent returns structured previews such as:
+
+- suggested action
+- affected stops
+- walking or route impact
+- why it fits the current trip
+- confirmation requirement before applying changes
 
 ---
 
@@ -128,9 +169,13 @@ The project currently includes:
 - backend API foundation
 - JWT authentication
 - trip creation
-- itinerary generation foundation
+- itinerary generation with budget, pace, interests, and starting area signals
 - explore recommendation endpoints
-- AI assistant endpoint foundation
+- Python AI Agent service with OpenAI support
+- agent previews for pace, food, and weather changes
+- confirmation-first apply flow for itinerary adjustments
+- saved places and saved plans flows
+- dynamic place detail and route-focused day detail screens
 - PostgreSQL setup
 - Swagger API documentation
 
@@ -140,14 +185,16 @@ The project currently includes:
 
 ```txt
 Journy/
-  mobile/    Expo React Native app
-  backend/   Spring Boot API
+  mobile/     Expo React Native app
+  backend/    Spring Boot API
+  ai-agent/   FastAPI AI agent service
 ```
 
 | Layer | Stack |
 | --- | --- |
 | Mobile | Expo, React Native, TypeScript, React Navigation |
 | Backend | Java, Spring Boot, Spring Security, JPA |
+| AI Agent | Python, FastAPI, OpenAI API, deterministic fallback agents |
 | Database | PostgreSQL |
 | Auth | JWT access token and refresh token |
 | Docs | Swagger / OpenAPI |
@@ -164,6 +211,26 @@ docker compose up -d
 ./mvnw spring-boot:run
 ```
 
+AI Agent:
+
+```bash
+cd ai-agent
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload --port 8001
+```
+
+Add your OpenAI key to `ai-agent/.env`:
+
+```txt
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+If the Python agent is not running, Spring Boot falls back to its built-in deterministic agent logic so the assistant flow can still respond.
+
 Mobile:
 
 ```bash
@@ -177,6 +244,8 @@ Useful local URLs:
 ```txt
 Backend: http://localhost:8080
 Swagger: http://localhost:8080/swagger-ui.html
+AI Agent: http://localhost:8001
+AI Agent health: http://localhost:8001/health
 ```
 
 Demo account:
@@ -190,12 +259,12 @@ admin123
 
 ## Roadmap
 
-- Connect mobile screens to the backend API
-- Add real AI-powered itinerary generation
+- Expand agent tools so approved previews update more types of itinerary changes
+- Add richer city and place data with opening hours, coordinates, tags, and price levels
 - Expand city data for Paris, Amsterdam, Rome, Barcelona, and more
 - Add map-based route visualization
 - Add hotel-aware recommendations
-- Add weather-based replanning
+- Add live weather-aware replanning
 - Add group trip planning
 - Improve saved plans and preference learning
 
