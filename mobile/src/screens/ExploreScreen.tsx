@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { exploreApi } from '../api/journyApi';
+import { session } from '../api/session';
 import type { PlaceResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
@@ -20,131 +21,6 @@ type PreviewPlace = {
   image: string;
 };
 
-const placeGroups: Record<Category, PreviewPlace[]> = {
-  'For you': [
-    {
-      title: 'De Pijp Market Loop',
-      city: 'Amsterdam',
-      type: 'Neighborhood',
-      rating: '4.7',
-      reason: 'Good for low-cost food, easy walking and local rhythm.',
-      image: 'https://images.unsplash.com/photo-1584003564911-a7a321c84e1c?auto=format&fit=crop&w=700&q=85',
-    },
-    {
-      title: 'Monti Aperitivo',
-      city: 'Rome',
-      type: 'Evening',
-      rating: '4.9',
-      reason: 'A polished dinner area that still feels local and walkable.',
-      image: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=700&q=85',
-    },
-  ],
-  Food: [
-    {
-      title: 'Du Pain et des Idees',
-      city: 'Paris',
-      type: 'Bakery',
-      rating: '4.8',
-      reason: 'A classic bakery stop for a relaxed morning route.',
-      image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=700&q=85',
-    },
-    {
-      title: 'Testaccio Table',
-      city: 'Rome',
-      type: 'Trattoria',
-      rating: '4.8',
-      reason: 'Local dinner zone with simple Roman plates and an easy evening walk.',
-      image: 'https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?auto=format&fit=crop&w=700&q=85',
-    },
-    {
-      title: 'Jordaan Cheese Stop',
-      city: 'Amsterdam',
-      type: 'Market',
-      rating: '4.6',
-      reason: 'A compact food detour that fits neatly between canal stops.',
-      image: 'https://images.unsplash.com/photo-1452195100486-9cc805987862?auto=format&fit=crop&w=700&q=85',
-    },
-  ],
-  Culture: [
-    {
-      title: 'Rijksmuseum Morning',
-      city: 'Amsterdam',
-      type: 'Museum',
-      rating: '4.9',
-      reason: 'Best as the first anchor of the day before the city gets busy.',
-      image: 'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=700&q=85',
-    },
-    {
-      title: 'Montmartre Sketch Walk',
-      city: 'Paris',
-      type: 'Art walk',
-      rating: '4.7',
-      reason: 'Culture without rushing: studios, small streets and a late cafe pause.',
-      image: 'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=700&q=85',
-    },
-    {
-      title: 'Born Design Route',
-      city: 'Barcelona',
-      type: 'Gallery',
-      rating: '4.6',
-      reason: 'Independent galleries and design shops grouped into one walkable area.',
-      image: 'https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=700&q=85',
-    },
-  ],
-  Coffee: [
-    {
-      title: 'Ten Belles',
-      city: 'Paris',
-      type: 'Coffee',
-      rating: '4.7',
-      reason: 'A small specialty stop that pairs well with a canal-side morning.',
-      image: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=700&q=85',
-    },
-    {
-      title: 'Scandinavian Embassy',
-      city: 'Amsterdam',
-      type: 'Cafe',
-      rating: '4.8',
-      reason: 'Good for a slower breakfast before Museumplein.',
-      image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=700&q=85',
-    },
-    {
-      title: 'Sant Eustachio Pause',
-      city: 'Rome',
-      type: 'Espresso',
-      rating: '4.6',
-      reason: 'A short, central coffee break between historic stops.',
-      image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=700&q=85',
-    },
-  ],
-  Free: [
-    {
-      title: 'Seine Golden Hour',
-      city: 'Paris',
-      type: 'Walk',
-      rating: '4.8',
-      reason: 'A free sunset route that keeps the day calm after museums.',
-      image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=700&q=85',
-    },
-    {
-      title: 'Vondelpark Reset',
-      city: 'Amsterdam',
-      type: 'Park',
-      rating: '4.7',
-      reason: 'A low-effort break when the plan needs breathing room.',
-      image: 'https://images.unsplash.com/photo-1525968902-070804c45d6b?auto=format&fit=crop&w=700&q=85',
-    },
-    {
-      title: 'Gothic Quarter Drift',
-      city: 'Barcelona',
-      type: 'Streets',
-      rating: '4.6',
-      reason: 'Free wandering through small lanes, plazas and local corners.',
-      image: 'https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&w=700&q=85',
-    },
-  ],
-};
-
 export default function ExploreScreen() {
   const { isDark, theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -154,13 +30,17 @@ export default function ExploreScreen() {
   const [apiPlaces, setApiPlaces] = useState<PlaceResponse[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const places = useMemo(() => apiPlaces ?? placeGroups[activeCategory], [activeCategory, apiPlaces]);
+  const currentTrip = session.getCurrentTrip();
+  const destination = currentTrip?.destination ?? 'your trip';
+  const places = useMemo(() => apiPlaces ?? starterPreviewPlaces(destination, activeCategory), [activeCategory, apiPlaces, destination]);
 
   const loadPlaces = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
-      const response = await exploreApi.places(activeCategory);
+      await session.restore();
+      const city = session.getCurrentTrip()?.destination ?? currentTrip?.destination;
+      const response = await exploreApi.places(activeCategory, city);
       setApiPlaces(response);
     } catch {
       setApiPlaces(null);
@@ -168,7 +48,7 @@ export default function ExploreScreen() {
     } finally {
       setLoading(false);
     }
-  }, [activeCategory]);
+  }, [activeCategory, currentTrip?.destination]);
 
   useEffect(() => {
     loadPlaces();
@@ -179,9 +59,9 @@ export default function ExploreScreen() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>Explore</Text>
-        <Text style={styles.title}>Local picks across every city.</Text>
+        <Text style={styles.title}>Local picks in {destination}.</Text>
         <Text style={styles.subtitle}>
-          Recommendations adapt by destination, budget and the kind of day you want.
+          Recommendations adapt by your current trip, budget and the kind of day you want.
         </Text>
 
         <ScrollView
@@ -207,7 +87,7 @@ export default function ExploreScreen() {
         {error ? (
           <InlineError
             title="Explore is using preview picks"
-            description="Backend places could not be loaded. Retry to refresh recommendations."
+            description={`Backend places could not be loaded. Showing ${destination} starter picks for now.`}
             onRetry={loadPlaces}
           />
         ) : null}
@@ -256,6 +136,50 @@ function normalizePlace(
   }
 
   return place;
+}
+
+function starterPreviewPlaces(city: string, category: Category): PreviewPlace[] {
+  const categoriesForPreview: Category[] = category === 'For you' ? ['Free', 'Coffee', 'Food', 'Culture'] : [category];
+  return categoriesForPreview.flatMap((item) => {
+    const count = category === 'For you' ? 1 : 4;
+    return Array.from({ length: count }, (_, index) => starterPreviewPlace(city, item, index + 1));
+  });
+}
+
+function starterPreviewPlace(city: string, category: Category, index: number): PreviewPlace {
+  const type = category === 'For you' ? 'Local' : category;
+  const title = `${city} ${starterTitle(category, index)}`;
+  return {
+    title,
+    city,
+    type,
+    rating: (4.6 + (index % 3) * 0.1).toFixed(1),
+    reason: starterReason(city, category),
+    image: categoryImage(category, title),
+  };
+}
+
+function starterTitle(category: Category, index: number) {
+  if (category === 'Food') return `local food stop ${index}`;
+  if (category === 'Coffee') return `coffee pause ${index}`;
+  if (category === 'Culture') return `culture window ${index}`;
+  if (category === 'Free') return `free city moment ${index}`;
+  return `starter pick ${index}`;
+}
+
+function starterReason(city: string, category: Category) {
+  if (category === 'Food') return `A local food candidate for your ${city} route.`;
+  if (category === 'Coffee') return `A coffee break that can fit into your ${city} day.`;
+  if (category === 'Culture') return `A culture anchor candidate for a stronger ${city} itinerary.`;
+  if (category === 'Free') return `A low-cost ${city} pick for flexible pacing.`;
+  return `A starter recommendation shaped around your current ${city} trip.`;
+}
+
+function categoryImage(category: Category, seed: string) {
+  if (category === 'Food') return fallbackImage('FOOD', seed);
+  if (category === 'Coffee') return fallbackImage('COFFEE', seed);
+  if (category === 'Culture') return fallbackImage('CULTURE', seed);
+  return fallbackImage('FREE', seed);
 }
 
 function toPlaceDetail(place: PlaceResponse | PreviewPlace, activeCategory: Category): PlaceResponse {

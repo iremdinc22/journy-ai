@@ -126,8 +126,15 @@ export const tripApi = {
 };
 
 export const exploreApi = {
-  places(category?: string) {
-    const query = category && category !== 'For you' ? `?category=${encodeURIComponent(category)}` : '';
+  places(category?: string, city?: string) {
+    const params = new URLSearchParams();
+    if (category && category !== 'For you') {
+      params.set('category', category);
+    }
+    if (city?.trim()) {
+      params.set('city', city.trim());
+    }
+    const query = params.toString() ? `?${params.toString()}` : '';
     return apiRequest<PlaceResponse[]>(`/api/explore/places${query}`);
   },
 

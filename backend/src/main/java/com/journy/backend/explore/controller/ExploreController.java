@@ -20,8 +20,11 @@ public class ExploreController {
     }
 
     @GetMapping("/places")
-    public List<PlaceResponse> places(@RequestParam(required = false) String category) {
-        return exploreService.places(category);
+    public List<PlaceResponse> places(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String city
+    ) {
+        return exploreService.places(category, city);
     }
 
     @GetMapping("/destinations")

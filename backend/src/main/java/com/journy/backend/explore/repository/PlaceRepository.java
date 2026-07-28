@@ -14,6 +14,10 @@ public interface PlaceRepository extends JpaRepository<Place, String> {
 
     List<Place> findByCategoryOrderByRatingDesc(PlaceCategory category);
 
+    List<Place> findByCityIgnoreCaseOrderByRatingDesc(String city);
+
+    List<Place> findByCityIgnoreCaseAndCategoryOrderByRatingDesc(String city, PlaceCategory category);
+
     @Query("select distinct p.city from Place p order by p.city asc")
     List<String> findDistinctCities();
 

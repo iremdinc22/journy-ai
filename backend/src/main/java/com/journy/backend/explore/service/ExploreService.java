@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Locale;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
@@ -25,11 +26,28 @@ public class ExploreService {
     }
 
     @Transactional(readOnly = true)
-    public List<PlaceResponse> places(String category) {
-        List<Place> places = category == null || category.isBlank() || category.equalsIgnoreCase("For you")
-                ? placeRepository.findTop12ByOrderByRatingDesc()
-                : placeRepository.findByCategoryOrderByRatingDesc(parseCategory(category));
-        return places.stream().map(placeMapper::toResponse).toList();
+    public List<PlaceResponse> places(String category, String city) {
+        String normalizedCity = city == null ? "" : city.trim();
+        boolean hasCity = !normalizedCity.isBlank();
+        boolean forYou = category == null || category.isBlank() || category.equalsIgnoreCase("For you");
+        PlaceCategory parsedCategory = forYou ? null : parseCategory(category);
+
+        List<Place> places;
+        if (hasCity && forYou) {
+            places = placeRepository.findByCityIgnoreCaseOrderByRatingDesc(normalizedCity);
+        } else if (hasCity) {
+            places = placeRepository.findByCityIgnoreCaseAndCategoryOrderByRatingDesc(normalizedCity, parsedCategory);
+        } else if (forYou) {
+            places = placeRepository.findTop12ByOrderByRatingDesc();
+        } else {
+            places = placeRepository.findByCategoryOrderByRatingDesc(parsedCategory);
+        }
+
+        List<PlaceResponse> responses = places.stream().map(placeMapper::toResponse).toList();
+        if (hasCity && responses.size() < 4) {
+            return starterPicks(normalizedCity, parsedCategory, responses);
+        }
+        return responses;
     }
 
     @Transactional(readOnly = true)
@@ -78,5 +96,121 @@ public class ExploreService {
             case "vienna" -> "https://images.unsplash.com/photo-1516550893923-42d28e5677af?auto=format&fit=crop&w=900&q=88";
             default -> "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=88";
         };
+    }
+
+    private List<PlaceResponse> starterPicks(String city, PlaceCategory category, List<PlaceResponse> existing) {
+        java.util.ArrayList<PlaceResponse> picks = new java.util.ArrayList<>(existing);
+        List<PlaceCategory> categories = category == null
+                ? List.of(PlaceCategory.WALKING, PlaceCategory.COFFEE, PlaceCategory.FOOD, PlaceCategory.CULTURE, PlaceCategory.FREE)
+                : List.of(category);
+
+        int index = 1;
+        for (PlaceCategory starterCategory : categories) {
+            while (picks.stream().filter(place -> place.category().equals(starterCategory.name())).count() < (category == null ? 1 : 4)
+                    && picks.size() < 8) {
+                picks.add(starterPick(city, starterCategory, index));
+                index++;
+            }
+        }
+        return picks;
+    }
+
+    private PlaceResponse starterPick(String city, PlaceCategory category, int index) {
+        String title = city + " " + starterTitle(category, index);
+        return new PlaceResponse(
+                "starter_" + slug(city) + "_" + category.name().toLowerCase(Locale.ROOT) + "_" + index,
+                title,
+                city,
+                category.name(),
+                starterDescription(city, category),
+                category == PlaceCategory.FREE || category == PlaceCategory.WALKING ? "Free" : "Mid",
+                Math.round((4.55 + (index % 4) * 0.07) * 10.0) / 10.0,
+                starterImage(city, category),
+                city + " city center",
+                fallbackLatitude(city, index),
+                fallbackLongitude(city, index),
+                starterHours(category),
+                starterDuration(category),
+                category.name().toLowerCase(Locale.ROOT) + ",starter,current-trip"
+        );
+    }
+
+    private String starterTitle(PlaceCategory category, int index) {
+        return switch (category) {
+            case WALKING -> "Neighborhood walk " + index;
+            case COFFEE -> "Coffee pause " + index;
+            case FOOD -> "Local food stop " + index;
+            case CULTURE -> "Culture window " + index;
+            case FREE -> "Free city moment " + index;
+        };
+    }
+
+    private String starterDescription(String city, PlaceCategory category) {
+        return switch (category) {
+            case WALKING -> "A flexible " + city + " walking pick shaped for the current route.";
+            case COFFEE -> "A coffee break candidate that keeps the " + city + " day from feeling rushed.";
+            case FOOD -> "A local food window for your " + city + " plan, ready to add into a day.";
+            case CULTURE -> "A culture anchor candidate for a more distinctive " + city + " itinerary.";
+            case FREE -> "A low-cost " + city + " moment that keeps the day useful without stretching budget.";
+        };
+    }
+
+    private String starterImage(String city, PlaceCategory category) {
+        String cityImage = imageFor(city);
+        if (category == PlaceCategory.COFFEE) {
+            return "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=700&q=85";
+        }
+        if (category == PlaceCategory.FOOD) {
+            return "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=700&q=85";
+        }
+        return cityImage;
+    }
+
+    private String starterHours(PlaceCategory category) {
+        return switch (category) {
+            case COFFEE -> "08:00 - 18:00";
+            case FOOD -> "12:00 - 22:30";
+            case CULTURE -> "10:00 - 18:00";
+            default -> "Flexible route window";
+        };
+    }
+
+    private int starterDuration(PlaceCategory category) {
+        return switch (category) {
+            case FOOD -> 90;
+            case CULTURE -> 120;
+            case COFFEE -> 45;
+            default -> 60;
+        };
+    }
+
+    private double fallbackLatitude(String city, int index) {
+        double base = switch (city.toLowerCase(Locale.ROOT)) {
+            case "copenhagen" -> 55.6761;
+            case "berlin" -> 52.5200;
+            case "istanbul" -> 41.0082;
+            case "new york" -> 40.7128;
+            case "kyoto" -> 35.0116;
+            case "madrid" -> 40.4168;
+            default -> 52.3676;
+        };
+        return base + index * 0.002;
+    }
+
+    private double fallbackLongitude(String city, int index) {
+        double base = switch (city.toLowerCase(Locale.ROOT)) {
+            case "copenhagen" -> 12.5683;
+            case "berlin" -> 13.4050;
+            case "istanbul" -> 28.9784;
+            case "new york" -> -74.0060;
+            case "kyoto" -> 135.7681;
+            case "madrid" -> -3.7038;
+            default -> 4.9041;
+        };
+        return base + index * 0.002;
+    }
+
+    private String slug(String value) {
+        return value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "_").replaceAll("^_|_$", "");
     }
 }
