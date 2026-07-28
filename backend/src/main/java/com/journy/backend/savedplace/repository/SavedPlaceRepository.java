@@ -11,6 +11,8 @@ public interface SavedPlaceRepository extends JpaRepository<SavedPlace, String> 
 
     List<SavedPlace> findByUserEmailIgnoreCaseOrderByCreatedAtDesc(String email);
 
+    long countByUserEmailIgnoreCase(String email);
+
     Optional<SavedPlace> findByUserEmailIgnoreCaseAndPlaceId(String email, String placeId);
 
     boolean existsByUserEmailIgnoreCaseAndPlaceId(String email, String placeId);

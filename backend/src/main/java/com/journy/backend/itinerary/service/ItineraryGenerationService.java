@@ -15,7 +15,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -33,6 +35,15 @@ public class ItineraryGenerationService {
             return;
         }
 
+        generate(trip);
+    }
+
+    public void regenerate(Trip trip) {
+        itineraryDayRepository.deleteByTripId(trip.getId());
+        generate(trip);
+    }
+
+    private void generate(Trip trip) {
         List<Place> candidatePlaces = selectPlaces(trip);
         Set<String> usedPlaceIds = new HashSet<>();
         int days = trip.dayCount();
@@ -41,13 +52,14 @@ public class ItineraryGenerationService {
         List<ItineraryDay> generatedDays = new ArrayList<>();
         for (int dayNumber = 1; dayNumber <= days; dayNumber++) {
             List<Place> dayPlaces = pickDayPlaces(candidatePlaces, usedPlaceIds, trip, stopsPerDay, dayNumber);
+            DayTheme theme = dynamicThemeFor(trip, dayNumber, dayPlaces);
 
-            double walkKm = calculateWalkKm(dayPlaces.size(), trip.getPace());
+            double walkKm = calculateWalkKm(dayPlaces.size(), trip.getPace(), dayNumber, dayPlaces);
             ItineraryDay day = new ItineraryDay(
                     trip,
                     dayNumber,
-                    titleFor(dayNumber, dayPlaces),
-                    summaryFor(dayPlaces, trip),
+                    titleFor(theme, dayPlaces),
+                    summaryFor(theme, dayPlaces, trip),
                     walkKm
             );
 
@@ -100,19 +112,7 @@ public class ItineraryGenerationService {
             return arrangeForDailyRhythm(exactCityPlaces, trip);
         }
 
-        List<Place> amsterdamFallback = filterPlaces(allPlaces, trip, categories, "Amsterdam");
-        if (!amsterdamFallback.isEmpty()) {
-            return arrangeForDailyRhythm(amsterdamFallback, trip);
-        }
-
-        return arrangeForDailyRhythm(
-                allPlaces.stream()
-                        .filter(place -> categories.contains(place.getCategory()))
-                        .filter(place -> budgetAllows(trip.getBudget(), place.getPriceLevel()))
-                        .sorted(Comparator.comparingDouble((Place place) -> scorePlace(place, trip, false)).reversed())
-                        .toList(),
-                trip
-        );
+        return List.of();
     }
 
     private List<Place> filterPlaces(List<Place> places, Trip trip, Set<PlaceCategory> categories, String city) {
@@ -148,7 +148,7 @@ public class ItineraryGenerationService {
     }
 
     private List<Place> pickDayPlaces(List<Place> candidatePlaces, Set<String> usedPlaceIds, Trip trip, int stopsPerDay, int dayNumber) {
-        List<PlaceCategory> rhythm = rotateRhythm(categoryRhythm(trip.getInterests()), dayNumber - 1);
+        List<PlaceCategory> rhythm = dayRhythm(trip, dayNumber);
         List<Place> dayPlaces = new ArrayList<>();
         List<Place> placePool = candidatePlaces.stream()
                 .filter(place -> !usedPlaceIds.contains(place.getId()))
@@ -211,7 +211,7 @@ public class ItineraryGenerationService {
     }
 
     private void fillWithPlannedStops(List<Place> dayPlaces, Trip trip, List<PlaceCategory> rhythm, int stopsPerDay, int dayNumber) {
-        int rhythmIndex = 0;
+        int rhythmIndex = dayPlaces.size();
         while (dayPlaces.size() < stopsPerDay) {
             PlaceCategory category = rhythm.get(rhythmIndex % rhythm.size());
             if (category == PlaceCategory.FREE && trip.getBudget() != BudgetMode.LEAN && dayPlaces.size() > 1) {
@@ -220,6 +220,18 @@ public class ItineraryGenerationService {
             dayPlaces.add(plannedStop(trip, category, dayNumber, dayPlaces.size() + 1));
             rhythmIndex++;
         }
+    }
+
+    private List<PlaceCategory> dayRhythm(Trip trip, int dayNumber) {
+        List<PlaceCategory> base = rotateRhythm(categoryRhythm(trip.getInterests()), dayNumber - 1);
+        List<PlaceCategory> themeRhythm = themeRhythm(trip, dayNumber);
+        List<PlaceCategory> rhythm = new ArrayList<>(themeRhythm);
+        for (PlaceCategory category : base) {
+            if (!rhythm.contains(category)) {
+                rhythm.add(category);
+            }
+        }
+        return rhythm;
     }
 
     private List<PlaceCategory> rotateRhythm(List<PlaceCategory> rhythm, int offset) {
@@ -345,22 +357,18 @@ public class ItineraryGenerationService {
 
     private Place plannedStop(Trip trip, PlaceCategory category, int dayNumber, int order) {
         String city = trip.getDestination();
-        String label = switch (category) {
-            case CULTURE -> "Culture window";
-            case COFFEE -> "Coffee pause";
-            case FOOD -> order >= 4 ? "Dinner zone" : "Local food stop";
-            case WALKING -> "Neighborhood walk";
-            case FREE -> "Free local moment";
-        };
+        String label = plannedStopName(city, category, dayNumber, order);
         String note = switch (category) {
-            case CULTURE -> "A curated culture block kept close to the route so the day stays realistic.";
-            case COFFEE -> "A short break window added to prevent the plan from feeling rushed.";
-            case FOOD -> "A food stop selected to match your budget and keep transfers short.";
-            case WALKING -> "A flexible walk that connects nearby areas without adding a reservation.";
-            case FREE -> "A low-cost local experience that keeps the day useful without stretching the budget.";
+            case CULTURE -> "A culture anchor placed into this day's theme so the route has a clear purpose.";
+            case COFFEE -> "A compact break window that keeps the pace comfortable between bigger stops.";
+            case FOOD -> order >= 4
+                    ? "A dinner area chosen to close the day without a long transfer."
+                    : "A local food stop selected to match your budget and keep the day grounded.";
+            case WALKING -> "A walkable connector that gives the day texture without adding reservation pressure.";
+            case FREE -> "A low-cost local window that keeps the route useful and flexible.";
         };
         return new Place(
-                city + " " + label + " " + dayNumber,
+                label,
                 city,
                 category,
                 note,
@@ -380,23 +388,22 @@ public class ItineraryGenerationService {
         return "Mid";
     }
 
-    private String titleFor(int dayNumber, List<Place> places) {
-        boolean hasFood = places.stream().anyMatch(place -> place.getCategory() == PlaceCategory.FOOD);
-        boolean hasCulture = places.stream().anyMatch(place -> place.getCategory() == PlaceCategory.CULTURE);
-        if (hasFood && hasCulture) return "Culture & local food";
-        if (hasCulture) return "Culture-led city day";
-        if (hasFood) return "Local food route";
-        return "Balanced city day " + dayNumber;
+    private String titleFor(DayTheme theme, List<Place> places) {
+        if (theme != null && theme.title() != null && !theme.title().isBlank()) {
+            return theme.title();
+        }
+        return "Local City Loop";
     }
 
-    private String summaryFor(List<Place> places, Trip trip) {
+    private String summaryFor(DayTheme theme, List<Place> places, Trip trip) {
         int stopCount = places.size();
         String paceLabel = trip.getPace().name().toLowerCase().replace('_', ' ');
         String startContext = trip.getStartingArea() == null || trip.getStartingArea().isBlank()
                 ? "your starting point"
                 : trip.getStartingArea();
         String budgetLabel = trip.getBudget().name().toLowerCase();
-        return "A " + paceLabel + ", " + budgetLabel + " day from " + startContext + " with " + stopCount + " stops, local breaks and enough room to adjust the pace.";
+        String themeSummary = theme == null ? "the route balances local anchors, breaks and flexible walking" : theme.summary();
+        return "A " + paceLabel + ", " + budgetLabel + " day from " + startContext + " where " + themeSummary + ". Planned with " + stopCount + " stops and enough room to adjust the pace.";
     }
 
     private String timeWindowFor(int order) {
@@ -417,13 +424,27 @@ public class ItineraryGenerationService {
         return place.getDescription() + duration + start;
     }
 
-    private double calculateWalkKm(int stopCount, com.journy.backend.trip.enums.TripPace pace) {
+    private double calculateWalkKm(int stopCount, com.journy.backend.trip.enums.TripPace pace, int dayNumber, List<Place> places) {
         double base = switch (pace) {
             case RELAXED -> 1.1;
             case BALANCED -> 1.35;
             case FULL -> 1.55;
         };
-        return Math.round(stopCount * base * 10.0) / 10.0;
+        double categoryAdjustment = places.stream()
+                .mapToDouble(place -> switch (place.getCategory()) {
+                    case WALKING, FREE -> 0.18;
+                    case CULTURE -> 0.08;
+                    case FOOD -> -0.05;
+                    case COFFEE -> -0.12;
+                })
+                .sum();
+        double dayVariation = switch (dayNumber % 4) {
+            case 1 -> 0.0;
+            case 2 -> -0.25;
+            case 3 -> 0.35;
+            default -> 0.15;
+        };
+        return Math.max(2.4, Math.round((stopCount * base + categoryAdjustment + dayVariation) * 10.0) / 10.0);
     }
 
     private boolean hasFoodOrCoffee(List<Place> places) {
@@ -438,5 +459,200 @@ public class ItineraryGenerationService {
             return latitude ? base - delta : base + delta;
         }
         return latitude ? base - delta : base + delta;
+    }
+
+    private DayTheme dynamicThemeFor(Trip trip, int dayNumber, List<Place> places) {
+        List<PlaceCategory> rhythm = dayRhythm(trip, dayNumber);
+        Map<PlaceCategory, Place> anchors = anchorsByCategory(places);
+        PlaceCategory lead = leadCategory(rhythm, anchors);
+        PlaceCategory support = supportCategory(rhythm, anchors, lead);
+        String leadLabel = titleLabel(trip, anchors.get(lead), lead, dayNumber);
+        String supportLabel = support == null ? paceLabel(trip) : categoryPhrase(support, anchors.get(support));
+        String title = leadLabel + " & " + supportLabel;
+        String summary = summaryPhrase(lead, support, trip);
+        return new DayTheme(title, summary, rhythm);
+    }
+
+    private Map<PlaceCategory, Place> anchorsByCategory(List<Place> places) {
+        Map<PlaceCategory, Place> anchors = new LinkedHashMap<>();
+        for (Place place : places) {
+            anchors.putIfAbsent(place.getCategory(), place);
+        }
+        return anchors;
+    }
+
+    private PlaceCategory leadCategory(List<PlaceCategory> rhythm, Map<PlaceCategory, Place> anchors) {
+        for (PlaceCategory category : rhythm) {
+            if (anchors.containsKey(category)) {
+                return category;
+            }
+        }
+        return anchors.keySet().stream().findFirst().orElse(PlaceCategory.WALKING);
+    }
+
+    private PlaceCategory supportCategory(List<PlaceCategory> rhythm, Map<PlaceCategory, Place> anchors, PlaceCategory lead) {
+        for (PlaceCategory category : rhythm) {
+            if (category != lead && anchors.containsKey(category)) {
+                return category;
+            }
+        }
+        return null;
+    }
+
+    private String titleLabel(Trip trip, Place place, PlaceCategory category, int dayNumber) {
+        String area = place == null ? trip.getDestination() : readableAnchor(place.getName(), trip.getDestination());
+        if (area == null || area.isBlank()) {
+            area = trip.getDestination();
+        }
+        return switch (category) {
+            case CULTURE -> area.contains("Museum") || area.contains("Design") || area.contains("Gallery")
+                    ? area
+                    : area + " Culture";
+            case WALKING, FREE -> area.contains("Walk") || area.contains("Loop") || area.contains("Garden") || area.contains("View")
+                    ? area
+                    : area + " Walk";
+            case COFFEE -> area.contains("Coffee") || area.contains("Cafe") || area.contains("Bakery")
+                    ? area
+                    : area + " Coffee";
+            case FOOD -> area.contains("Lunch") || area.contains("Dinner") || area.contains("Market") || area.contains("Food")
+                    ? area
+                    : area + " Food";
+        };
+    }
+
+    private String categoryPhrase(PlaceCategory category, Place place) {
+        return switch (category) {
+            case CULTURE -> compactPlacePhrase(place, "Culture");
+            case WALKING -> compactPlacePhrase(place, "Slow Walk");
+            case FREE -> compactPlacePhrase(place, "Free Views");
+            case COFFEE -> compactPlacePhrase(place, "Coffee Break");
+            case FOOD -> compactPlacePhrase(place, "Local Food");
+        };
+    }
+
+    private String compactPlacePhrase(Place place, String fallback) {
+        if (place == null || place.getName() == null || place.getName().isBlank()) {
+            return fallback;
+        }
+        String name = place.getName();
+        if (name.length() <= 22) {
+            return name;
+        }
+        return fallback;
+    }
+
+    private String readableAnchor(String name, String city) {
+        if (name == null || name.isBlank()) {
+            return city;
+        }
+        String cleaned = name
+                .replace(city, "")
+                .replace("Window", "")
+                .replace("Stop", "")
+                .replace("Pause", "")
+                .replace("Anchor", "")
+                .trim();
+        return cleaned.isBlank() ? name : cleaned;
+    }
+
+    private String paceLabel(Trip trip) {
+        return switch (trip.getPace()) {
+            case RELAXED -> "Slow Pacing";
+            case BALANCED -> "Easy Route";
+            case FULL -> "Full City Flow";
+        };
+    }
+
+    private String summaryPhrase(PlaceCategory lead, PlaceCategory support, Trip trip) {
+        String pace = trip.getPace().name().toLowerCase();
+        String leadText = switch (lead) {
+            case CULTURE -> "culture anchors shape the first half of the day";
+            case WALKING -> "walkable connectors define the route";
+            case FREE -> "low-cost local windows keep the day flexible";
+            case COFFEE -> "coffee breaks create softer transitions";
+            case FOOD -> "food stops give the day a local rhythm";
+        };
+        String supportText = support == null ? "the remaining stops keep the plan balanced" : switch (support) {
+            case CULTURE -> "culture stays close enough to avoid route sprawl";
+            case WALKING -> "short walking links connect the main stops";
+            case FREE -> "free moments reduce budget pressure";
+            case COFFEE -> "breaks are placed before the day gets too dense";
+            case FOOD -> "food is timed as a practical route anchor";
+        };
+        return leadText + " and " + supportText + " for a " + pace + " pace";
+    }
+
+    private List<PlaceCategory> themeRhythm(Trip trip, int dayNumber) {
+        boolean wantsFood = trip.getInterests().contains(TravelInterest.LOCAL_FOOD);
+        boolean wantsCoffee = trip.getInterests().contains(TravelInterest.COFFEE);
+        boolean wantsCulture = trip.getInterests().contains(TravelInterest.MUSEUMS) || trip.getInterests().contains(TravelInterest.CULTURE);
+        boolean wantsWalking = trip.getInterests().contains(TravelInterest.WALKING);
+        int slot = (dayNumber - 1) % 5;
+
+        if (slot == 0 && wantsWalking) {
+            return List.of(PlaceCategory.WALKING, PlaceCategory.COFFEE, PlaceCategory.CULTURE, PlaceCategory.FOOD, PlaceCategory.FREE);
+        }
+        if (slot == 0 && wantsCulture) {
+            return List.of(PlaceCategory.CULTURE, PlaceCategory.COFFEE, PlaceCategory.WALKING, PlaceCategory.FOOD, PlaceCategory.FREE);
+        }
+        if (slot == 1 && (wantsCulture || wantsCoffee)) {
+            return List.of(PlaceCategory.CULTURE, PlaceCategory.COFFEE, PlaceCategory.FREE, PlaceCategory.FOOD, PlaceCategory.WALKING);
+        }
+        if (slot == 2 && wantsFood) {
+            return List.of(PlaceCategory.FOOD, PlaceCategory.WALKING, PlaceCategory.COFFEE, PlaceCategory.CULTURE, PlaceCategory.FREE);
+        }
+        if (slot == 3 && trip.getBudget() == BudgetMode.LEAN) {
+            return List.of(PlaceCategory.FREE, PlaceCategory.FOOD, PlaceCategory.WALKING, PlaceCategory.COFFEE, PlaceCategory.CULTURE);
+        }
+        if (slot == 3) {
+            return List.of(PlaceCategory.WALKING, PlaceCategory.FOOD, PlaceCategory.COFFEE, PlaceCategory.CULTURE, PlaceCategory.FREE);
+        }
+        if (wantsCoffee) {
+            return List.of(PlaceCategory.COFFEE, PlaceCategory.CULTURE, PlaceCategory.WALKING, PlaceCategory.FOOD, PlaceCategory.FREE);
+        }
+        return List.of(PlaceCategory.WALKING, PlaceCategory.CULTURE, PlaceCategory.COFFEE, PlaceCategory.FOOD, PlaceCategory.FREE);
+    }
+
+    private String plannedStopName(String city, PlaceCategory category, int dayNumber, int order) {
+        List<String> names = cityStopNames(city, category);
+        int index = Math.floorMod(dayNumber + order - 2, names.size());
+        return names.get(index);
+    }
+
+    private List<String> cityStopNames(String city, PlaceCategory category) {
+        Map<PlaceCategory, List<String>> cityNames = switch (normalize(city)) {
+            case "copenhagen" -> Map.of(
+                    PlaceCategory.WALKING, List.of("Christianshavn Canal Walk", "Harbor Bath Stroll", "Frederiksberg Garden Loop", "Vesterbro Design Walk"),
+                    PlaceCategory.COFFEE, List.of("Norrebro Coffee Break", "Vesterbro Bakery Pause", "Indre By Espresso Stop", "Christianshavn Cafe Window"),
+                    PlaceCategory.FOOD, List.of("Torvehallerne Lunch Window", "Meatpacking Dinner Zone", "Reffen Street Food Stop", "Norrebro Local Dinner"),
+                    PlaceCategory.CULTURE, List.of("Designmuseum Culture Window", "SMK Morning Block", "Copenhagen Architecture Center", "Kunsthal Charlottenborg Stop"),
+                    PlaceCategory.FREE, List.of("King's Garden Reset", "Superkilen Color Walk", "Lakeside Free Window", "Ofelia Plads Viewpoint")
+            );
+            case "berlin" -> Map.of(
+                    PlaceCategory.WALKING, List.of("Spree River Walk", "Kreuzberg Street Loop", "Tiergarten Green Route", "Prenzlauer Berg Slow Walk"),
+                    PlaceCategory.COFFEE, List.of("Kreuzberg Coffee Break", "Mitte Espresso Window", "Neukolln Cafe Pause", "Prenzlauer Berg Bakery Stop"),
+                    PlaceCategory.FOOD, List.of("Markthalle Lunch", "Kreuzberg Dinner Zone", "Street Food Thursday Window", "Mitte Local Bites"),
+                    PlaceCategory.CULTURE, List.of("Museum Island Anchor", "Berlinische Galerie Window", "Bauhaus Archive Stop", "East Side Gallery Stretch"),
+                    PlaceCategory.FREE, List.of("Tempelhofer Feld Reset", "Tiergarten Free Window", "Spree Viewpoint", "Mauerpark Local Moment")
+            );
+            case "istanbul" -> Map.of(
+                    PlaceCategory.WALKING, List.of("Karakoy Gallery Walk", "Bosphorus Shore Loop", "Balat Color Streets", "Moda Seaside Walk"),
+                    PlaceCategory.COFFEE, List.of("Karakoy Coffee Break", "Cihangir Cafe Window", "Kadikoy Roaster Stop", "Balat Tea Pause"),
+                    PlaceCategory.FOOD, List.of("Kadikoy Food Streets", "Karakoy Dinner Window", "Cukurcuma Local Lunch", "Besiktas Breakfast Stop"),
+                    PlaceCategory.CULTURE, List.of("Sultanahmet Culture Anchor", "Pera Museum Window", "Istanbul Modern Stop", "Balat Heritage Walk"),
+                    PlaceCategory.FREE, List.of("Bosphorus Ferry Window", "Gulhane Garden Reset", "Galata Viewpoint", "Moda Sunset Stop")
+            );
+            default -> Map.of(
+                    PlaceCategory.WALKING, List.of(city + " Waterfront Walk", city + " Old Town Loop", city + " Design District Walk", city + " Garden Route"),
+                    PlaceCategory.COFFEE, List.of(city + " Coffee Break", city + " Bakery Pause", city + " Espresso Window", city + " Cafe Stop"),
+                    PlaceCategory.FOOD, List.of(city + " Market Lunch", city + " Local Dinner Zone", city + " Food Street Stop", city + " Neighborhood Bites"),
+                    PlaceCategory.CULTURE, List.of(city + " Culture Anchor", city + " Museum Window", city + " Gallery Block", city + " Design Stop"),
+                    PlaceCategory.FREE, List.of(city + " Free Viewpoint", city + " Park Reset", city + " Public Square Window", city + " Scenic Pause")
+            );
+        };
+        return cityNames.get(category);
+    }
+
+    private record DayTheme(String title, String summary, List<PlaceCategory> rhythm) {
     }
 }

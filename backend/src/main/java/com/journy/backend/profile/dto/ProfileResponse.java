@@ -9,15 +9,32 @@ public record ProfileResponse(
         CurrentTrip currentTrip,
         Preferences preferences,
         List<TasteSignal> tasteProfile,
+        long favoriteCount,
         List<SavedPlan> savedPlans,
         List<SavedPlace> savedPlaces
 ) {
     public record CurrentTrip(
+            String id,
             String destination,
+            String startingArea,
+            String startDate,
+            String endDate,
             String dates,
+            String travelerType,
+            String budget,
+            String pace,
+            List<String> interests,
             int stops,
             int foodPicks,
-            double averageWalkKm
+            double averageWalkKm,
+            PlanningStrategy planningStrategy
+    ) {
+    }
+
+    public record PlanningStrategy(
+            String title,
+            String description,
+            List<String> signals
     ) {
     }
 

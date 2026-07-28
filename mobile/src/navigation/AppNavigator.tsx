@@ -14,6 +14,7 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import DayRouteDetailScreen from '../screens/DayRouteDetailScreen';
 import SavedPlansScreen from '../screens/SavedPlansScreen';
+import SavedPlacesScreen from '../screens/SavedPlacesScreen';
 
 import HomeScreen from '../screens/HomeScreen';
 import ItineraryScreen from '../screens/ItineraryScreen';
@@ -28,13 +29,14 @@ export type RootStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Register: undefined;
-  TripSetup: undefined;
+  TripSetup: { initialTrip?: Partial<CreateTripRequest> & { tripId?: string } } | undefined;
   LoadingPlan: { tripDraft: CreateTripRequest };
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   PlaceDetail: { place: PlaceResponse };
   Notifications: undefined;
   Settings: undefined;
   SavedPlans: undefined;
+  SavedPlaces: undefined;
   DayRouteDetail: {
     tripId: string;
     destination: string;
@@ -153,6 +155,7 @@ export default function AppNavigator() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="SavedPlans" component={SavedPlansScreen} />
+      <Stack.Screen name="SavedPlaces" component={SavedPlacesScreen} />
       <Stack.Screen name="DayRouteDetail" component={DayRouteDetailScreen} />
     </Stack.Navigator>
   );

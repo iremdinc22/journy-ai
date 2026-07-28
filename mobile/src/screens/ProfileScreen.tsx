@@ -40,18 +40,6 @@ const savedPlans = [
   },
 ];
 
-const favoritePlaces: Array<{ title: string; meta: string; icon: IconName }> = [
-  { title: 'Quiet Cup De Pijp', meta: 'Coffee - Amsterdam', icon: 'cafe-outline' },
-  { title: 'Canal Bakery', meta: 'Food - Amsterdam', icon: 'restaurant-outline' },
-  { title: 'Small Gallery Walk', meta: 'Culture - Amsterdam', icon: 'color-palette-outline' },
-];
-
-const accountPreferences: Array<{ label: string; value: string; icon: IconName }> = [
-  { label: 'Default pace', value: 'Balanced', icon: 'speedometer-outline' },
-  { label: 'Food discovery', value: 'Local-first', icon: 'restaurant-outline' },
-  { label: 'Notifications', value: 'Plan changes', icon: 'notifications-outline' },
-];
-
 export default function ProfileScreen() {
   const { isDark, theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -123,13 +111,44 @@ export default function ProfileScreen() {
     : profile
       ? []
       : savedPlans.map((plan, index) => ({ ...plan, key: `${plan.city}-${index}`, id: `preview-${index}`, stops: 18, walk: 6.2 }));
-  const displayFavoritePlaces = profile
-    ? (profile.savedPlaces ?? []).map((place) => ({
+  const displayFavoritePlaces = profile?.savedPlaces
+    ? profile.savedPlaces.map((place) => ({
         title: place.name,
         meta: `${formatCategory(place.category)} - ${place.city} - ${place.rating.toFixed(1)}`,
         icon: mapPlaceIcon(place.category),
       }))
-    : favoritePlaces;
+    : [];
+  const accountPreferences: Array<{ label: string; value: string; icon: IconName }> = [
+    { label: 'Default pace', value: formatEnum(profile?.preferences.defaultPace ?? currentTrip?.pace ?? 'BALANCED'), icon: 'speedometer-outline' },
+    { label: 'Default budget', value: formatEnum(profile?.preferences.defaultBudget ?? currentTrip?.budget ?? 'BALANCED'), icon: 'wallet-outline' },
+    { label: 'Food discovery', value: formatEnum(profile?.preferences.foodDiscovery ?? 'LOCAL_FIRST'), icon: 'restaurant-outline' },
+    {
+      label: 'Notifications',
+      value: profile?.preferences.planChangeNotifications ? 'Plan changes on' : 'Plan changes off',
+      icon: 'notifications-outline',
+    },
+  ];
+  const tripStatus = currentTrip ? `${currentTrip.destination} live` : displaySavedPlans.length ? 'Saved' : 'Ready';
+
+  const editCurrentTrip = () => {
+    if (!currentTrip) {
+      navigation.navigate('TripSetup');
+      return;
+    }
+    navigation.navigate('TripSetup', {
+      initialTrip: {
+        tripId: currentTrip.id,
+        destination: currentTrip.destination,
+        startingArea: currentTrip.startingArea,
+        startDate: currentTrip.startDate,
+        endDate: currentTrip.endDate,
+        travelerType: currentTrip.travelerType as any,
+        budget: currentTrip.budget as any,
+        pace: currentTrip.pace as any,
+        interests: currentTrip.interests as any,
+      },
+    });
+  };
 
   const signOut = async () => {
     await authApi.logout();
@@ -158,7 +177,7 @@ export default function ProfileScreen() {
 
         <View style={styles.memberStrip}>
           <View style={styles.memberMetric}>
-            <Text style={styles.memberValue}>{profile ? (profile.savedPlaces ?? []).length : 3}</Text>
+            <Text style={styles.memberValue}>{profile ? profile.favoriteCount : 3}</Text>
             <Text style={styles.memberLabel}>Favorites</Text>
           </View>
           <View style={styles.memberDivider} />
@@ -168,7 +187,7 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.memberDivider} />
           <View style={styles.memberMetric}>
-            <Text style={styles.memberValue}>{currentTrip ? 'Live' : 'Ready'}</Text>
+            <Text style={styles.memberValue} numberOfLines={1} adjustsFontSizeToFit>{tripStatus}</Text>
             <Text style={styles.memberLabel}>Trip status</Text>
           </View>
         </View>
@@ -188,15 +207,16 @@ export default function ProfileScreen() {
               <Text style={styles.kicker}>Current trip</Text>
               <Text style={styles.tripTitle}>{currentTrip?.destination ?? 'Amsterdam'}</Text>
             </View>
-            <TouchableOpacity style={styles.editPill} activeOpacity={0.82}>
+            <TouchableOpacity style={styles.editPill} activeOpacity={0.82} onPress={editCurrentTrip}>
               <Ionicons name="pencil-outline" size={14} color={colors.teal} />
               <Text style={styles.editText}>Edit</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.tripMetaRow}>
-            <InfoChip icon="calendar-outline" text={currentTrip?.dates ?? 'Oct 10 - Oct 14'} colors={colors} styles={styles} />
-            <InfoChip icon="wallet-outline" text="Mid budget" colors={colors} styles={styles} />
+            <InfoChip icon="calendar-outline" text={currentTrip?.dates ?? 'Choose dates'} colors={colors} styles={styles} />
+            <InfoChip icon="wallet-outline" text={`${formatEnum(currentTrip?.budget ?? 'BALANCED')} budget`} colors={colors} styles={styles} />
+            <InfoChip icon="speedometer-outline" text={`${formatEnum(currentTrip?.pace ?? 'BALANCED')} pace`} colors={colors} styles={styles} />
           </View>
 
           <View style={styles.statRow}>
@@ -206,13 +226,37 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {currentTrip?.planningStrategy ? (
+          <View style={styles.strategyCard}>
+            <View style={styles.strategyTop}>
+              <View style={styles.strategyIcon}>
+                <Ionicons name="sparkles-outline" size={18} color={colors.teal} />
+              </View>
+              <View style={styles.strategyCopy}>
+                <Text style={styles.strategyKicker}>Planning strategy</Text>
+                <Text style={styles.strategyTitle}>{currentTrip.planningStrategy.title}</Text>
+              </View>
+            </View>
+            <Text style={styles.strategyDescription}>{currentTrip.planningStrategy.description}</Text>
+            <View style={styles.strategySignals}>
+              {currentTrip.planningStrategy.signals.map((signal) => (
+                <View key={signal} style={styles.strategyChip}>
+                  <Text style={styles.strategyChipText}>{signal}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Taste profile</Text>
-          <Text style={styles.sectionAction}>Refine</Text>
+          <TouchableOpacity activeOpacity={0.82} onPress={editCurrentTrip}>
+            <Text style={styles.sectionAction}>Refine</Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.tasteGrid}>
-          {displayTaste.map((item) => (
-            <View key={item.label} style={styles.tasteCard}>
+          {displayTaste.map((item, index) => (
+            <View key={`${item.label}-${index}`} style={styles.tasteCard}>
               <View style={styles.tasteIcon}>
                 <Ionicons name={item.icon} size={18} color={colors.teal} />
               </View>
@@ -268,7 +312,9 @@ export default function ProfileScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Favorites</Text>
-          <Text style={styles.sectionAction}>Manage</Text>
+          <TouchableOpacity activeOpacity={0.82} onPress={() => navigation.navigate('SavedPlaces')}>
+            <Text style={styles.sectionAction}>Manage</Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.favoriteList}>
           {displayFavoritePlaces.length ? (
@@ -358,6 +404,13 @@ function mapPlaceIcon(category: string): IconName {
 
 function formatCategory(category: string) {
   return category.toLowerCase().replace(/_/g, ' ');
+}
+
+function formatEnum(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];
@@ -498,6 +551,36 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   statValue: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900', marginTop: spacing.xs },
   statLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 2, textAlign: 'center' },
+  strategyCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    padding: spacing.lg,
+  },
+  strategyTop: { alignItems: 'center', flexDirection: 'row' },
+  strategyIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    height: 42,
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+    width: 42,
+  },
+  strategyCopy: { flex: 1, minWidth: 0 },
+  strategyKicker: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  strategyTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900', marginTop: 3 },
+  strategyDescription: { color: colors.slate, fontSize: typography.small, fontWeight: '800', lineHeight: 20, marginTop: spacing.md },
+  strategySignals: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.md },
+  strategyChip: {
+    backgroundColor: colors.fog,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  strategyChipText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900' },
   sectionHeader: {
     alignItems: 'center',
     flexDirection: 'row',

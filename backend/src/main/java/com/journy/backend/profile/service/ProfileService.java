@@ -1,6 +1,5 @@
 package com.journy.backend.profile.service;
 
-import com.journy.backend.common.exception.ResourceNotFoundException;
 import com.journy.backend.profile.dto.UpdatePreferencesRequest;
 import com.journy.backend.profile.mapper.ProfileMapper;
 import com.journy.backend.profile.dto.ProfileResponse;
@@ -48,12 +47,13 @@ public class ProfileService {
         UserAccount user = currentUserService.currentUser();
         normalizePreferences(user);
         Trip currentTrip = tripRepository.findFirstByUserEmailIgnoreCaseAndCurrentTripTrueOrderByCreatedAtDesc(user.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("Current trip was not found"));
+                .orElse(null);
         return profileMapper.toResponse(
                 user,
                 currentTrip,
                 tripRepository.findTop5ByUserEmailIgnoreCaseOrderByCreatedAtDesc(user.getEmail()),
-                savedPlaceRepository.findTop8ByUserEmailIgnoreCaseOrderByCreatedAtDesc(user.getEmail())
+                savedPlaceRepository.findTop8ByUserEmailIgnoreCaseOrderByCreatedAtDesc(user.getEmail()),
+                savedPlaceRepository.countByUserEmailIgnoreCase(user.getEmail())
         );
     }
 

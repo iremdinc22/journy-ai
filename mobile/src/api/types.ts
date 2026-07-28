@@ -202,11 +202,24 @@ export type ProfileResponse = {
   fullName: string;
   travelStyle: string;
   currentTrip: {
+    id: string;
     destination: string;
+    startingArea?: string;
+    startDate: string;
+    endDate: string;
     dates: string;
+    travelerType: string;
+    budget: string;
+    pace: string;
+    interests: string[];
     stops: number;
     foodPicks: number;
     averageWalkKm: number;
+    planningStrategy?: {
+      title: string;
+      description: string;
+      signals: string[];
+    };
   } | null;
   preferences: UserPreferences;
   tasteProfile: Array<{
@@ -214,6 +227,7 @@ export type ProfileResponse = {
     description: string;
     icon: string;
   }>;
+  favoriteCount: number;
   savedPlans: Array<{
     id: string;
     destination: string;

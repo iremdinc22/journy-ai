@@ -141,7 +141,7 @@ public class TripService {
                 .orElseGet(() -> tripRepository.findFirstByUserEmailIgnoreCaseAndCurrentTripTrueOrderByCreatedAtDesc(user.getEmail())
                         .orElseThrow(() -> new ResourceNotFoundException("Trip was not found")));
 
-        itineraryGenerationService.generateIfMissing(trip);
+        itineraryGenerationService.regenerate(trip);
         return tripMapper.toResponse(tripRepository.save(trip));
     }
 

@@ -158,7 +158,7 @@ const fallbackDestinations: DestinationResponse[] = cities.map((name) => ({
   popular: ['Amsterdam', 'Paris', 'Rome', 'Barcelona', 'Tokyo', 'London', 'Lisbon', 'Prague', 'Vienna'].includes(name),
 }));
 
-export default function TripSetupScreen({ navigation }: Props) {
+export default function TripSetupScreen({ navigation, route }: Props) {
   const { isDark, theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
@@ -195,6 +195,40 @@ export default function TripSetupScreen({ navigation }: Props) {
   const destinationOptions = destinations.length ? destinations : fallbackDestinations.filter((item) => item.name.toLowerCase().includes(citySearch.trim().toLowerCase()));
   const popularOptions = popularDestinations.length ? popularDestinations : fallbackDestinations.slice(0, 4);
   const canCreateDraftDestination = citySearch.trim().length > 1 && !destinationOptions.some((item) => item.name.toLowerCase() === citySearch.trim().toLowerCase());
+  const initialTrip = route.params?.initialTrip;
+
+  useEffect(() => {
+    if (!initialTrip) {
+      return;
+    }
+    if (initialTrip.destination) {
+      setCity(initialTrip.destination);
+    }
+    if (initialTrip.startingArea) {
+      setStartArea(initialTrip.startingArea);
+    }
+    if (initialTrip.budget) {
+      setBudget(fromBudget(initialTrip.budget));
+    }
+    if (initialTrip.pace) {
+      setPace(fromPace(initialTrip.pace));
+    }
+    if (initialTrip.travelerType) {
+      setTravelType(fromTravelerType(initialTrip.travelerType));
+    }
+    if (initialTrip.interests?.length) {
+      setSelectedInterests(initialTrip.interests.map(fromInterest));
+    }
+    if (initialTrip.startDate) {
+      const start = parseDateParts(initialTrip.startDate);
+      setYear(start.year);
+      setMonthIndex(start.monthIndex);
+      setStartDay(start.day);
+    }
+    if (initialTrip.endDate) {
+      setEndDay(parseDateParts(initialTrip.endDate).day);
+    }
+  }, [initialTrip]);
 
   useEffect(() => {
     let mounted = true;
@@ -406,7 +440,7 @@ export default function TripSetupScreen({ navigation }: Props) {
           >
             <Ionicons name="arrow-back" size={21} color={colors.midnight} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Plan setup</Text>
+          <Text style={styles.headerTitle}>{initialTrip ? 'Edit trip setup' : 'Plan setup'}</Text>
           <Text style={styles.stepText}>1/3</Text>
         </View>
 
@@ -660,7 +694,7 @@ export default function TripSetupScreen({ navigation }: Props) {
         <Segment options={['Lean', 'Balanced', 'Comfort']} value={budget} onChange={setBudget} styles={styles} />
 
         <TouchableOpacity style={styles.primaryButton} activeOpacity={0.9} onPress={generatePlan}>
-          <Text style={styles.primaryButtonText}>Generate plan</Text>
+          <Text style={styles.primaryButtonText}>{initialTrip ? 'Regenerate plan' : 'Generate plan'}</Text>
           <Ionicons name="arrow-forward" size={18} color={colors.surface} />
         </TouchableOpacity>
       </ScrollView>
@@ -692,6 +726,16 @@ function mapTravelerType(value: string): CreateTripRequest['travelerType'] {
   return map[value] ?? 'COUPLE';
 }
 
+function fromTravelerType(value: string) {
+  const map: Record<string, string> = {
+    SOLO: 'Solo',
+    COUPLE: 'Couple',
+    FRIENDS: 'Friends',
+    FAMILY: 'Family',
+  };
+  return map[value] ?? 'Couple';
+}
+
 function mapBudget(value: string): CreateTripRequest['budget'] {
   const map: Record<string, CreateTripRequest['budget']> = {
     Lean: 'LEAN',
@@ -701,6 +745,15 @@ function mapBudget(value: string): CreateTripRequest['budget'] {
   return map[value] ?? 'BALANCED';
 }
 
+function fromBudget(value: string) {
+  const map: Record<string, string> = {
+    LEAN: 'Lean',
+    BALANCED: 'Balanced',
+    COMFORT: 'Comfort',
+  };
+  return map[value] ?? 'Balanced';
+}
+
 function mapPace(value: string): CreateTripRequest['pace'] {
   const map: Record<string, CreateTripRequest['pace']> = {
     Relaxed: 'RELAXED',
@@ -708,6 +761,38 @@ function mapPace(value: string): CreateTripRequest['pace'] {
     Full: 'FULL',
   };
   return map[value] ?? 'BALANCED';
+}
+
+function fromPace(value: string) {
+  const map: Record<string, string> = {
+    RELAXED: 'Relaxed',
+    BALANCED: 'Balanced',
+    FULL: 'Full',
+  };
+  return map[value] ?? 'Balanced';
+}
+
+function fromInterest(value: string) {
+  const map: Record<string, string> = {
+    COFFEE: 'Coffee',
+    MUSEUMS: 'Museums',
+    LOCAL_FOOD: 'Local food',
+    WALKING: 'Walking',
+    SHOPPING: 'Shopping',
+    NIGHTLIFE: 'Nightlife',
+    CULTURE: 'Museums',
+    FREE_ACTIVITIES: 'Walking',
+  };
+  return map[value] ?? 'Walking';
+}
+
+function parseDateParts(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
+  return {
+    year: year || defaultCalendarDate.year,
+    monthIndex: Math.max(0, (month || defaultCalendarDate.monthIndex + 1) - 1),
+    day: day || 1,
+  };
 }
 
 function stopsForPace(value: string) {
