@@ -107,6 +107,32 @@ export const tripApi = {
     });
   },
 
+  removeStop(tripId: string, dayNumber: number, stopId: string) {
+    return apiRequest<ItineraryDay>(`/api/trips/${tripId}/itinerary/days/${dayNumber}/stops/${stopId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  toggleStopOptional(tripId: string, dayNumber: number, stopId: string) {
+    return apiRequest<ItineraryDay>(`/api/trips/${tripId}/itinerary/days/${dayNumber}/stops/${stopId}/optional`, {
+      method: 'PATCH',
+    });
+  },
+
+  reorderStop(tripId: string, dayNumber: number, stopId: string, targetOrder: number) {
+    return apiRequest<ItineraryDay>(`/api/trips/${tripId}/itinerary/days/${dayNumber}/stops/${stopId}/reorder`, {
+      method: 'POST',
+      body: { targetOrder },
+    });
+  },
+
+  moveStop(tripId: string, dayNumber: number, stopId: string, targetDayNumber: number) {
+    return apiRequest<ItineraryResponse>(`/api/trips/${tripId}/itinerary/days/${dayNumber}/stops/${stopId}/move`, {
+      method: 'POST',
+      body: { targetDayNumber },
+    });
+  },
+
   async makeCurrent(tripId: string) {
     const trip = await apiRequest<TripResponse>(`/api/trips/${tripId}/current`, {
       method: 'PUT',

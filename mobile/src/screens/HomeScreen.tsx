@@ -112,13 +112,16 @@ export default function HomeScreen() {
     };
   }, []);
 
-  const firstDay = itinerary?.days[0];
+  const lifecycle = tripLifecycle(trip);
+  const todayDay = itinerary?.days.find((day) => day.dayNumber === lifecycle.dayNumber) ?? itinerary?.days[0];
+  const firstDay = lifecycle.status === 'ACTIVE' ? todayDay : itinerary?.days[0];
   const firstStops = firstDay?.stops.slice(0, 3);
   const destination = trip?.destination ?? 'Amsterdam';
   const heroImage = cityHeroImages[destination] ?? cityHeroImages.Amsterdam;
   const dayTitle = firstDay?.title ?? 'Canals & Museums';
   const walkKm = firstDay?.walkKm ?? trip?.stats.averageWalkKm ?? 6.4;
   const stopCount = firstDay?.stopCount ?? trip?.stats.stops ?? 4;
+  const nextStop = firstDay?.stops[0];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -156,12 +159,51 @@ export default function HomeScreen() {
               </View>
             </View>
             <View>
-              <Text style={styles.heroKicker}>Day 1</Text>
-              <Text style={styles.heroTitle}>{dayTitle}</Text>
+              <Text style={styles.heroKicker}>{heroKicker(lifecycle, destination)}</Text>
+              <Text style={styles.heroTitle}>{heroTitle(lifecycle, destination, dayTitle)}</Text>
               <Text style={styles.heroMeta}>{stopCount} stops - {walkKm.toFixed(1)} km - {formatEnum(trip?.pace ?? 'easy')} pace</Text>
             </View>
           </LinearGradient>
         </ImageBackground>
+
+        {lifecycle.status === 'ACTIVE' && firstDay ? (
+          <View style={styles.todayCard}>
+            <View style={styles.todayTop}>
+              <View>
+                <Text style={styles.todayKicker}>Today mode</Text>
+                <Text style={styles.todayTitle}>Today in {destination}</Text>
+              </View>
+              <View style={styles.nextPill}>
+                <Ionicons name="time-outline" size={14} color={colors.teal} />
+                <Text style={styles.nextPillText}>Next stop</Text>
+              </View>
+            </View>
+            {nextStop ? (
+              <View style={styles.nextStopRow}>
+                <Text style={styles.nextStopTime}>{nextStop.timeWindow}</Text>
+                <View style={styles.nextStopCopy}>
+                  <Text style={styles.nextStopTitle}>{nextStop.title}</Text>
+                  <Text style={styles.nextStopMeta}>{nextStop.category.toLowerCase()} - {nextStop.optional ? 'optional' : 'main route'}</Text>
+                </View>
+                <TouchableOpacity style={styles.directionsButton} activeOpacity={0.86}>
+                  <Ionicons name="navigate-outline" size={17} color={colors.surface} />
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            <View style={styles.todayTimeline}>
+              {firstDay.stops.slice(0, 4).map((stop) => (
+                <View key={stop.id} style={styles.todayTimelineRow}>
+                  <Text style={styles.todayTime}>{stop.timeWindow}</Text>
+                  <Text style={styles.todayStop} numberOfLines={1}>{stop.title}</Text>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity style={styles.rebuildButton} activeOpacity={0.86} onPress={() => navigation.navigate('Assistant')}>
+              <Ionicons name="sparkles-outline" size={15} color={colors.teal} />
+              <Text style={styles.rebuildText}>Optimize today with AI</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         <View style={styles.routeSummary}>
           <SummaryItem icon="walk-outline" value={`${walkKm.toFixed(1)} km`} label="walk" colors={colors} styles={styles} />
@@ -201,7 +243,7 @@ export default function HomeScreen() {
 
         <TouchableOpacity style={styles.primaryAction} activeOpacity={0.9}>
           <Ionicons name="navigate" size={17} color={colors.surface} />
-          <Text style={styles.primaryActionText}>Start today route</Text>
+          <Text style={styles.primaryActionText}>{lifecycle.status === 'ACTIVE' ? 'Start today route' : 'Open trip plan'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -213,6 +255,40 @@ function formatEnum(value: string) {
     .toLowerCase()
     .replaceAll('_', ' ')
     .replace(/^\w/, (letter) => letter.toUpperCase());
+}
+
+function tripLifecycle(trip?: TripResponse) {
+  if (!trip) {
+    return { status: 'UPCOMING' as const, dayNumber: 1, daysUntil: 0 };
+  }
+  const today = startOfDay(new Date());
+  const start = startOfDay(new Date(trip.startDate));
+  const end = startOfDay(new Date(trip.endDate));
+  const daysUntil = Math.ceil((start.getTime() - today.getTime()) / 86400000);
+  if (today < start) {
+    return { status: 'UPCOMING' as const, dayNumber: 1, daysUntil };
+  }
+  if (today >= end) {
+    return { status: 'COMPLETED' as const, dayNumber: trip.days, daysUntil: 0 };
+  }
+  const dayNumber = Math.min(trip.days, Math.max(1, Math.floor((today.getTime() - start.getTime()) / 86400000) + 1));
+  return { status: 'ACTIVE' as const, dayNumber, daysUntil: 0 };
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function heroKicker(lifecycle: ReturnType<typeof tripLifecycle>, destination: string) {
+  if (lifecycle.status === 'ACTIVE') return `Day ${lifecycle.dayNumber}`;
+  if (lifecycle.status === 'COMPLETED') return 'Trip complete';
+  return lifecycle.daysUntil > 0 ? `${destination} in ${lifecycle.daysUntil} days` : 'Upcoming trip';
+}
+
+function heroTitle(lifecycle: ReturnType<typeof tripLifecycle>, destination: string, dayTitle: string) {
+  if (lifecycle.status === 'ACTIVE') return `Good morning, ${destination}.`;
+  if (lifecycle.status === 'COMPLETED') return `Your ${destination} trip is complete.`;
+  return dayTitle;
 }
 
 function imageForStop(destination: string, category: string, title: string, index: number) {
@@ -351,6 +427,70 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     marginTop: spacing.md,
     padding: spacing.md,
   },
+  todayCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  todayTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  todayKicker: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  todayTitle: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900', marginTop: 3 },
+  nextPill: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  nextPillText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900' },
+  nextStopRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    marginTop: spacing.md,
+    padding: spacing.sm,
+  },
+  nextStopTime: { color: colors.teal, fontSize: typography.small, fontWeight: '900', width: 54 },
+  nextStopCopy: { flex: 1, minWidth: 0 },
+  nextStopTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
+  nextStopMeta: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 2, textTransform: 'capitalize' },
+  directionsButton: {
+    alignItems: 'center',
+    backgroundColor: colors.midnight,
+    borderRadius: radius.pill,
+    height: 36,
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
+    width: 36,
+  },
+  todayTimeline: { marginTop: spacing.md },
+  todayTimelineRow: {
+    alignItems: 'center',
+    borderTopColor: colors.mist,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    minHeight: 38,
+  },
+  todayTime: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', width: 58 },
+  todayStop: { color: colors.midnight, flex: 1, fontSize: typography.small, fontWeight: '800' },
+  rebuildButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.fog,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    gap: 5,
+    marginTop: spacing.md,
+    minHeight: 34,
+    paddingHorizontal: spacing.sm,
+  },
+  rebuildText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900' },
   summaryItem: { alignItems: 'center', flex: 1 },
   summaryValue: { color: colors.midnight, fontSize: typography.small, fontWeight: '900', marginTop: 3 },
   summaryLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 2 },

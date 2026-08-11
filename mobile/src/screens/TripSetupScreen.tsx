@@ -347,9 +347,9 @@ export default function TripSetupScreen({ navigation, route }: Props) {
   }, [budget, city, endDate, pace, selectedInterests, startArea, startDate]);
 
   const selectDay = (day: number) => {
-    if (!startDay || !endDay || day <= startDay || endDay !== startDay) {
+    if (!startDay || endDay || day <= startDay) {
       setStartDay(day);
-      setEndDay(day);
+      setEndDay(null);
       return;
     }
 
@@ -401,7 +401,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
       return;
     }
     if (!startDate || !endDate) {
-      Alert.alert('Travel dates required', 'Please choose your start and end dates from the calendar.');
+      Alert.alert('Travel dates required', 'Please choose a start date and a later end date from the calendar.');
       setCalendarOpen(true);
       return;
     }

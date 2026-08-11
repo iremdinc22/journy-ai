@@ -65,11 +65,13 @@ export type TripPreviewResponse = {
 };
 
 export type ItineraryStop = {
+  id: string;
   order: number;
   title: string;
   category: string;
   timeWindow: string;
   note: string;
+  optional: boolean;
   latitude: number;
   longitude: number;
 };

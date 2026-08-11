@@ -31,11 +31,13 @@ public class ItineraryMapper {
 
     private ItineraryResponse.ItineraryStopResponse toStopResponse(ItineraryStop stop) {
         return new ItineraryResponse.ItineraryStopResponse(
+                stop.getId(),
                 stop.getStopOrder(),
                 stop.getTitle(),
                 stop.getCategory(),
                 stop.getTimeWindow(),
                 stop.getNote(),
+                stop.isOptionalStop(),
                 stop.getLatitude(),
                 stop.getLongitude()
         );

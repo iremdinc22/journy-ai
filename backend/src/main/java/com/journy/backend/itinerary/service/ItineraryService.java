@@ -3,6 +3,8 @@ package com.journy.backend.itinerary.service;
 import com.journy.backend.common.exception.ResourceNotFoundException;
 import com.journy.backend.itinerary.dto.AddPlaceToPlanRequest;
 import com.journy.backend.itinerary.dto.ItineraryResponse;
+import com.journy.backend.itinerary.dto.MoveStopRequest;
+import com.journy.backend.itinerary.dto.ReorderStopRequest;
 import com.journy.backend.itinerary.mapper.ItineraryMapper;
 import com.journy.backend.itinerary.model.ItineraryDay;
 import com.journy.backend.itinerary.model.ItineraryStop;
@@ -48,14 +50,8 @@ public class ItineraryService {
 
     @Transactional
     public ItineraryResponse.ItineraryDayResponse addPlaceToDay(String tripId, int dayNumber, AddPlaceToPlanRequest request) {
-        UserAccount user = currentUserService.currentUser();
-        Trip trip = tripRepository.findById(tripId)
-                .filter(foundTrip -> foundTrip.getUser().getId().equals(user.getId()))
-                .orElseThrow(() -> new ResourceNotFoundException("Trip was not found"));
-        ItineraryDay day = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId()).stream()
-                .filter(foundDay -> foundDay.getDayNumber() == dayNumber)
-                .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Itinerary day was not found"));
+        Trip trip = ownedTrip(tripId);
+        ItineraryDay day = dayFor(trip, dayNumber);
 
         boolean alreadyAdded = day.getStops().stream()
                 .anyMatch(stop -> stop.getTitle().equalsIgnoreCase(request.name()));
@@ -80,6 +76,84 @@ public class ItineraryService {
         return itineraryMapper.toDayResponse(savedDay);
     }
 
+    @Transactional
+    public ItineraryResponse.ItineraryDayResponse removeStop(String tripId, int dayNumber, String stopId) {
+        Trip trip = ownedTrip(tripId);
+        ItineraryDay day = dayFor(trip, dayNumber);
+        ItineraryStop stop = stopFor(day, stopId);
+        day.getStops().remove(stop);
+        normalizeStopOrder(day);
+        refreshDayAfterManualChange(day, "Removed " + stop.getTitle() + " from this day.");
+        ItineraryDay savedDay = itineraryDayRepository.save(day);
+        refreshTripStats(trip);
+        return itineraryMapper.toDayResponse(savedDay);
+    }
+
+    @Transactional
+    public ItineraryResponse.ItineraryDayResponse toggleOptional(String tripId, int dayNumber, String stopId) {
+        Trip trip = ownedTrip(tripId);
+        ItineraryDay day = dayFor(trip, dayNumber);
+        ItineraryStop stop = stopFor(day, stopId);
+        stop.setOptionalStop(!stop.isOptionalStop());
+        refreshDayAfterManualChange(day, stop.getTitle() + (stop.isOptionalStop() ? " is now optional." : " is back in the main route."));
+        ItineraryDay savedDay = itineraryDayRepository.save(day);
+        refreshTripStats(trip);
+        return itineraryMapper.toDayResponse(savedDay);
+    }
+
+    @Transactional
+    public ItineraryResponse moveStop(String tripId, int dayNumber, String stopId, MoveStopRequest request) {
+        Trip trip = ownedTrip(tripId);
+        ItineraryDay sourceDay = dayFor(trip, dayNumber);
+        ItineraryDay targetDay = dayFor(trip, request.targetDayNumber());
+        ItineraryStop stop = stopFor(sourceDay, stopId);
+        sourceDay.getStops().remove(stop);
+        normalizeStopOrder(sourceDay);
+        stop.setStopOrder(targetDay.getStops().size() + 1);
+        targetDay.addStop(stop);
+        refreshDayAfterManualChange(sourceDay, "Moved " + stop.getTitle() + " to Day " + targetDay.getDayNumber() + ".");
+        refreshDayAfterManualChange(targetDay, "Moved " + stop.getTitle() + " into this day.");
+        itineraryDayRepository.saveAll(List.of(sourceDay, targetDay));
+        refreshTripStats(trip);
+        return itineraryMapper.toResponse(trip, itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId()));
+    }
+
+    @Transactional
+    public ItineraryResponse.ItineraryDayResponse reorderStop(String tripId, int dayNumber, String stopId, ReorderStopRequest request) {
+        Trip trip = ownedTrip(tripId);
+        ItineraryDay day = dayFor(trip, dayNumber);
+        ItineraryStop stop = stopFor(day, stopId);
+        day.getStops().remove(stop);
+        int targetIndex = Math.max(0, Math.min(request.targetOrder() - 1, day.getStops().size()));
+        day.getStops().add(targetIndex, stop);
+        normalizeStopOrder(day);
+        refreshDayAfterManualChange(day, "Reordered " + stop.getTitle() + ". Review walking flow before heading out.");
+        ItineraryDay savedDay = itineraryDayRepository.save(day);
+        refreshTripStats(trip);
+        return itineraryMapper.toDayResponse(savedDay);
+    }
+
+    private Trip ownedTrip(String tripId) {
+        UserAccount user = currentUserService.currentUser();
+        return tripRepository.findById(tripId)
+                .filter(foundTrip -> foundTrip.getUser().getId().equals(user.getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Trip was not found"));
+    }
+
+    private ItineraryDay dayFor(Trip trip, int dayNumber) {
+        return itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId()).stream()
+                .filter(foundDay -> foundDay.getDayNumber() == dayNumber)
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Itinerary day was not found"));
+    }
+
+    private ItineraryStop stopFor(ItineraryDay day, String stopId) {
+        return day.getStops().stream()
+                .filter(stop -> stop.getId().equals(stopId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Itinerary stop was not found"));
+    }
+
     private void refreshTripStats(Trip trip) {
         List<ItineraryDay> days = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId());
         int totalStops = days.stream().mapToInt(day -> day.getStops().size()).sum();
@@ -92,6 +166,18 @@ public class ItineraryService {
         trip.setFoodPicks(foodPicks);
         trip.setAverageWalkKm(Math.round(averageWalk * 10.0) / 10.0);
         tripRepository.save(trip);
+    }
+
+    private void normalizeStopOrder(ItineraryDay day) {
+        for (int index = 0; index < day.getStops().size(); index++) {
+            day.getStops().get(index).setStopOrder(index + 1);
+        }
+    }
+
+    private void refreshDayAfterManualChange(ItineraryDay day, String changeNote) {
+        normalizeStopOrder(day);
+        day.setWalkKm(Math.max(1.2, Math.round(day.getStops().size() * 1.18 * 10.0) / 10.0));
+        day.setSummary(changeNote + " Journy can optimize the route if the walking flow feels off.");
     }
 
     private String normalizeCategory(String category) {

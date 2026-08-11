@@ -125,8 +125,11 @@ function messageForError(error: unknown) {
   if (error instanceof ApiError && error.status === 401) {
     return 'Your session expired. Please sign in again, then retry creating the plan.';
   }
+  if (error instanceof ApiError && error.status === 403) {
+    return 'Your session needs a fresh sign in before Journy can create this plan.';
+  }
   if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
-    return 'Some trip details need attention. Go back to setup and check your destination, dates and interests.';
+    return error.message || 'Some trip details need attention. Go back to setup and check your destination, dates and interests.';
   }
   return 'Make sure the backend is running and your phone is using the correct API address, then try again.';
 }

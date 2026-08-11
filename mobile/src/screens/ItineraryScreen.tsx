@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { tripApi } from '../api/journyApi';
@@ -16,10 +16,10 @@ const days: ItineraryDay[] = [
     walkKm: 6.4,
     stopCount: 4,
     stops: [
-      { order: 1, title: 'Museumplein', category: 'CULTURE', timeWindow: 'Morning', note: 'Start with the strongest culture anchor.', latitude: 52.3584, longitude: 4.8811 },
-      { order: 2, title: 'Morning coffee', category: 'COFFEE', timeWindow: 'Late morning', note: 'A soft break before the canal loop.', latitude: 52.3631, longitude: 4.8858 },
-      { order: 3, title: 'Canal loop', category: 'WALKING', timeWindow: 'Afternoon', note: 'Walkable streets with flexible photo stops.', latitude: 52.3702, longitude: 4.8952 },
-      { order: 4, title: 'De Pijp dinner', category: 'FOOD', timeWindow: 'Evening', note: 'End near a lively local dinner area.', latitude: 52.3542, longitude: 4.8907 },
+      { id: 'preview-1-1', order: 1, title: 'Museumplein', category: 'CULTURE', timeWindow: 'Morning', note: 'Start with the strongest culture anchor.', optional: false, latitude: 52.3584, longitude: 4.8811 },
+      { id: 'preview-1-2', order: 2, title: 'Morning coffee', category: 'COFFEE', timeWindow: 'Late morning', note: 'A soft break before the canal loop.', optional: false, latitude: 52.3631, longitude: 4.8858 },
+      { id: 'preview-1-3', order: 3, title: 'Canal loop', category: 'WALKING', timeWindow: 'Afternoon', note: 'Walkable streets with flexible photo stops.', optional: false, latitude: 52.3702, longitude: 4.8952 },
+      { id: 'preview-1-4', order: 4, title: 'De Pijp dinner', category: 'FOOD', timeWindow: 'Evening', note: 'End near a lively local dinner area.', optional: false, latitude: 52.3542, longitude: 4.8907 },
     ],
   },
   {
@@ -29,10 +29,10 @@ const days: ItineraryDay[] = [
     walkKm: 4.8,
     stopCount: 4,
     stops: [
-      { order: 1, title: 'Morning piazza', category: 'WALKING', timeWindow: 'Morning', note: 'Ease into the center with a short walk.', latitude: 41.8986, longitude: 12.4769 },
-      { order: 2, title: 'Small gallery', category: 'CULTURE', timeWindow: 'Late morning', note: 'A compact culture stop.', latitude: 41.9007, longitude: 12.4781 },
-      { order: 3, title: 'Trattoria lunch', category: 'FOOD', timeWindow: 'Lunch', note: 'Food-first stop without crossing town.', latitude: 41.8951, longitude: 12.4722 },
-      { order: 4, title: 'Aperitivo street', category: 'FOOD', timeWindow: 'Evening', note: 'A flexible final area for dinner or drinks.', latitude: 41.8916, longitude: 12.4679 },
+      { id: 'preview-2-1', order: 1, title: 'Morning piazza', category: 'WALKING', timeWindow: 'Morning', note: 'Ease into the center with a short walk.', optional: false, latitude: 41.8986, longitude: 12.4769 },
+      { id: 'preview-2-2', order: 2, title: 'Small gallery', category: 'CULTURE', timeWindow: 'Late morning', note: 'A compact culture stop.', optional: false, latitude: 41.9007, longitude: 12.4781 },
+      { id: 'preview-2-3', order: 3, title: 'Trattoria lunch', category: 'FOOD', timeWindow: 'Lunch', note: 'Food-first stop without crossing town.', optional: false, latitude: 41.8951, longitude: 12.4722 },
+      { id: 'preview-2-4', order: 4, title: 'Aperitivo street', category: 'FOOD', timeWindow: 'Evening', note: 'A flexible final area for dinner or drinks.', optional: false, latitude: 41.8916, longitude: 12.4679 },
     ],
   },
   {
@@ -42,10 +42,10 @@ const days: ItineraryDay[] = [
     walkKm: 5.2,
     stopCount: 4,
     stops: [
-      { order: 1, title: 'Design district', category: 'CULTURE', timeWindow: 'Morning', note: 'Start with galleries and small shops.', latitude: 41.3851, longitude: 2.1734 },
-      { order: 2, title: 'Market lunch', category: 'FOOD', timeWindow: 'Lunch', note: 'Local food break near the route.', latitude: 41.3818, longitude: 2.1716 },
-      { order: 3, title: 'Beach walk', category: 'WALKING', timeWindow: 'Afternoon', note: 'Open-air pacing after lunch.', latitude: 41.3762, longitude: 2.1894 },
-      { order: 4, title: 'Tapas bar', category: 'FOOD', timeWindow: 'Evening', note: 'End with a low-effort dinner zone.', latitude: 41.3837, longitude: 2.1819 },
+      { id: 'preview-3-1', order: 1, title: 'Design district', category: 'CULTURE', timeWindow: 'Morning', note: 'Start with galleries and small shops.', optional: false, latitude: 41.3851, longitude: 2.1734 },
+      { id: 'preview-3-2', order: 2, title: 'Market lunch', category: 'FOOD', timeWindow: 'Lunch', note: 'Local food break near the route.', optional: false, latitude: 41.3818, longitude: 2.1716 },
+      { id: 'preview-3-3', order: 3, title: 'Beach walk', category: 'WALKING', timeWindow: 'Afternoon', note: 'Open-air pacing after lunch.', optional: false, latitude: 41.3762, longitude: 2.1894 },
+      { id: 'preview-3-4', order: 4, title: 'Tapas bar', category: 'FOOD', timeWindow: 'Evening', note: 'End with a low-effort dinner zone.', optional: false, latitude: 41.3837, longitude: 2.1819 },
     ],
   },
 ];
@@ -58,6 +58,7 @@ export default function ItineraryScreen() {
   const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [selectedStop, setSelectedStop] = useState<{ day: ItineraryDay; stop: ItineraryDay['stops'][number] } | null>(null);
 
   const loadItinerary = useCallback(async () => {
     setLoading(true);
@@ -108,6 +109,85 @@ export default function ItineraryScreen() {
   const tripId = itinerary?.tripId ?? session.getCurrentTrip()?.id ?? 'preview-trip';
   const totalWalk = visibleDays.reduce((sum, day) => sum + day.walkKm, 0);
   const totalStops = visibleDays.reduce((sum, day) => sum + day.stopCount, 0);
+
+  const updateDay = (updatedDay: ItineraryDay) => {
+    setItinerary((current) => current
+      ? { ...current, days: current.days.map((day) => day.dayNumber === updatedDay.dayNumber ? updatedDay : day) }
+      : current);
+  };
+
+  const ensureLivePlan = () => {
+    if (!itinerary) {
+      Alert.alert('Live plan required', 'Refresh the itinerary before editing stops.');
+      return false;
+    }
+    return true;
+  };
+
+  const closeStopActions = () => setSelectedStop(null);
+
+  const removeStop = (day: ItineraryDay, stop: ItineraryDay['stops'][number]) => {
+    closeStopActions();
+    Alert.alert(
+      'Remove stop?',
+      `${stop.title} will be removed from Day ${day.dayNumber}.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            if (!ensureLivePlan()) return;
+            try {
+              updateDay(await tripApi.removeStop(tripId, day.dayNumber, stop.id));
+            } catch {
+              Alert.alert('Could not remove stop', 'Please check the backend connection and try again.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const toggleOptional = async (day: ItineraryDay, stop: ItineraryDay['stops'][number]) => {
+    if (!ensureLivePlan()) return;
+    closeStopActions();
+    try {
+      updateDay(await tripApi.toggleStopOptional(tripId, day.dayNumber, stop.id));
+    } catch {
+      Alert.alert('Could not update stop', 'Please check the backend connection and try again.');
+    }
+  };
+
+  const reorderStop = async (day: ItineraryDay, stop: ItineraryDay['stops'][number], direction: -1 | 1) => {
+    if (!ensureLivePlan()) return;
+    const targetOrder = stop.order + direction;
+    if (targetOrder < 1 || targetOrder > day.stops.length) return;
+    closeStopActions();
+    try {
+      updateDay(await tripApi.reorderStop(tripId, day.dayNumber, stop.id, targetOrder));
+    } catch {
+      Alert.alert('Could not reorder stop', 'Please check the backend connection and try again.');
+    }
+  };
+
+  const moveStop = async (day: ItineraryDay, stop: ItineraryDay['stops'][number], targetDayNumber: number) => {
+    if (!ensureLivePlan()) return;
+    closeStopActions();
+    try {
+      setItinerary(await tripApi.moveStop(tripId, day.dayNumber, stop.id, targetDayNumber));
+    } catch {
+      Alert.alert('Could not move stop', 'Please check the backend connection and try again.');
+    }
+  };
+
+  const openStopActions = (day: ItineraryDay, stop: ItineraryDay['stops'][number]) => {
+    setSelectedStop({ day, stop });
+  };
+
+  const targetDay = selectedStop
+    ? visibleDays.find((item) => item.dayNumber !== selectedStop.day.dayNumber)
+    : undefined;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -200,7 +280,13 @@ export default function ItineraryScreen() {
                     <Text style={styles.stopNumberText}>{index + 1}</Text>
                   </View>
                   <View style={styles.stopLine} />
-                  <Text style={styles.stopText}>{stop.title}</Text>
+                  <View style={styles.stopCopy}>
+                    <Text style={[styles.stopText, stop.optional && styles.stopOptional]}>{stop.title}</Text>
+                    <Text style={styles.stopTime}>{stop.timeWindow}{stop.optional ? ' - Optional' : ''}</Text>
+                  </View>
+                  <TouchableOpacity style={styles.stopMenuButton} activeOpacity={0.78} onPress={() => openStopActions(item, stop)}>
+                    <Ionicons name="ellipsis-horizontal" size={18} color={colors.teal} />
+                  </TouchableOpacity>
                 </View>
               ))}
               {item.stops.length > 3 ? <Text style={styles.moreStops}>+{item.stops.length - 3} more stops in detail</Text> : null}
@@ -212,6 +298,81 @@ export default function ItineraryScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+      <Modal visible={!!selectedStop} transparent animationType="fade" onRequestClose={closeStopActions}>
+        <Pressable style={styles.actionOverlay} onPress={closeStopActions}>
+          <Pressable style={styles.actionSheet}>
+            {selectedStop ? (
+              <>
+                <View style={styles.actionHandle} />
+                <View style={styles.actionHeader}>
+                  <View style={styles.actionIcon}>
+                    <Ionicons name={iconForCategory(selectedStop.stop.category)} size={20} color={colors.teal} />
+                  </View>
+                  <View style={styles.actionTitleBlock}>
+                    <Text style={styles.actionTitle}>{selectedStop.stop.title}</Text>
+                    <Text style={styles.actionMeta}>
+                      Day {selectedStop.day.dayNumber} - {selectedStop.stop.timeWindow}
+                      {selectedStop.stop.optional ? ' - Optional stop' : ''}
+                    </Text>
+                  </View>
+                  <TouchableOpacity style={styles.actionClose} activeOpacity={0.75} onPress={closeStopActions}>
+                    <Ionicons name="close" size={18} color={colors.slate} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.actionList}>
+                  <StopActionRow
+                    icon={selectedStop.stop.optional ? 'star-outline' : 'bookmark-outline'}
+                    title={selectedStop.stop.optional ? 'Keep as main stop' : 'Make optional'}
+                    description={selectedStop.stop.optional ? 'Bring it back into the core route.' : 'Keep it in the day, but lower the pressure.'}
+                    onPress={() => toggleOptional(selectedStop.day, selectedStop.stop)}
+                    styles={styles}
+                  />
+                  <StopActionRow
+                    icon="arrow-up-outline"
+                    title="Move earlier"
+                    description="Place this stop one step earlier in the route."
+                    disabled={selectedStop.stop.order <= 1}
+                    onPress={() => reorderStop(selectedStop.day, selectedStop.stop, -1)}
+                    styles={styles}
+                  />
+                  <StopActionRow
+                    icon="arrow-down-outline"
+                    title="Move later"
+                    description="Place this stop one step later in the route."
+                    disabled={selectedStop.stop.order >= selectedStop.day.stops.length}
+                    onPress={() => reorderStop(selectedStop.day, selectedStop.stop, 1)}
+                    styles={styles}
+                  />
+                  {targetDay ? (
+                    <StopActionRow
+                      icon="calendar-outline"
+                      title={`Move to Day ${targetDay.dayNumber}`}
+                      description="Shift it into another day and rebalance both days."
+                      onPress={() => moveStop(selectedStop.day, selectedStop.stop, targetDay.dayNumber)}
+                      styles={styles}
+                    />
+                  ) : null}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.removeAction}
+                  activeOpacity={0.82}
+                  onPress={() => removeStop(selectedStop.day, selectedStop.stop)}
+                >
+                  <View style={styles.removeIcon}>
+                    <Ionicons name="trash-outline" size={18} color="#C65353" />
+                  </View>
+                  <View style={styles.removeCopy}>
+                    <Text style={styles.removeTitle}>Remove from plan</Text>
+                    <Text style={styles.removeDescription}>Delete this stop from Day {selectedStop.day.dayNumber}.</Text>
+                  </View>
+                </TouchableOpacity>
+              </>
+            ) : null}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -226,6 +387,50 @@ function OverviewStat({ label, value, styles }: { label: string; value: string; 
       <Text style={styles.overviewStatLabel}>{label}</Text>
     </View>
   );
+}
+
+function StopActionRow({
+  icon,
+  title,
+  description,
+  disabled,
+  onPress,
+  styles,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  description: string;
+  disabled?: boolean;
+  onPress: () => void;
+  styles: ItineraryStyles;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.actionRow, disabled && styles.actionRowDisabled]}
+      activeOpacity={0.82}
+      disabled={disabled}
+      onPress={onPress}
+    >
+      <View style={styles.actionRowIcon}>
+        <Ionicons name={icon} size={18} color={disabled ? '#B9AAA4' : '#A989AA'} />
+      </View>
+      <View style={styles.actionRowCopy}>
+        <Text style={[styles.actionRowTitle, disabled && styles.actionRowTitleDisabled]}>{title}</Text>
+        <Text style={styles.actionRowDescription}>{description}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={16} color="#B9AAA4" />
+    </TouchableOpacity>
+  );
+}
+
+function iconForCategory(category: string): keyof typeof Ionicons.glyphMap {
+  const normalized = category.toUpperCase();
+  if (normalized.includes('COFFEE')) return 'cafe-outline';
+  if (normalized.includes('FOOD')) return 'restaurant-outline';
+  if (normalized.includes('CULTURE')) return 'color-palette-outline';
+  if (normalized.includes('WALKING')) return 'walk-outline';
+  if (normalized.includes('FREE')) return 'leaf-outline';
+  return 'location-outline';
 }
 
 function createStyles({ colors, radius, spacing, typography }: Theme) {
@@ -382,7 +587,19 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     marginHorizontal: spacing.sm,
     width: 22,
   },
-  stopText: { color: colors.midnight, flex: 1, fontSize: typography.small, fontWeight: '800' },
+  stopCopy: { flex: 1, minWidth: 0 },
+  stopText: { color: colors.midnight, fontSize: typography.small, fontWeight: '800' },
+  stopOptional: { color: colors.slate },
+  stopTime: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 2 },
+  stopMenuButton: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.pill,
+    height: 32,
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
+    width: 32,
+  },
   moreStops: {
     color: colors.teal,
     fontSize: typography.tiny,
@@ -402,6 +619,134 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     color: colors.teal,
     fontSize: typography.small,
     fontWeight: '900',
+  },
+  actionOverlay: {
+    backgroundColor: 'rgba(39, 35, 33, 0.34)',
+    flex: 1,
+    justifyContent: 'flex-end',
+    padding: spacing.md,
+  },
+  actionSheet: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    padding: spacing.md,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+  },
+  actionHandle: {
+    alignSelf: 'center',
+    backgroundColor: colors.mist,
+    borderRadius: radius.pill,
+    height: 4,
+    marginBottom: spacing.md,
+    width: 42,
+  },
+  actionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  actionIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.lg,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  actionTitleBlock: { flex: 1, minWidth: 0 },
+  actionTitle: {
+    color: colors.midnight,
+    fontSize: typography.h3,
+    fontWeight: '900',
+  },
+  actionMeta: {
+    color: colors.slate,
+    fontSize: typography.tiny,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  actionClose: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderRadius: radius.pill,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  actionList: {
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    overflow: 'hidden',
+  },
+  actionRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderBottomColor: colors.mist,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 66,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  actionRowDisabled: { opacity: 0.46 },
+  actionRowIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  actionRowCopy: { flex: 1, minWidth: 0 },
+  actionRowTitle: {
+    color: colors.midnight,
+    fontSize: typography.small,
+    fontWeight: '900',
+  },
+  actionRowTitleDisabled: { color: colors.slate },
+  actionRowDescription: {
+    color: colors.slate,
+    fontSize: typography.tiny,
+    fontWeight: '700',
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  removeAction: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    padding: spacing.sm,
+  },
+  removeIcon: {
+    alignItems: 'center',
+    backgroundColor: '#F7E7E3',
+    borderRadius: radius.md,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  removeCopy: { flex: 1, minWidth: 0 },
+  removeTitle: {
+    color: '#C65353',
+    fontSize: typography.small,
+    fontWeight: '900',
+  },
+  removeDescription: {
+    color: colors.slate,
+    fontSize: typography.tiny,
+    fontWeight: '700',
+    marginTop: 2,
   },
 });
 }

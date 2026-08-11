@@ -18,11 +18,13 @@ public record ItineraryResponse(
     }
 
     public record ItineraryStopResponse(
+            String id,
             int order,
             String title,
             String category,
             String timeWindow,
             String note,
+            boolean optional,
             double latitude,
             double longitude
     ) {

@@ -47,6 +47,9 @@ public class ItineraryStop {
     @Column(nullable = false)
     private double longitude;
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean optionalStop;
+
     public ItineraryStop(
             int stopOrder,
             String title,
@@ -64,5 +67,6 @@ public class ItineraryStop {
         this.note = note;
         this.latitude = latitude;
         this.longitude = longitude;
+        this.optionalStop = false;
     }
 }
