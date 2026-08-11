@@ -94,6 +94,7 @@ export default function ExploreScreen() {
 
         {places.map((place, index) => {
           const normalized = normalizePlace(place, activeCategory);
+          const reasons = whyPicked(normalized, currentTrip);
           return (
           <TouchableOpacity
             key={`${normalized.city}-${normalized.title}-${index}`}
@@ -112,6 +113,20 @@ export default function ExploreScreen() {
               </View>
               <Text style={styles.placeTitle}>{normalized.title}</Text>
               <Text style={styles.description}>{normalized.reason}</Text>
+              <View style={styles.whyBlock}>
+                <View style={styles.whyHeader}>
+                  <Ionicons name="sparkles-outline" size={13} color={colors.teal} />
+                  <Text style={styles.whyTitle}>Why Journy picked this</Text>
+                </View>
+                <Text style={styles.whyText}>{reasonSentence(reasons, currentTrip)}</Text>
+                <View style={styles.reasonChips}>
+                  {reasons.map((reason) => (
+                    <View key={reason} style={styles.reasonChip}>
+                      <Text style={styles.reasonChipText}>{reason}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
             </View>
           </TouchableOpacity>
         )})}
@@ -136,6 +151,51 @@ function normalizePlace(
   }
 
   return place;
+}
+
+function whyPicked(place: ReturnType<typeof normalizePlace>, trip?: ReturnType<typeof session.getCurrentTrip>) {
+  const type = place.type.toUpperCase();
+  const interests = trip?.interests.map((item) => item.toUpperCase()) ?? [];
+  const chips: string[] = [];
+
+  if ((type.includes('CULTURE') || type.includes('MUSEUM')) && (interests.includes('MUSEUMS') || interests.includes('CULTURE'))) {
+    chips.push('Matches culture');
+  } else if (type.includes('COFFEE') && interests.includes('COFFEE')) {
+    chips.push('Matches coffee');
+  } else if (type.includes('FOOD') && interests.includes('LOCAL_FOOD')) {
+    chips.push('Matches food');
+  } else if (type.includes('FREE') && interests.includes('FREE_ACTIVITIES')) {
+    chips.push('Low-cost fit');
+  } else if (interests.includes('WALKING')) {
+    chips.push('Walkable route');
+  } else {
+    chips.push('Trip fit');
+  }
+
+  const detour = type.includes('FOOD') || type.includes('COFFEE') ? '+0.4 km detour' : '+0.6 km detour';
+  chips.push(detour);
+
+  if (trip?.budget) {
+    chips.push(`${formatCategory(trip.budget)} budget`);
+  } else {
+    chips.push('Flexible budget');
+  }
+
+  return chips.slice(0, 3);
+}
+
+function reasonSentence(reasons: string[], trip?: ReturnType<typeof session.getCurrentTrip>) {
+  if (!trip) {
+    return 'This starter pick is shaped around the current city and can be added into a flexible route.';
+  }
+  return `You selected ${friendlyInterests(trip.interests)}. This pick keeps the route compact and fits your ${formatCategory(trip.budget)} budget.`;
+}
+
+function friendlyInterests(interests: string[]) {
+  const labels = interests.slice(0, 2).map((interest) => formatCategory(interest));
+  if (!labels.length) return 'balanced travel';
+  if (labels.length === 1) return labels[0];
+  return `${labels[0]} and ${labels[1]}`;
 }
 
 function starterPreviewPlaces(city: string, category: Category): PreviewPlace[] {
@@ -339,6 +399,50 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     fontSize: typography.small,
     lineHeight: 20,
     marginTop: spacing.xs,
+  },
+  whyBlock: {
+    backgroundColor: colors.surfaceWarm,
+    borderColor: colors.mist,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    padding: spacing.sm,
+  },
+  whyHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+  },
+  whyTitle: {
+    color: colors.midnight,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+  },
+  whyText: {
+    color: colors.slate,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 16,
+    marginTop: spacing.xs,
+  },
+  reasonChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  reasonChip: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+  },
+  reasonChipText: {
+    color: colors.midnight,
+    fontSize: 10,
+    fontWeight: '900',
   },
 });
 }

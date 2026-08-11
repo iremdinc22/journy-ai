@@ -2,6 +2,7 @@ package com.journy.backend.agent.service;
 
 import com.journy.backend.agent.client.PythonAgentClient;
 import com.journy.backend.agent.dto.AgentActionPreview;
+import com.journy.backend.agent.dto.AgentContext;
 import com.journy.backend.agent.dto.AgentApplyRequest;
 import com.journy.backend.agent.dto.AgentMessageRequest;
 import com.journy.backend.agent.dto.AgentMessageResponse;
@@ -31,19 +32,22 @@ public class AgentService {
     private final ItineraryDayRepository itineraryDayRepository;
     private final AiService aiService;
     private final PythonAgentClient pythonAgentClient;
+    private final AgentContextBuilder agentContextBuilder;
 
     public AgentService(
             CurrentUserService currentUserService,
             TripRepository tripRepository,
             ItineraryDayRepository itineraryDayRepository,
             AiService aiService,
-            PythonAgentClient pythonAgentClient
+            PythonAgentClient pythonAgentClient,
+            AgentContextBuilder agentContextBuilder
     ) {
         this.currentUserService = currentUserService;
         this.tripRepository = tripRepository;
         this.itineraryDayRepository = itineraryDayRepository;
         this.aiService = aiService;
         this.pythonAgentClient = pythonAgentClient;
+        this.agentContextBuilder = agentContextBuilder;
     }
 
     @Transactional(readOnly = true)
@@ -52,7 +56,8 @@ public class AgentService {
         Trip trip = resolveTrip(user, request.tripId());
         List<ItineraryDay> itineraryDays = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId());
         ItineraryDay day = resolveDay(itineraryDays, request.dayNumber(), request.message());
-        AgentMessageResponse pythonResponse = pythonAgentClient.message(request.message(), trip, day, itineraryDays).orElse(null);
+        AgentContext context = agentContextBuilder.build(user, trip, day, itineraryDays);
+        AgentMessageResponse pythonResponse = pythonAgentClient.message(request.message(), context).orElse(null);
         if (pythonResponse != null) {
             return new AgentMessageResponse(
                     "agent_" + trip.getId(),
@@ -63,11 +68,11 @@ public class AgentService {
         }
 
         AgentIntent intent = detectIntent(request.message());
-        AgentActionPreview preview = buildPreview(intent, trip, day, itineraryDays);
+        AgentActionPreview preview = buildPreview(intent, trip, day, itineraryDays, context);
 
         return new AgentMessageResponse(
                 "agent_" + trip.getId(),
-                buildAgentMessage(intent, trip, day, preview, itineraryDays),
+                buildAgentMessage(intent, trip, day, preview, itineraryDays, context),
                 intent,
                 preview
         );
@@ -86,15 +91,15 @@ public class AgentService {
         ));
     }
 
-    private AgentActionPreview buildPreview(AgentIntent intent, Trip trip, ItineraryDay day, List<ItineraryDay> itineraryDays) {
+    private AgentActionPreview buildPreview(AgentIntent intent, Trip trip, ItineraryDay day, List<ItineraryDay> itineraryDays, AgentContext context) {
         if (intent == AgentIntent.BUDGET_OPTIMIZE) {
-            return budgetPreview(trip, day);
+            return budgetPreview(trip, day, context);
         }
         if (intent == AgentIntent.RAIN_REPLAN) {
-            return rainPreview(trip, day);
+            return rainPreview(trip, day, context);
         }
         if (intent == AgentIntent.GENERAL_GUIDANCE) {
-            return guidancePreview(trip, day);
+            return guidancePreview(trip, day, context);
         }
 
         AiItinerarySuggestionResponse suggestion = aiService.itinerarySuggestion(new AiItinerarySuggestionRequest(
@@ -111,12 +116,12 @@ public class AgentService {
                 suggestion.minutesSaved(),
                 suggestion.stopsAffected(),
                 suggestion.routeSummary(),
-                explain(intent, trip, day, suggestion.stopsAffected(), itineraryDays),
+                explain(intent, trip, day, suggestion.stopsAffected(), itineraryDays, context),
                 true
         );
     }
 
-    private AgentActionPreview budgetPreview(Trip trip, ItineraryDay day) {
+    private AgentActionPreview budgetPreview(Trip trip, ItineraryDay day, AgentContext context) {
         List<String> affectedStops = day.getStops().stream()
                 .filter(stop -> stop.getCategory().equalsIgnoreCase("FOOD") || stop.getCategory().equalsIgnoreCase("COFFEE"))
                 .map(ItineraryStop::getTitle)
@@ -132,14 +137,15 @@ public class AgentService {
                 trip.getDestination() + " Day " + day.getDayNumber() + " becomes easier on budget without changing the main route shape.",
                 List.of(
                         "Your trip budget is " + trip.getBudget().name().toLowerCase().replace('_', ' '),
+                        personalizationReason(context),
                         "Food and coffee stops are the easiest places to optimize without losing the city experience",
                         "The route can stay close to the existing stop cluster"
-                ),
+                ).stream().distinct().limit(3).toList(),
                 true
         );
     }
 
-    private AgentActionPreview rainPreview(Trip trip, ItineraryDay day) {
+    private AgentActionPreview rainPreview(Trip trip, ItineraryDay day, AgentContext context) {
         List<String> outdoorStops = day.getStops().stream()
                 .filter(stop -> stop.getCategory().equalsIgnoreCase("WALKING") || stop.getCategory().equalsIgnoreCase("FREE"))
                 .map(ItineraryStop::getTitle)
@@ -155,14 +161,15 @@ public class AgentService {
                 trip.getDestination() + " Day " + day.getDayNumber() + " keeps the same rhythm with less weather risk.",
                 List.of(
                         "Outdoor walking is the most weather-sensitive part of this day",
+                        personalizationReason(context),
                         "Indoor culture and cafe stops preserve the experience in rain",
                         "Keeping the same area avoids unnecessary transfers"
-                ),
+                ).stream().distinct().limit(3).toList(),
                 true
         );
     }
 
-    private AgentActionPreview guidancePreview(Trip trip, ItineraryDay day) {
+    private AgentActionPreview guidancePreview(Trip trip, ItineraryDay day, AgentContext context) {
         return new AgentActionPreview(
                 AgentIntent.GENERAL_GUIDANCE,
                 "I can adjust this day",
@@ -173,9 +180,10 @@ public class AgentService {
                 trip.getDestination() + " Day " + day.getDayNumber() + " has " + day.getStops().size() + " stops and " + day.getWalkKm() + " km of walking.",
                 List.of(
                         "I can read your current itinerary",
+                        personalizationReason(context),
                         "I can produce a preview before changing the plan",
                         "I only apply changes after you confirm"
-                ),
+                ).stream().distinct().limit(3).toList(),
                 false
         );
     }
@@ -185,7 +193,8 @@ public class AgentService {
             Trip trip,
             ItineraryDay day,
             AgentActionPreview preview,
-            List<ItineraryDay> itineraryDays
+            List<ItineraryDay> itineraryDays,
+            AgentContext context
     ) {
         if (!preview.requiresConfirmation()) {
             return preview.message();
@@ -195,10 +204,11 @@ public class AgentService {
             case MAKE_DAY_LIGHTER -> busiestDay.getDayNumber() == day.getDayNumber() && itineraryDays.size() > 1
                     ? "I checked the full trip. Day " + day.getDayNumber() + " carries the most pressure with "
                     + day.getWalkKm() + " km of walking and " + day.getStops().size()
-                    + " stops, so I prepared a lighter version while keeping the main anchors."
+                    + " stops, so I prepared a lighter version while keeping the main anchors and your "
+                    + primaryTaste(context) + " preference."
                     : "I checked Day " + day.getDayNumber() + ". I can make it lighter by reducing pressure around the optional stop and keeping the main anchors.";
-            case ADD_FOOD_STOP -> "I found a way to add a local food break without stretching the route too much.";
-            case REPLACE_STOP -> "I can replace the weakest-fit stop while preserving the same route area.";
+            case ADD_FOOD_STOP -> "I found a way to add a local food break without stretching the route too much, shaped around your " + primaryTaste(context) + " signal.";
+            case REPLACE_STOP -> "I can replace the weakest-fit stop while preserving the same route area and your saved-place preferences.";
             case BUDGET_OPTIMIZE -> "I can make this day more budget-friendly by adjusting flexible food or activity stops.";
             case RAIN_REPLAN -> "I can rebuild the day around rain by moving the route toward indoor-friendly stops.";
             case GENERAL_GUIDANCE -> preview.message();
@@ -210,7 +220,8 @@ public class AgentService {
             Trip trip,
             ItineraryDay day,
             List<String> affectedStops,
-            List<ItineraryDay> itineraryDays
+            List<ItineraryDay> itineraryDays,
+            AgentContext context
     ) {
         String affected = affectedStops.isEmpty() ? "the flexible route window" : affectedStops.getFirst();
         ItineraryDay busiestDay = findBusiestDay(itineraryDays);
@@ -218,20 +229,23 @@ public class AgentService {
             case MAKE_DAY_LIGHTER -> List.of(
                     affected + " is the easiest place to reduce effort",
                     "Day " + day.getDayNumber() + " is currently " + day.getWalkKm() + " km of walking",
+                    personalizationReason(context),
                     busiestDay.getDayNumber() == day.getDayNumber() && itineraryDays.size() > 1
                             ? "This is the busiest day in the current trip"
                             : "The core " + trip.getDestination() + " anchors stay in the plan"
-            );
+            ).stream().distinct().limit(3).toList();
             case ADD_FOOD_STOP -> List.of(
                     "A food break matches your local discovery goal",
+                    personalizationReason(context),
                     "It can sit near the existing route cluster",
                     "It improves pacing without rebuilding the whole day"
-            );
+            ).stream().distinct().limit(3).toList();
             case REPLACE_STOP -> List.of(
                     affected + " can be swapped without breaking route order",
+                    savedPlaceReason(context),
                     "The replacement stays in the same time window",
                     "This keeps the day aligned with your " + trip.getPace().name().toLowerCase() + " pace"
-            );
+            ).stream().distinct().limit(3).toList();
             default -> List.of(
                     "This change uses the current itinerary context",
                     "It keeps route distance and stop order in mind",
@@ -240,8 +254,28 @@ public class AgentService {
         };
     }
 
+    private String personalizationReason(AgentContext context) {
+        return "This fits your " + primaryTaste(context) + " signal";
+    }
+
+    private String savedPlaceReason(AgentContext context) {
+        List<String> savedSignals = context.userProfile().savedCategorySignals();
+        if (savedSignals == null || savedSignals.isEmpty()) {
+            return "The replacement can follow your current TripSetup preferences";
+        }
+        return "Your saved places lean toward " + savedSignals.getFirst().replace(" x", " choices x");
+    }
+
+    private String primaryTaste(AgentContext context) {
+        List<String> signals = context.userProfile().tasteSignals();
+        if (signals == null || signals.isEmpty()) {
+            return "balanced travel";
+        }
+        return signals.getFirst().toLowerCase();
+    }
+
     private AgentIntent detectIntent(String message) {
-        String text = message.toLowerCase();
+        String text = message == null ? "" : message.toLowerCase();
         if (containsAny(text, "budget", "cheap", "cheaper", "save money", "ucuz", "bütçe", "tasarruf", "euro")) {
             return AgentIntent.BUDGET_OPTIMIZE;
         }

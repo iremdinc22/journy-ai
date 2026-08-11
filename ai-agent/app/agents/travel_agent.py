@@ -53,6 +53,7 @@ class TravelAgent:
                         "content": (
                             "You are Journy's travel planning agent. "
                             "Analyze the active day and the full multi-day trip context before deciding. "
+                            "Use userProfile tasteSignals, savedCategorySignals and savedPlaces to personalize reasons. "
                             "Use tripAnalysis to notice the busiest day, missing food breaks and weather-heavy days. "
                             "If the user asks for an easier/lighter/less tiring day, use MAKE_DAY_LIGHTER. "
                             "If the user asks for food, dinner, coffee or a cafe, use ADD_FOOD_STOP. "
@@ -206,19 +207,23 @@ class TravelAgent:
         trip_analysis: TripAnalysis,
     ) -> str:
         if intent == AgentIntent.GENERAL_GUIDANCE:
+            profile_note = self._profile_note(request)
             return (
                 f"I checked Day {request.day.dayNumber}: "
                 f"{analysis.route_summary} Across the trip, {trip_analysis.balance_summary} "
-                "Tell me if you want it lighter, cheaper, food-focused or weather-ready."
+                f"{profile_note} Tell me if you want it lighter, cheaper, food-focused or weather-ready."
             )
         if intent == AgentIntent.MAKE_DAY_LIGHTER:
             busiest_note = ""
             if trip_analysis.busiest_day_number == request.day.dayNumber:
                 busiest_note = " This is also the busiest day in the trip, so reducing pressure makes sense."
+            optional_note = ""
+            if request.day.optionalStops:
+                optional_note = f" I can start with optional stop {request.day.optionalStops[0]}."
             return (
                 f"I analyzed Day {request.day.dayNumber}. "
                 f"The route pressure is {analysis.route_pressure}, so I prepared a lighter-day preview."
-                f"{busiest_note}"
+                f"{busiest_note}{optional_note} {self._profile_note(request)}"
             )
         if intent == AgentIntent.ADD_FOOD_STOP:
             food_note = ""
@@ -227,7 +232,7 @@ class TravelAgent:
             return (
                 f"I checked Day {request.day.dayNumber} for a better break window. "
                 "I prepared a food or coffee preview that keeps the route shape intact."
-                f"{food_note}"
+                f"{food_note} {self._saved_place_note(request)}"
             )
         if intent == AgentIntent.RAIN_REPLAN:
             weather_note = ""
@@ -238,7 +243,7 @@ class TravelAgent:
                 "I prepared a rain-ready preview before changing the plan."
                 f"{weather_note}"
             )
-        return f"I checked Day {request.day.dayNumber}. I can prepare this change as a preview before applying it."
+        return f"I checked Day {request.day.dayNumber}. I can prepare this change as a preview before applying it. {self._profile_note(request)}"
 
     def _affected_stops(self, intent: AgentIntent, request: AgentMessageRequest) -> list[str]:
         stops = request.day.stops
@@ -268,25 +273,29 @@ class TravelAgent:
             return [
                 f"{anchor} is the easiest part to adjust",
                 f"Day {day.dayNumber} is currently {day.walkKm} km of walking",
+                self._profile_reason(request),
                 f"The core {trip.destination} anchors stay in place",
             ]
         if intent == AgentIntent.BUDGET_OPTIMIZE:
             return [
                 f"Your trip budget mode is {trip.budget.lower()}",
+                self._profile_reason(request),
                 "Food and flexible stops are the easiest places to optimize",
                 "The route can stay close to the existing cluster",
             ]
         if intent == AgentIntent.RAIN_REPLAN:
             return [
                 "Outdoor stops are the most weather-sensitive",
+                self._profile_reason(request),
                 "Indoor culture and cafe windows preserve the experience",
                 "Keeping the same area avoids extra transfers",
             ]
         return [
             f"This matches your {trip.pace.lower()} pace",
+            self._saved_place_reason(request),
             analysis.route_summary,
             "Journy applies it only after your confirmation",
-        ]
+        ][:3]
 
     def _prompt_payload(
         self,
@@ -299,6 +308,7 @@ class TravelAgent:
             "trip": request.trip.model_dump(),
             "day": request.day.model_dump(),
             "itineraryDays": [day.model_dump() for day in request.itineraryDays],
+            "userProfile": request.userProfile.model_dump() if request.userProfile else None,
             "contextAnalysis": {
                 "walkPressure": analysis.walk_pressure,
                 "stopPressure": analysis.stop_pressure,
@@ -331,6 +341,30 @@ class TravelAgent:
             },
             "supportedIntents": [intent.value for intent in AgentIntent],
         }
+
+    def _profile_note(self, request: AgentMessageRequest) -> str:
+        profile = request.userProfile
+        if not profile or not profile.tasteSignals:
+            return "I will keep the recommendation aligned with your current TripSetup choices."
+        return f"I am also using your {profile.tasteSignals[0].lower()} taste signal."
+
+    def _saved_place_note(self, request: AgentMessageRequest) -> str:
+        profile = request.userProfile
+        if not profile or not profile.savedCategorySignals:
+            return self._profile_note(request)
+        return f"Your saved places lean toward {profile.savedCategorySignals[0].lower()}, so I kept that in mind."
+
+    def _profile_reason(self, request: AgentMessageRequest) -> str:
+        profile = request.userProfile
+        if not profile or not profile.tasteSignals:
+            return "It follows your TripSetup preferences"
+        return f"It matches your {profile.tasteSignals[0].lower()} preference"
+
+    def _saved_place_reason(self, request: AgentMessageRequest) -> str:
+        profile = request.userProfile
+        if not profile or not profile.savedCategorySignals:
+            return self._profile_reason(request)
+        return f"Saved places suggest {profile.savedCategorySignals[0].lower()}"
 
     def _contains(self, text: str, *values: str) -> bool:
         return any(value in text for value in values)

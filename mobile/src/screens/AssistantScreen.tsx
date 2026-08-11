@@ -12,9 +12,9 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { agentApi } from '../api/journyApi';
+import { agentApi, tripApi } from '../api/journyApi';
 import { session } from '../api/session';
-import type { AgentActionPreview, AgentIntent, ItineraryDay, TripResponse } from '../api/types';
+import type { AgentActionPreview, AgentIntent, ItineraryDay, ItineraryResponse, TripResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type Message = {
@@ -87,9 +87,15 @@ export default function AssistantScreen() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [sending, setSending] = useState(false);
   const [applyingMessageId, setApplyingMessageId] = useState<string | null>(null);
-  const [currentTrip] = useState(() => session.getCurrentTrip());
+  const [currentTrip, setCurrentTrip] = useState<TripResponse | null>(() => session.getCurrentTrip() ?? null);
+  const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null);
   const scrollRef = useRef<ScrollView>(null);
-  const quickPrompts = useMemo(() => buildQuickPrompts(currentTrip), [currentTrip]);
+  const activeDayNumber = useMemo(() => dayNumberForTrip(currentTrip ?? undefined), [currentTrip]);
+  const currentDay = useMemo(
+    () => itinerary?.days.find((day) => day.dayNumber === activeDayNumber) ?? itinerary?.days[0],
+    [activeDayNumber, itinerary?.days],
+  );
+  const quickPrompts = useMemo(() => buildQuickPrompts(currentTrip ?? undefined, currentDay), [currentDay, currentTrip]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -103,6 +109,33 @@ export default function AssistantScreen() {
     return () => {
       showSub.remove();
       hideSub.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadContext = async () => {
+      try {
+        await session.restore();
+        const trip = session.getCurrentTrip() ?? await tripApi.current();
+        session.setCurrentTrip(trip);
+        const response = await tripApi.itinerary(trip.id);
+        if (mounted) {
+          setCurrentTrip(trip);
+          setItinerary(response);
+        }
+      } catch {
+        if (mounted) {
+          setCurrentTrip(session.getCurrentTrip() ?? null);
+        }
+      }
+    };
+
+    loadContext();
+
+    return () => {
+      mounted = false;
     };
   }, []);
 
@@ -120,7 +153,7 @@ export default function AssistantScreen() {
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
 
     try {
-      const response = await agentApi.message(cleanPrompt, session.getCurrentTrip()?.id, 1);
+      const response = await agentApi.message(cleanPrompt, session.getCurrentTrip()?.id, currentDay?.dayNumber ?? activeDayNumber);
       setMessages((current) => [
         ...current,
         {
@@ -160,7 +193,10 @@ export default function AssistantScreen() {
 
     setApplyingMessageId(message.id);
     try {
-      const updatedDay = await agentApi.apply(trip.id, 1, intent);
+      const updatedDay = await agentApi.apply(trip.id, currentDay?.dayNumber ?? activeDayNumber, intent);
+      setItinerary((current) => current
+        ? { ...current, days: current.days.map((day) => day.dayNumber === updatedDay.dayNumber ? updatedDay : day) }
+        : current);
       setMessages((current) => current.map((item) => (
         item.id === message.id ? { ...item, applied: true } : item
       )));
@@ -214,6 +250,33 @@ export default function AssistantScreen() {
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
+          {currentTrip && currentDay ? (
+            <View style={styles.contextCard}>
+              <View style={styles.contextTop}>
+                <View>
+                  <Text style={styles.contextKicker}>Today - Day {currentDay.dayNumber}</Text>
+                  <Text style={styles.contextTitle}>{currentDay.title}</Text>
+                </View>
+                <View style={styles.contextBadge}>
+                  <Ionicons name="sparkles-outline" size={13} color={colors.teal} />
+                  <Text style={styles.contextBadgeText}>Context aware</Text>
+                </View>
+              </View>
+              <Text style={styles.contextSummary}>
+                You have {currentDay.stopCount} stops and {currentDay.walkKm.toFixed(1)} km of walking today in {currentTrip.destination}.
+              </Text>
+              <View style={styles.contextStats}>
+                <ContextStat label="Stops" value={`${currentDay.stopCount}`} icon="location-outline" styles={styles} />
+                <ContextStat label="Walk" value={`${currentDay.walkKm.toFixed(1)} km`} icon="walk-outline" styles={styles} />
+                <ContextStat label="Pace" value={formatEnum(currentTrip.pace)} icon="speedometer-outline" styles={styles} />
+              </View>
+              <View style={styles.contextHint}>
+                <Ionicons name="bulb-outline" size={14} color={colors.teal} />
+                <Text style={styles.contextHintText}>Ask naturally, or choose a quick action below.</Text>
+              </View>
+            </View>
+          ) : null}
+
           {messages.map((message) => {
             const previewVisual = message.preview ? agentVisual(message.preview.intent) : null;
             const resultVisual = message.appliedIntent ? agentVisual(message.appliedIntent) : null;
@@ -250,6 +313,21 @@ export default function AssistantScreen() {
                         <Text style={styles.previewMetaValue}>{previewImpactLabel(message.preview)}</Text>
                       </View>
                     </View>
+                    {currentDay ? (
+                      <View style={styles.beforeAfterCard}>
+                        <View style={styles.beforeAfterColumn}>
+                          <Text style={styles.beforeAfterLabel}>Before</Text>
+                          <Text style={styles.beforeAfterValue}>{currentDay.stopCount} stops</Text>
+                          <Text style={styles.beforeAfterDetail}>{currentDay.walkKm.toFixed(1)} km walk</Text>
+                        </View>
+                        <Ionicons name="arrow-forward" size={16} color={colors.teal} />
+                        <View style={styles.beforeAfterColumn}>
+                          <Text style={styles.beforeAfterLabel}>After</Text>
+                          <Text style={styles.beforeAfterValue}>{afterStopCount(currentDay, message.preview)} stops</Text>
+                          <Text style={styles.beforeAfterDetail}>{afterWalkKm(currentDay, message.preview).toFixed(1)} km walk</Text>
+                        </View>
+                      </View>
+                    ) : null}
                     {message.preview.affectedStops.length ? (
                       <View style={styles.affectedBlock}>
                         <Text style={styles.blockLabel}>Route window</Text>
@@ -403,7 +481,14 @@ function buildAnswer(prompt: string) {
   return 'I can help with that. I would keep the main anchor stops, reduce backtracking, and leave one flexible window so the day stays realistic.';
 }
 
-function buildQuickPrompts(trip?: TripResponse): QuickPrompt[] {
+function formatEnum(value: string) {
+  return value
+    .toLowerCase()
+    .replaceAll('_', ' ')
+    .replace(/^\w/, (letter) => letter.toUpperCase());
+}
+
+function buildQuickPrompts(trip?: TripResponse, day?: ItineraryDay): QuickPrompt[] {
   if (!trip) {
     return defaultQuickPrompts;
   }
@@ -416,25 +501,32 @@ function buildQuickPrompts(trip?: TripResponse): QuickPrompt[] {
   };
   const interests = trip.interests.map((item) => item.toUpperCase());
   const isFoodFocused = interests.includes('COFFEE') || interests.includes('LOCAL_FOOD');
-  const isWalkHeavy = trip.stats.averageWalkKm >= 4.5 || trip.stats.stops >= 5 || trip.pace === 'RELAXED';
+  const isWalkHeavy = (day?.walkKm ?? trip.stats.averageWalkKm) >= 4.5 || (day?.stopCount ?? trip.stats.stops) >= 5 || trip.pace === 'FULL';
 
   if (isWalkHeavy) {
     addPrompt({
-      label: 'Lighten this day',
+      label: 'Make today lighter',
       icon: 'walk-outline',
-      prompt: 'Can you make today lighter based on my full trip?',
+      prompt: 'I am tired. Can you make today lighter?',
       answer: 'I would compare today against the rest of your trip, keep the anchor stops, and reduce the most flexible route pressure.',
     });
   }
 
   if (isFoodFocused || trip.stats.foodPicks < Math.max(1, trip.days)) {
     addPrompt({
-      label: 'Add a food break',
+      label: 'Find lunch nearby',
       icon: 'restaurant-outline',
-      prompt: 'Can you add a local food or coffee break without stretching the route?',
+      prompt: 'Find lunch nearby without stretching the route.',
       answer: 'I would place a food or coffee break near your existing route cluster so the day feels better paced without extra travel.',
     });
   }
+
+  addPrompt({
+    label: 'Replace next stop',
+    icon: 'swap-horizontal-outline',
+    prompt: 'Replace my next stop with something that fits my route.',
+    answer: 'I would swap the next flexible stop for a nearby place that better matches your current pace and interests.',
+  });
 
   if (trip.budget === 'LEAN') {
     addPrompt({
@@ -446,20 +538,27 @@ function buildQuickPrompts(trip?: TripResponse): QuickPrompt[] {
   }
 
   addPrompt({
-    label: 'Rain backup',
+    label: 'Indoor plan',
     icon: 'rainy-outline',
-    prompt: 'Rebuild the plan if it rains and keep the route realistic.',
+    prompt: 'Make an indoor plan for today.',
     answer: 'I would look for outdoor-heavy parts of the day and swap them into indoor culture, cafe, or covered local stops.',
   });
 
   addPrompt({
-    label: 'Best day to slow down',
-    icon: 'analytics-outline',
-    prompt: 'Which day should I slow down based on the whole trip?',
-    answer: 'I would compare every day by walking distance, stop count, food breaks, and outdoor pressure, then suggest the best day to soften.',
+    label: 'Finish earlier',
+    icon: 'time-outline',
+    prompt: 'Can we finish today earlier?',
+    answer: 'I would pull the strongest stops earlier and remove or move the final flexible stop so the evening opens up.',
   });
 
-  return prompts.slice(0, 4);
+  addPrompt({
+    label: 'More local places',
+    icon: 'map-outline',
+    prompt: 'Show me more local places near today’s route.',
+    answer: 'I would look near today’s route cluster and suggest places that match your interests without adding much walking.',
+  });
+
+  return prompts.slice(0, 6);
 }
 
 function intentFromSuggestion(value: string): AgentIntent {
@@ -523,6 +622,54 @@ function previewImpactLabel(preview: AgentActionPreview) {
     return 'Lower cost';
   }
   return 'Route fit';
+}
+
+function dayNumberForTrip(trip?: TripResponse) {
+  if (!trip) return 1;
+  const today = startOfDay(new Date());
+  const start = startOfDay(new Date(trip.startDate));
+  const end = startOfDay(new Date(trip.endDate));
+  if (today < start) return 1;
+  if (today >= end) return trip.days;
+  return Math.min(trip.days, Math.max(1, Math.floor((today.getTime() - start.getTime()) / 86400000) + 1));
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function afterStopCount(day: ItineraryDay, preview: AgentActionPreview) {
+  if (preview.intent === 'MAKE_DAY_LIGHTER') return Math.max(1, day.stopCount - 1);
+  if (preview.intent === 'ADD_FOOD_STOP') return day.stopCount + 1;
+  return day.stopCount;
+}
+
+function afterWalkKm(day: ItineraryDay, preview: AgentActionPreview) {
+  if (preview.intent === 'MAKE_DAY_LIGHTER') return Math.max(1.2, day.walkKm - 1.1);
+  if (preview.intent === 'RAIN_REPLAN') return Math.max(1.2, day.walkKm - 0.4);
+  if (preview.intent === 'ADD_FOOD_STOP') return day.walkKm + 0.3;
+  if (preview.intent === 'BUDGET_OPTIMIZE') return Math.max(1.2, day.walkKm - 0.2);
+  return day.walkKm;
+}
+
+function ContextStat({
+  label,
+  value,
+  icon,
+  styles,
+}: {
+  label: string;
+  value: string;
+  icon: IoniconName;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  return (
+    <View style={styles.contextStat}>
+      <Ionicons name={icon} size={14} color="#A989AA" />
+      <Text style={styles.contextStatValue}>{value}</Text>
+      <Text style={styles.contextStatLabel}>{label}</Text>
+    </View>
+  );
 }
 
 type AgentVisual = {
@@ -619,6 +766,96 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     paddingBottom: spacing.lg,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
+  },
+  contextCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+  },
+  contextTop: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  contextKicker: {
+    color: colors.teal,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  contextTitle: {
+    color: colors.midnight,
+    fontSize: typography.h3,
+    fontWeight: '900',
+    lineHeight: 22,
+    marginTop: 3,
+  },
+  contextBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+  },
+  contextBadgeText: {
+    color: colors.teal,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  contextSummary: {
+    color: colors.slate,
+    fontSize: typography.small,
+    fontWeight: '800',
+    lineHeight: 19,
+    marginTop: spacing.sm,
+  },
+  contextStats: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+  },
+  contextStat: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderRadius: radius.md,
+    flex: 1,
+    minHeight: 72,
+    padding: spacing.sm,
+  },
+  contextStatValue: {
+    color: colors.midnight,
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 5,
+  },
+  contextStatLabel: {
+    color: colors.slate,
+    fontSize: 10,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  contextHint: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    padding: spacing.sm,
+  },
+  contextHintText: {
+    color: colors.midnight,
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 16,
   },
   messageLine: {
     alignItems: 'flex-end',
@@ -738,6 +975,39 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     fontWeight: '900',
     lineHeight: 16,
     marginTop: 4,
+  },
+  beforeAfterCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+  },
+  beforeAfterColumn: {
+    flex: 1,
+  },
+  beforeAfterLabel: {
+    color: colors.softMuted,
+    fontSize: 9,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  beforeAfterValue: {
+    color: colors.midnight,
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 3,
+  },
+  beforeAfterDetail: {
+    color: colors.slate,
+    fontSize: 10,
+    fontWeight: '800',
+    marginTop: 2,
   },
   affectedBlock: {
     marginTop: spacing.md,
