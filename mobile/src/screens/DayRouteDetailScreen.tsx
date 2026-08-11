@@ -11,6 +11,7 @@ import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DayRouteDetail'>;
 type ActionKey = 'lighter' | 'food' | 'replace';
+type MapMode = 'Route' | 'Places';
 
 const categoryImages: Record<string, string> = {
   FOOD: 'https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?auto=format&fit=crop&w=900&q=85',
@@ -32,6 +33,8 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
   const [suggestionError, setSuggestionError] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
   const [applySuccess, setApplySuccess] = useState(false);
+  const [mapMode, setMapMode] = useState<MapMode>('Route');
+  const [selectedStop, setSelectedStop] = useState<ItineraryStop | null>(currentDay.stops[0] ?? null);
 
   const displayTitle = cleanRepeatedPrefix(currentDay.title, 'Lighter');
   const displaySummary = compactRepeatedSentences(currentDay.summary);
@@ -136,9 +139,17 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
               <Text style={styles.mapTitle}>Route preview</Text>
               <Text style={styles.mapSubtitle}>{focusLabel}</Text>
             </View>
-            <View style={styles.routePill}>
-              <Ionicons name="sparkles-outline" size={13} color={colors.teal} />
-              <Text style={styles.routePillText}>AI grouped</Text>
+            <View style={styles.mapModeToggle}>
+              {(['Route', 'Places'] as MapMode[]).map((mode) => (
+                <TouchableOpacity
+                  key={mode}
+                  style={[styles.mapModeButton, mapMode === mode && styles.mapModeButtonActive]}
+                  activeOpacity={0.86}
+                  onPress={() => setMapMode(mode)}
+                >
+                  <Text style={[styles.mapModeText, mapMode === mode && styles.mapModeTextActive]}>{mode}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
@@ -160,7 +171,7 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
               showsUserLocation={false}
               toolbarEnabled={false}
             >
-              {routeCoordinates.length > 1 ? (
+              {mapMode === 'Route' && routeCoordinates.length > 1 ? (
                 <Polyline
                   coordinates={routeCoordinates}
                   strokeColor={colors.teal}
@@ -180,9 +191,15 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
                     coordinate={{ latitude: stop.latitude, longitude: stop.longitude }}
                     title={`${index + 1}. ${stop.title}`}
                     description={stop.timeWindow}
+                    onPress={() => setSelectedStop(stop)}
                     onCalloutPress={() => openStop(stop)}
                   >
-                    <View style={[styles.mapMarker, index === 0 && styles.mapMarkerStart, isLast && styles.mapMarkerEnd]}>
+                    <View style={[
+                      styles.mapMarker,
+                      index === 0 && styles.mapMarkerStart,
+                      isLast && styles.mapMarkerEnd,
+                      selectedStop?.id === stop.id && styles.mapMarkerSelected,
+                    ]}>
                       <Text style={[styles.mapMarkerText, isLast && styles.mapMarkerTextEnd]}>{index + 1}</Text>
                     </View>
                   </Marker>
@@ -191,13 +208,43 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
             </MapView>
             <View style={styles.routeDistanceBadge}>
               <Ionicons name="walk-outline" size={13} color={colors.teal} />
-              <Text style={styles.routeDistanceText}>{mappedWalkKm.toFixed(1)} km mapped</Text>
+              <Text style={styles.routeDistanceText}>Walking route · {mappedWalkKm.toFixed(1)} km · {estimateRouteMinutes(mappedWalkKm)} min</Text>
             </View>
             <TouchableOpacity style={styles.openMapsPill} activeOpacity={0.86} onPress={startRoute}>
               <Ionicons name="open-outline" size={13} color={colors.teal} />
               <Text style={styles.openMapsText}>Open in Maps</Text>
             </TouchableOpacity>
           </View>
+          {selectedStop ? (
+            <View style={styles.markerCard}>
+              <View style={styles.markerCardTop}>
+                <View style={styles.markerCardIcon}>
+                  <Ionicons name={iconForStop(selectedStop.category)} size={18} color={colors.teal} />
+                </View>
+                <View style={styles.markerCardCopy}>
+                  <Text style={styles.markerCardTitle}>{selectedStop.title}</Text>
+                  <Text style={styles.markerCardMeta}>{selectedStop.timeWindow} · {formatCategory(selectedStop.category)}</Text>
+                </View>
+                <TouchableOpacity style={styles.markerViewButton} activeOpacity={0.86} onPress={() => openStop(selectedStop)}>
+                  <Text style={styles.markerViewText}>View</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.markerActions}>
+                <TouchableOpacity style={styles.markerAction} activeOpacity={0.86} onPress={startRoute}>
+                  <Ionicons name="navigate-outline" size={15} color={colors.teal} />
+                  <Text style={styles.markerActionText}>Directions</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.markerAction} activeOpacity={0.86} onPress={() => chooseAction('replace')}>
+                  <Ionicons name="swap-horizontal-outline" size={15} color={colors.teal} />
+                  <Text style={styles.markerActionText}>Replace</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.markerAction} activeOpacity={0.86} onPress={() => chooseAction('lighter')}>
+                  <Ionicons name="remove-circle-outline" size={15} color={colors.teal} />
+                  <Text style={styles.markerActionText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.actionRow}>
@@ -417,6 +464,19 @@ function previewWalkImpact(action: ActionKey, minutesSaved?: number | null) {
     return 'Similar distance';
   }
   return 'Lower effort';
+}
+
+function estimateRouteMinutes(km: number) {
+  return Math.max(8, Math.round(km * 13));
+}
+
+function iconForStop(category: string): React.ComponentProps<typeof Ionicons>['name'] {
+  const value = category.toLowerCase();
+  if (value.includes('coffee')) return 'cafe-outline';
+  if (value.includes('food')) return 'restaurant-outline';
+  if (value.includes('culture')) return 'color-palette-outline';
+  if (value.includes('free')) return 'leaf-outline';
+  return 'walk-outline';
 }
 
 function stopsToCoordinates(stops: ItineraryStop[]): LatLng[] {
@@ -668,6 +728,30 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       paddingVertical: spacing.xs,
     },
     routePillText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+    mapModeToggle: {
+      backgroundColor: colors.surface,
+      borderColor: colors.mist,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      flexDirection: 'row',
+      padding: 3,
+    },
+    mapModeButton: {
+      borderRadius: radius.pill,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 6,
+    },
+    mapModeButtonActive: {
+      backgroundColor: colors.midnight,
+    },
+    mapModeText: {
+      color: colors.slate,
+      fontSize: 10,
+      fontWeight: '900',
+    },
+    mapModeTextActive: {
+      color: colors.surface,
+    },
     mapCanvas: {
       backgroundColor: isDark ? colors.canvas : colors.fog,
       borderRadius: radius.lg,
@@ -698,6 +782,9 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
     mapMarkerEnd: {
       backgroundColor: colors.midnight,
       borderColor: colors.midnight,
+    },
+    mapMarkerSelected: {
+      transform: [{ scale: 1.12 }],
     },
     mapMarkerText: {
       color: colors.midnight,
@@ -795,6 +882,76 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
     openMapsText: {
       color: colors.midnight,
       fontSize: typography.tiny,
+      fontWeight: '900',
+    },
+    markerCard: {
+      backgroundColor: colors.surface,
+      borderColor: colors.mist,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      marginTop: spacing.sm,
+      padding: spacing.sm,
+    },
+    markerCardTop: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    markerCardIcon: {
+      alignItems: 'center',
+      backgroundColor: colors.fog,
+      borderRadius: radius.md,
+      height: 38,
+      justifyContent: 'center',
+      width: 38,
+    },
+    markerCardCopy: {
+      flex: 1,
+      minWidth: 0,
+    },
+    markerCardTitle: {
+      color: colors.midnight,
+      fontSize: typography.small,
+      fontWeight: '900',
+    },
+    markerCardMeta: {
+      color: colors.slate,
+      fontSize: typography.tiny,
+      fontWeight: '800',
+      marginTop: 2,
+      textTransform: 'capitalize',
+    },
+    markerViewButton: {
+      alignItems: 'center',
+      backgroundColor: colors.midnight,
+      borderRadius: radius.pill,
+      minHeight: 34,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.md,
+    },
+    markerViewText: {
+      color: colors.surface,
+      fontSize: typography.tiny,
+      fontWeight: '900',
+    },
+    markerActions: {
+      flexDirection: 'row',
+      gap: spacing.xs,
+      marginTop: spacing.sm,
+    },
+    markerAction: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaceWarm,
+      borderRadius: radius.pill,
+      flex: 1,
+      flexDirection: 'row',
+      gap: 4,
+      justifyContent: 'center',
+      minHeight: 38,
+    },
+    markerActionText: {
+      color: colors.midnight,
+      fontSize: 10,
       fontWeight: '900',
     },
     routeDistanceText: {

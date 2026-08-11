@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Modal,
   ImageBackground,
   Linking,
   Platform,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -18,7 +20,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { savedPlaceApi, tripApi } from '../api/journyApi';
 import { session } from '../api/session';
-import type { AddPlaceToPlanRequest, PlaceResponse, SavedPlaceRequest } from '../api/types';
+import type { AddPlaceToPlanRequest, ItineraryDay, PlaceResponse, SavedPlaceRequest } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PlaceDetail'>;
@@ -33,6 +35,9 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
   const [addedToPlan, setAddedToPlan] = useState(false);
   const [addingToPlan, setAddingToPlan] = useState(false);
   const [addToPlanError, setAddToPlanError] = useState(false);
+  const [itineraryDays, setItineraryDays] = useState<ItineraryDay[]>([]);
+  const [selectedDayNumber, setSelectedDayNumber] = useState(1);
+  const [dayPickerOpen, setDayPickerOpen] = useState(false);
   const categoryLabel = formatCategory(place.category);
   const role = roleForCategory(place.category);
   const walkTime = estimatedWalkTime(place.category);
@@ -41,6 +46,9 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
     .map((tag) => tag.trim())
     .filter(Boolean)
     .slice(0, 4);
+  const bestFit = useMemo(() => bestFitForPlace(place, itineraryDays), [itineraryDays, place]);
+  const selectedDay = itineraryDays.find((day) => day.dayNumber === selectedDayNumber) ?? bestFit.day;
+  const bestFitReasons = bestFit.reasons;
 
   useEffect(() => {
     let mounted = true;
@@ -60,6 +68,37 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
       mounted = false;
     };
   }, [place.id]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadItinerary = async () => {
+      try {
+        let currentTrip = session.getCurrentTrip();
+        if (!currentTrip?.id) {
+          currentTrip = await tripApi.current();
+          session.setCurrentTrip(currentTrip);
+        }
+        const response = await tripApi.itinerary(currentTrip.id);
+        if (mounted) {
+          setItineraryDays(response.days);
+          const fit = bestFitForPlace(place, response.days);
+          setSelectedDayNumber(fit.day?.dayNumber ?? 1);
+        }
+      } catch {
+        if (mounted) {
+          setItineraryDays([]);
+          setSelectedDayNumber(1);
+        }
+      }
+    };
+
+    loadItinerary();
+
+    return () => {
+      mounted = false;
+    };
+  }, [place]);
 
   const toggleSaved = async () => {
     if (saving) {
@@ -96,7 +135,7 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
     Linking.openURL(url).catch(() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`));
   };
 
-  const addToTodayPlan = async () => {
+  const addToSelectedDay = async () => {
     if (addingToPlan || addedToPlan) {
       return;
     }
@@ -109,7 +148,7 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
         currentTrip = await tripApi.current();
         session.setCurrentTrip(currentTrip);
       }
-      await tripApi.addPlaceToDay(currentTrip.id, 1, toAddPlaceToPlanRequest(place));
+      await tripApi.addPlaceToDay(currentTrip.id, selectedDayNumber, toAddPlaceToPlanRequest(place));
       setAddedToPlan(true);
     } catch {
       setAddToPlanError(true);
@@ -212,30 +251,76 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Role in the plan</Text>
+            <Text style={styles.sectionTitle}>Best fit in your plan</Text>
             <View style={styles.infoCard}>
-              <Ionicons name="time-outline" size={20} color={colors.teal} />
+              <Ionicons name="calendar-outline" size={20} color={colors.teal} />
               <View style={styles.infoCopy}>
-                <Text style={styles.infoTitle}>{role.title}</Text>
-                <Text style={styles.infoText}>{role.text}</Text>
+                <Text style={styles.infoTitle}>
+                  Day {selectedDayNumber} - {bestTimeWindow(place.category)}
+                </Text>
+                <Text style={styles.infoText}>
+                  Best fit: Day {selectedDayNumber} · {bestTimeWindow(place.category)}
+                </Text>
+                <View style={styles.fitReasonList}>
+                  {bestFitReasons.map((reason) => (
+                    <View key={reason} style={styles.fitReasonRow}>
+                      <Ionicons name="checkmark-circle" size={13} color={colors.teal} />
+                      <Text style={styles.fitReasonText}>{reason}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
             </View>
           </View>
+
+          <TouchableOpacity style={styles.chooseDayButton} activeOpacity={0.86} onPress={() => setDayPickerOpen(true)}>
+            <View>
+              <Text style={styles.chooseDayLabel}>Add location</Text>
+              <Text style={styles.chooseDayValue}>Day {selectedDayNumber}{selectedDay ? ` · ${selectedDay.title}` : ''}</Text>
+            </View>
+            <Ionicons name="chevron-down" size={18} color={colors.teal} />
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.primaryButton, addedToPlan && styles.primaryButtonActive]}
             activeOpacity={0.9}
             disabled={addingToPlan || addedToPlan}
-            onPress={addToTodayPlan}
+            onPress={addToSelectedDay}
           >
             <Text style={styles.primaryButtonText}>
-              {addingToPlan ? 'Adding to plan...' : addedToPlan ? "Added to today's plan" : "Add to today's plan"}
+              {addingToPlan ? 'Adding to plan...' : addedToPlan ? `Added to Day ${selectedDayNumber}` : `Add to Day ${selectedDayNumber}`}
             </Text>
             <Ionicons name={addingToPlan ? 'hourglass-outline' : addedToPlan ? 'checkmark' : 'add'} size={20} color={colors.surface} />
           </TouchableOpacity>
           {addToPlanError ? <Text style={styles.addError}>Could not add this place. Check the backend connection and try again.</Text> : null}
         </View>
       </ScrollView>
+      <Modal visible={dayPickerOpen} transparent animationType="fade" onRequestClose={() => setDayPickerOpen(false)}>
+        <Pressable style={styles.dayPickerOverlay} onPress={() => setDayPickerOpen(false)}>
+          <Pressable style={styles.dayPickerSheet}>
+            <View style={styles.dayPickerHandle} />
+            <Text style={styles.dayPickerTitle}>Choose another day</Text>
+            <Text style={styles.dayPickerSubtitle}>Journy will add this place into the selected day and refresh its route rhythm.</Text>
+            {(itineraryDays.length ? itineraryDays : [{ dayNumber: 1, title: 'Current route', summary: '', walkKm: 0, stopCount: 0, stops: [] }]).map((day) => (
+              <TouchableOpacity
+                key={`day-option-${day.dayNumber}`}
+                style={[styles.dayOption, selectedDayNumber === day.dayNumber && styles.dayOptionActive]}
+                activeOpacity={0.86}
+                onPress={() => {
+                  setSelectedDayNumber(day.dayNumber);
+                  setDayPickerOpen(false);
+                }}
+              >
+                <View>
+                  <Text style={styles.dayOptionTitle}>Day {day.dayNumber}</Text>
+                  <Text style={styles.dayOptionMeta}>{day.title} · {day.walkKm.toFixed(1)} km · {day.stopCount} stops</Text>
+                </View>
+                {selectedDayNumber === day.dayNumber ? <Ionicons name="checkmark-circle" size={20} color={colors.teal} /> : null}
+              </TouchableOpacity>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -328,6 +413,52 @@ function roleForCategory(category: string) {
     title: 'Flexible route moment',
     text: 'A low-pressure stop that keeps the plan walkable and easy to adjust.',
   };
+}
+
+function bestFitForPlace(place: PlaceResponse, days: ItineraryDay[]) {
+  const fallbackDay = days[0] ?? null;
+  if (!days.length) {
+    return {
+      day: fallbackDay,
+      reasons: [
+        `${estimatedWalkTime(place.category)} from the current route area`,
+        `Fits your ${formatCategory(place.category)} preference`,
+        'Keeps the day flexible',
+      ],
+    };
+  }
+
+  const category = place.category.toUpperCase();
+  const scored = days.map((day) => {
+    const hasCategory = day.stops.some((stop) => stop.category.toUpperCase().includes(category) || category.includes(stop.category.toUpperCase()));
+    const hasFoodGap = !day.stops.some((stop) => ['FOOD', 'COFFEE'].includes(stop.category.toUpperCase()));
+    const categoryBonus = category.includes('FOOD') || category.includes('COFFEE')
+      ? hasFoodGap ? 3 : 1
+      : hasCategory ? 3 : 1;
+    const walkRoom = Math.max(0, 7 - day.walkKm);
+    return {
+      day,
+      score: categoryBonus + walkRoom - day.stopCount * 0.25,
+    };
+  }).sort((first, second) => second.score - first.score);
+
+  const day = scored[0]?.day ?? fallbackDay;
+  return {
+    day,
+    reasons: [
+      `${estimatedWalkTime(place.category)} from ${day?.stops[0]?.title ?? 'your route cluster'}`,
+      `Fits your ${formatCategory(place.category)} preference`,
+      `Keeps total walking under ${Math.max(5.5, (day?.walkKm ?? 4.8) + 0.7).toFixed(1)} km`,
+    ],
+  };
+}
+
+function bestTimeWindow(category: string) {
+  const value = category.toLowerCase();
+  if (value.includes('coffee')) return 'Late morning';
+  if (value.includes('food')) return 'Afternoon';
+  if (value.includes('culture')) return 'Morning';
+  return 'Afternoon';
 }
 
 function Stat({
@@ -593,6 +724,46 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     fontSize: typography.small,
     marginTop: 3,
   },
+  fitReasonList: {
+    gap: 5,
+    marginTop: spacing.sm,
+  },
+  fitReasonRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+  },
+  fitReasonText: {
+    color: colors.midnight,
+    flex: 1,
+    fontSize: typography.tiny,
+    fontWeight: '800',
+    lineHeight: 16,
+  },
+  chooseDayButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    minHeight: 62,
+    paddingHorizontal: spacing.md,
+  },
+  chooseDayLabel: {
+    color: colors.teal,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  chooseDayValue: {
+    color: colors.midnight,
+    fontSize: typography.small,
+    fontWeight: '900',
+    marginTop: 3,
+  },
   primaryButton: {
     minHeight: 58,
     borderRadius: radius.lg,
@@ -618,6 +789,65 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     lineHeight: 16,
     marginTop: spacing.sm,
     textAlign: 'center',
+  },
+  dayPickerOverlay: {
+    backgroundColor: 'rgba(39, 35, 33, 0.34)',
+    flex: 1,
+    justifyContent: 'flex-end',
+    padding: spacing.md,
+  },
+  dayPickerSheet: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  dayPickerHandle: {
+    alignSelf: 'center',
+    backgroundColor: colors.mist,
+    borderRadius: radius.pill,
+    height: 4,
+    marginBottom: spacing.md,
+    width: 42,
+  },
+  dayPickerTitle: {
+    color: colors.midnight,
+    fontSize: typography.h3,
+    fontWeight: '900',
+  },
+  dayPickerSubtitle: {
+    color: colors.slate,
+    fontSize: typography.small,
+    fontWeight: '800',
+    lineHeight: 19,
+    marginTop: spacing.xs,
+  },
+  dayOption: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    minHeight: 64,
+    paddingHorizontal: spacing.md,
+  },
+  dayOptionActive: {
+    borderColor: colors.teal,
+  },
+  dayOptionTitle: {
+    color: colors.midnight,
+    fontSize: typography.small,
+    fontWeight: '900',
+  },
+  dayOptionMeta: {
+    color: colors.slate,
+    fontSize: typography.tiny,
+    fontWeight: '800',
+    marginTop: 3,
   },
 });
 }
