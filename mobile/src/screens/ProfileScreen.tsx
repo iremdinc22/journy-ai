@@ -129,6 +129,7 @@ export default function ProfileScreen() {
     },
   ];
   const tripStatus = currentTrip ? `${currentTrip.destination} live` : displaySavedPlans.length ? 'Saved' : 'Ready';
+  const travelIdentity = useMemo(() => buildTravelIdentity(profile), [profile]);
 
   const editCurrentTrip = () => {
     if (!currentTrip) {
@@ -266,6 +267,40 @@ export default function ProfileScreen() {
               </View>
             </View>
           ))}
+        </View>
+
+        <View style={styles.identityCard}>
+          <View style={styles.identityTop}>
+            <View>
+              <Text style={styles.identityKicker}>Your travel taste</Text>
+              <Text style={styles.identityTitle}>{travelIdentity.headline}</Text>
+            </View>
+            <View style={styles.identityIcon}>
+              <Ionicons name="finger-print-outline" size={20} color={colors.teal} />
+            </View>
+          </View>
+          <View style={styles.tasteLevelList}>
+            {travelIdentity.levels.map((level) => (
+              <View key={level.label} style={styles.tasteLevelRow}>
+                <View style={styles.tasteLevelTop}>
+                  <Text style={styles.tasteLevelLabel}>{level.label}</Text>
+                  <Text style={styles.tasteLevelValue}>{level.value}%</Text>
+                </View>
+                <View style={styles.tasteTrack}>
+                  <View style={[styles.tasteFill, { width: `${level.value}%` }]} />
+                </View>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.identityInsight}>{travelIdentity.insight}</Text>
+          <View style={styles.preferenceChips}>
+            {travelIdentity.preferences.map((item) => (
+              <View key={item} style={styles.preferenceChip}>
+                <Ionicons name="checkmark-circle" size={13} color={colors.teal} />
+                <Text style={styles.preferenceChipText}>{item}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         <View style={styles.sectionHeader}>
@@ -411,6 +446,62 @@ function formatEnum(value: string) {
     .toLowerCase()
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function buildTravelIdentity(profile: ProfileResponse | null) {
+  const weights: Record<string, number> = {
+    Coffee: 18,
+    'Local food': 20,
+    Culture: 18,
+    Walking: 22,
+  };
+
+  profile?.currentTrip?.interests.forEach((interest) => {
+    if (interest.includes('COFFEE')) weights.Coffee += 26;
+    if (interest.includes('LOCAL_FOOD')) weights['Local food'] += 26;
+    if (interest.includes('MUSEUMS') || interest.includes('CULTURE')) weights.Culture += 26;
+    if (interest.includes('WALKING')) weights.Walking += 26;
+  });
+
+  profile?.tasteProfile.forEach((signal) => {
+    const title = signal.title.toLowerCase();
+    if (title.includes('coffee')) weights.Coffee += 18;
+    if (title.includes('food')) weights['Local food'] += 18;
+    if (title.includes('culture')) weights.Culture += 18;
+    if (title.includes('walk')) weights.Walking += 18;
+  });
+
+  profile?.savedPlaces.forEach((place) => {
+    const category = place.category.toLowerCase();
+    if (category.includes('coffee')) weights.Coffee += 14;
+    if (category.includes('food')) weights['Local food'] += 14;
+    if (category.includes('culture')) weights.Culture += 14;
+    if (category.includes('walk') || category.includes('free')) weights.Walking += 10;
+  });
+
+  const levels = Object.entries(weights).map(([label, value]) => ({
+    label,
+    value: Math.min(96, Math.max(28, value)),
+  })).sort((first, second) => second.value - first.value);
+  const strongest = levels[0];
+  const headline = `${strongest.label} is becoming a signature preference`;
+  const insight = `${strongest.label} is one of your strongest travel signals, so Journy will keep using it when shaping route rhythm and recommendations.`;
+  const preferences: string[] = levels.slice(0, 3).map((level) => {
+    if (level.label === 'Coffee') return 'Independent coffee';
+    if (level.label === 'Local food') return 'Local food';
+    if (level.label === 'Culture') return 'Culture windows';
+    return 'Walkable routes';
+  });
+  if (profile?.currentTrip?.pace) {
+    preferences.push(`${formatEnum(profile.currentTrip.pace)} days`);
+  }
+
+  return {
+    headline,
+    insight,
+    levels,
+    preferences: [...new Set(preferences)].slice(0, 4),
+  };
 }
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];
@@ -618,6 +709,73 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   tasteCopy: { flex: 1 },
   tasteLabel: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
   tasteDetail: { color: colors.slate, fontSize: typography.tiny, fontWeight: '700', lineHeight: 15, marginTop: 3 },
+  identityCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    padding: spacing.lg,
+  },
+  identityTop: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  identityKicker: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  identityTitle: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900', lineHeight: 22, marginTop: 3 },
+  identityIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  tasteLevelList: { gap: spacing.sm, marginTop: spacing.md },
+  tasteLevelRow: { gap: spacing.xs },
+  tasteLevelTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  tasteLevelLabel: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
+  tasteLevelValue: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900' },
+  tasteTrack: {
+    backgroundColor: colors.fog,
+    borderRadius: radius.pill,
+    height: 8,
+    overflow: 'hidden',
+  },
+  tasteFill: {
+    backgroundColor: colors.teal,
+    borderRadius: radius.pill,
+    height: '100%',
+  },
+  identityInsight: {
+    color: colors.slate,
+    fontSize: typography.small,
+    fontWeight: '800',
+    lineHeight: 20,
+    marginTop: spacing.md,
+  },
+  preferenceChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+  },
+  preferenceChip: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  preferenceChipText: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900' },
   savedRail: { gap: spacing.md, paddingVertical: spacing.md },
   savedCard: {
     backgroundColor: colors.surface,

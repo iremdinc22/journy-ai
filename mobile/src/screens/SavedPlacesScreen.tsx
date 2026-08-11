@@ -21,6 +21,7 @@ export default function SavedPlacesScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [busyPlaceId, setBusyPlaceId] = useState<string | null>(null);
+  const [activeCollection, setActiveCollection] = useState('all');
 
   const loadPlaces = useCallback(async () => {
     setLoading(true);
@@ -62,6 +63,22 @@ export default function SavedPlacesScreen({ navigation }: Props) {
     }
   };
 
+  const collections = useMemo(() => buildCollections(places), [places]);
+  const activePlaces = useMemo(() => {
+    const active = collections.find((collection) => collection.id === activeCollection);
+    if (!active || active.id === 'all') {
+      return places;
+    }
+    return places.filter(active.filter);
+  }, [activeCollection, collections, places]);
+
+  const createCollection = () => {
+    Alert.alert(
+      'Create collection',
+      'Custom collections are coming next. For now, Journy groups your saved places by city and taste automatically.',
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
@@ -82,9 +99,36 @@ export default function SavedPlacesScreen({ navigation }: Props) {
 
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>Favorites</Text>
-          <Text style={styles.title}>Manage saved places.</Text>
-          <Text style={styles.subtitle}>Keep the spots you actually want in your taste profile and remove old picks.</Text>
+          <Text style={styles.title}>Saved places.</Text>
+          <Text style={styles.subtitle}>Organize the spots Journy should learn from and reuse in future trips.</Text>
         </View>
+
+        <View style={styles.collectionHeader}>
+          <Text style={styles.collectionTitle}>Collections</Text>
+          <TouchableOpacity style={styles.createButton} activeOpacity={0.86} onPress={createCollection}>
+            <Ionicons name="add" size={14} color={colors.teal} />
+            <Text style={styles.createButtonText}>Create</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.collectionRail}>
+          {collections.map((collection) => {
+            const active = collection.id === activeCollection;
+            return (
+              <TouchableOpacity
+                key={collection.id}
+                style={[styles.collectionCard, active && styles.collectionCardActive]}
+                activeOpacity={0.86}
+                onPress={() => setActiveCollection(collection.id)}
+              >
+                <View style={[styles.collectionIcon, active && styles.collectionIconActive]}>
+                  <Ionicons name={collection.icon} size={17} color={active ? colors.surface : colors.teal} />
+                </View>
+                <Text style={[styles.collectionName, active && styles.collectionNameActive]}>{collection.label}</Text>
+                <Text style={[styles.collectionCount, active && styles.collectionCountActive]}>{collection.count} places</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         {loading ? <InlineLoading label="Loading saved places..." /> : null}
         {error ? (
@@ -101,8 +145,12 @@ export default function SavedPlacesScreen({ navigation }: Props) {
           />
         ) : null}
 
+        <View style={styles.listHeader}>
+          <Text style={styles.listTitle}>{collections.find((item) => item.id === activeCollection)?.label ?? 'All saved'}</Text>
+          <Text style={styles.listMeta}>{activePlaces.length} saved</Text>
+        </View>
         <View style={styles.placeList}>
-          {places.map((place) => {
+          {activePlaces.map((place) => {
             const busy = busyPlaceId === place.placeId;
             return (
               <View key={place.id} style={styles.placeCard}>
@@ -147,6 +195,37 @@ export default function SavedPlacesScreen({ navigation }: Props) {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+type SavedCollection = {
+  id: string;
+  label: string;
+  count: number;
+  icon: IconName;
+  filter: (place: SavedPlaceResponse) => boolean;
+};
+
+function buildCollections(places: SavedPlaceResponse[]): SavedCollection[] {
+  const base: SavedCollection[] = [
+    { id: 'all', label: 'All saved', count: places.length, icon: 'heart-outline', filter: () => true },
+    { id: 'coffee', label: 'Coffee spots', count: countCategory(places, 'coffee'), icon: 'cafe-outline', filter: (place) => place.category.toLowerCase().includes('coffee') },
+    { id: 'food', label: 'Food list', count: countCategory(places, 'food'), icon: 'restaurant-outline', filter: (place) => place.category.toLowerCase().includes('food') },
+    { id: 'culture', label: 'Culture', count: countCategory(places, 'culture'), icon: 'color-palette-outline', filter: (place) => place.category.toLowerCase().includes('culture') },
+  ];
+  const cities = [...new Set(places.map((place) => place.city).filter(Boolean))]
+    .slice(0, 4)
+    .map((city) => ({
+      id: `city-${city}`,
+      label: city,
+      count: places.filter((place) => place.city === city).length,
+      icon: 'map-outline' as IconName,
+      filter: (place: SavedPlaceResponse) => place.city === city,
+    }));
+  return [...base, ...cities].filter((collection) => collection.id === 'all' || collection.count > 0);
+}
+
+function countCategory(places: SavedPlaceResponse[], value: string) {
+  return places.filter((place) => place.category.toLowerCase().includes(value)).length;
 }
 
 function mapPlaceIcon(category: string): IconName {
@@ -198,6 +277,60 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     eyebrow: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
     title: { color: colors.midnight, fontSize: typography.title, fontWeight: '900', letterSpacing: 0, lineHeight: 42, marginTop: spacing.xs },
     subtitle: { color: colors.slate, fontSize: typography.body, fontWeight: '700', lineHeight: 24, marginTop: spacing.sm },
+    collectionHeader: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: spacing.xl,
+    },
+    collectionTitle: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900' },
+    createButton: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.mist,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: 4,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    createButtonText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900' },
+    collectionRail: { gap: spacing.sm, paddingVertical: spacing.md },
+    collectionCard: {
+      backgroundColor: colors.surface,
+      borderColor: colors.mist,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      minHeight: 104,
+      padding: spacing.sm,
+      width: 132,
+    },
+    collectionCardActive: {
+      backgroundColor: colors.midnight,
+      borderColor: colors.midnight,
+    },
+    collectionIcon: {
+      alignItems: 'center',
+      backgroundColor: colors.fog,
+      borderRadius: radius.md,
+      height: 34,
+      justifyContent: 'center',
+      width: 34,
+    },
+    collectionIconActive: { backgroundColor: 'rgba(255,255,255,0.16)' },
+    collectionName: { color: colors.midnight, fontSize: typography.small, fontWeight: '900', marginTop: spacing.sm },
+    collectionNameActive: { color: colors.surface },
+    collectionCount: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 3 },
+    collectionCountActive: { color: 'rgba(255,255,255,0.72)' },
+    listHeader: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: spacing.sm,
+    },
+    listTitle: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900' },
+    listMeta: { color: colors.teal, fontSize: typography.small, fontWeight: '900' },
     placeList: { gap: spacing.md, marginTop: spacing.lg },
     placeCard: {
       backgroundColor: colors.surface,
