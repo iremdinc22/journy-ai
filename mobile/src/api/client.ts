@@ -9,6 +9,7 @@ declare const process: {
 
 const localHost = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const configuredBaseUrl = process.env?.EXPO_PUBLIC_API_BASE_URL;
+const REQUEST_TIMEOUT_MS = 3500;
 
 function resolveDevHost() {
   const scriptUrl = NativeModules.SourceCode?.scriptURL as string | undefined;
@@ -18,10 +19,7 @@ function resolveDevHost() {
 }
 
 export const API_BASE_URL = configuredBaseUrl ?? `http://${resolveDevHost()}:8080`;
-const FALLBACK_API_BASE_URLS =
-  !configuredBaseUrl && Platform.OS === 'ios' && API_BASE_URL !== 'http://localhost:8080'
-    ? ['http://localhost:8080']
-    : [];
+const FALLBACK_API_BASE_URLS = fallbackBaseUrls();
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -72,9 +70,9 @@ async function sendRequest<T>(path: string, options: RequestOptions, allowRefres
 
   let response: Response | undefined;
   let networkError: unknown;
-  for (const baseUrl of [API_BASE_URL, ...FALLBACK_API_BASE_URLS]) {
+  for (const baseUrl of requestBaseUrls()) {
     try {
-      response = await fetch(`${baseUrl}${path}`, request);
+      response = await fetchWithTimeout(`${baseUrl}${path}`, request);
       break;
     } catch (error) {
       networkError = error;
@@ -110,14 +108,26 @@ async function refreshAccessToken() {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ refreshToken }),
-    });
+    let response: Response | undefined;
+    for (const baseUrl of requestBaseUrls()) {
+      try {
+        response = await fetchWithTimeout(`${baseUrl}/api/auth/refresh`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refreshToken }),
+        });
+        break;
+      } catch {
+        response = undefined;
+      }
+    }
+
+    if (!response) {
+      return false;
+    }
 
     if (!response.ok) {
       session.clearAuth();
@@ -130,6 +140,36 @@ async function refreshAccessToken() {
   } catch {
     return false;
   }
+}
+
+function requestBaseUrls() {
+  return uniqueUrls([dynamicApiBaseUrl(), configuredBaseUrl, ...FALLBACK_API_BASE_URLS]);
+}
+
+function fallbackBaseUrls() {
+  const devUrl = dynamicApiBaseUrl();
+  if (Platform.OS === 'android') {
+    return [devUrl, 'http://10.0.2.2:8080'];
+  }
+  if (Platform.OS === 'ios') {
+    return [devUrl, 'http://localhost:8080'];
+  }
+  return [devUrl, 'http://localhost:8080'];
+}
+
+function dynamicApiBaseUrl() {
+  return `http://${resolveDevHost()}:8080`;
+}
+
+function uniqueUrls(urls: Array<string | undefined>) {
+  return urls.filter((url, index): url is string => Boolean(url) && urls.indexOf(url) === index);
+}
+
+function fetchWithTimeout(url: string, options: RequestInit) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timeout));
 }
 
 async function readErrorMessage(response: Response) {
