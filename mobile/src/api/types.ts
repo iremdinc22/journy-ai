@@ -58,10 +58,14 @@ export type TripPreviewRequest = Partial<Pick<
 export type TripPreviewResponse = {
   estimatedStops: number;
   dailyWalkKm: number;
+  dailyWalkRange: string;
   routeStyle: string;
   availablePlaceCount: number;
+  matchedPlaceCount: number;
   confidence: string;
   summary: string;
+  planningStyle: string;
+  startingAreaInsight: string;
 };
 
 export type ItineraryStop = {

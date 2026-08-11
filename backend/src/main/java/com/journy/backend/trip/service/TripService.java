@@ -68,14 +68,21 @@ public class TripService {
         String routeStyle = routeStyle(pace, budget, interests, request.startingArea(), matchedPlaceCount);
         String confidence = confidence(destination, request.startDate() != null && request.endDate() != null, interests, availablePlaceCount);
         String summary = summary(destination, days, routeStyle, availablePlaceCount, matchedPlaceCount);
+        String dailyWalkRange = dailyWalkRange(dailyWalkKm, pace);
+        String planningStyle = planningStyle(destination, days, pace, budget, interests, request.startingArea());
+        String startingAreaInsight = startingAreaInsight(request.startingArea(), dailyWalkKm, matchedPlaceCount);
 
         return new TripPreviewResponse(
                 estimatedStops,
                 dailyWalkKm,
+                dailyWalkRange,
                 routeStyle,
                 availablePlaceCount,
+                matchedPlaceCount,
                 confidence,
-                summary
+                summary,
+                planningStyle,
+                startingAreaInsight
         );
     }
 
@@ -256,5 +263,64 @@ public class TripService {
         }
         return "%s has %d curated picks available. Journy can shape a %d-day %s with %d strong matches for your taste."
                 .formatted(destination, availablePlaceCount, days, routeStyle.toLowerCase(), matchedPlaceCount);
+    }
+
+    private String dailyWalkRange(double dailyWalkKm, TripPace pace) {
+        double spread = pace == TripPace.RELAXED ? 0.6 : pace == TripPace.FULL ? 1.0 : 0.8;
+        double low = Math.max(1.8, Math.round((dailyWalkKm - spread) * 10.0) / 10.0);
+        double high = Math.round((dailyWalkKm + spread) * 10.0) / 10.0;
+        return "%.1f-%.1f km/day".formatted(low, high);
+    }
+
+    private String planningStyle(
+            String destination,
+            int days,
+            TripPace pace,
+            BudgetMode budget,
+            Set<TravelInterest> interests,
+            String startingArea
+    ) {
+        String focus;
+        if (interests.contains(TravelInterest.MUSEUMS) || interests.contains(TravelInterest.CULTURE)) {
+            focus = "culture-led";
+        } else if (interests.contains(TravelInterest.LOCAL_FOOD) || interests.contains(TravelInterest.COFFEE)) {
+            focus = "food-led";
+        } else if (interests.contains(TravelInterest.WALKING)) {
+            focus = "walkable";
+        } else {
+            focus = "balanced";
+        }
+
+        String rhythm = switch (pace) {
+            case RELAXED -> "slow exploration";
+            case FULL -> "full-day discovery";
+            default -> "balanced daily rhythm";
+        };
+        String spend = switch (budget) {
+            case LEAN -> "low-cost picks";
+            case COMFORT -> "comfort-friendly stops";
+            default -> "local breaks";
+        };
+        String start = startingArea == null || startingArea.isBlank() ? "" : " starting from " + startingArea.trim();
+        String city = destination == null || destination.isBlank() ? "your city" : destination;
+        return "%s %s with %s across %d days in %s%s."
+                .formatted(capitalize(focus), rhythm, spend, days, city, start);
+    }
+
+    private String startingAreaInsight(String startingArea, double dailyWalkKm, int matchedPlaceCount) {
+        if (startingArea == null || startingArea.isBlank()) {
+            return "Add a hotel, station or neighborhood to make the first route leg more realistic.";
+        }
+        double reduction = Math.max(0.5, Math.min(1.4, Math.round((dailyWalkKm * 0.22) * 10.0) / 10.0));
+        String dataNote = matchedPlaceCount > 0 ? "using your matching places" : "using route pacing";
+        return "Starting from %s can reduce the first-leg guess by ~%.1f km %s."
+                .formatted(startingArea.trim(), reduction, dataNote);
+    }
+
+    private String capitalize(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value.substring(0, 1).toUpperCase() + value.substring(1);
     }
 }

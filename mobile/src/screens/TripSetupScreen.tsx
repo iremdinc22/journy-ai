@@ -296,10 +296,14 @@ export default function TripSetupScreen({ navigation, route }: Props) {
   const routeStyle = routeStyleFor({ pace, budget, selectedInterests, startArea });
   const resolvedPreviewStops = backendPreview?.estimatedStops ?? previewStops;
   const resolvedDailyWalk = backendPreview?.dailyWalkKm ?? estimatedDailyWalk;
+  const resolvedDailyWalkRange = backendPreview?.dailyWalkRange ?? (resolvedDailyWalk ? localWalkRange(resolvedDailyWalk, pace) : '--');
   const resolvedRouteStyle = backendPreview?.routeStyle ?? routeStyle;
   const resolvedPlaceCount = backendPreview?.availablePlaceCount ?? (destinationOptions.find((item) => item.name === city)?.placeCount ?? 0);
+  const resolvedMatchedPlaceCount = backendPreview?.matchedPlaceCount ?? Math.min(resolvedPlaceCount, selectedInterests.length ? selectedInterests.length * 4 : resolvedPlaceCount);
   const previewConfidence = backendPreview?.confidence ?? (city ? 'Draft' : 'Waiting');
   const previewSummary = backendPreview?.summary;
+  const planningStyle = backendPreview?.planningStyle ?? localPlanningStyle(city, tripDays || 1, pace, budget, selectedInterests, startArea);
+  const startingAreaInsight = backendPreview?.startingAreaInsight ?? localStartingAreaInsight(startArea, resolvedDailyWalk);
 
   useEffect(() => {
     if (!city.trim()) {
@@ -599,22 +603,29 @@ export default function TripSetupScreen({ navigation, route }: Props) {
               <Text style={styles.previewBadgeText}>{previewLoading ? 'Updating' : previewLive ? `${previewConfidence} confidence` : `${[city, startDate && endDate ? 'dates' : '', selectedInterests.length ? 'taste' : '', pace, startArea.trim()].filter(Boolean).length}/5 ready`}</Text>
             </View>
           </View>
-          <Text style={styles.previewMain}>
-            {city ? `${city} - ${tripDays || 1} day ${pace.toLowerCase()} route` : 'Choose a city to start shaping your route'}
-          </Text>
+          <Text style={styles.previewMain}>{city ? 'Your plan is taking shape' : 'Choose a city to start shaping your route'}</Text>
           <View style={styles.previewMetaRow}>
-            <PreviewMetric icon="location-outline" label="Stops" value={resolvedPreviewStops ? `${resolvedPreviewStops}` : '--'} colors={colors} styles={styles} />
-            <PreviewMetric icon="walk-outline" label="Daily walk" value={resolvedDailyWalk ? `${resolvedDailyWalk.toFixed(1)} km` : '--'} colors={colors} styles={styles} />
-            <PreviewMetric icon="sparkles-outline" label="Route style" value={resolvedRouteStyle} colors={colors} styles={styles} />
+            <PreviewMetric icon="calendar-outline" label="Days" value={tripDays ? `${tripDays}` : '--'} colors={colors} styles={styles} />
+            <PreviewMetric icon="location-outline" label="Stops" value={resolvedPreviewStops ? `~${resolvedPreviewStops}` : '--'} colors={colors} styles={styles} />
+            <PreviewMetric icon="walk-outline" label="Walk" value={resolvedDailyWalkRange} colors={colors} styles={styles} />
+          </View>
+          <View style={styles.planningStyleCard}>
+            <View style={styles.planningStyleIcon}>
+              <Ionicons name="sparkles-outline" size={16} color={colors.teal} />
+            </View>
+            <View style={styles.planningStyleCopy}>
+              <Text style={styles.planningStyleLabel}>Planning style</Text>
+              <Text style={styles.planningStyleText}>{planningStyle}</Text>
+            </View>
           </View>
           <View style={styles.previewInsightRow}>
             <View style={styles.previewInsight}>
               <Ionicons name="albums-outline" size={14} color={colors.teal} />
-              <Text style={styles.previewInsightText}>{resolvedPlaceCount ? `${resolvedPlaceCount} city picks available` : 'City picks appear after selecting a destination'}</Text>
+              <Text style={styles.previewInsightText}>{resolvedPlaceCount ? `Based on ${resolvedMatchedPlaceCount || resolvedPlaceCount} matching places in ${city}` : 'City picks appear after selecting a destination'}</Text>
             </View>
             <View style={styles.previewInsight}>
-              <Ionicons name={previewLive ? 'cloud-done-outline' : 'phone-portrait-outline'} size={14} color={colors.teal} />
-              <Text style={styles.previewInsightText}>{previewLive ? 'Backend preview' : 'Local fallback'}</Text>
+              <Ionicons name="git-branch-outline" size={14} color={colors.teal} />
+              <Text style={styles.previewInsightText}>{resolvedRouteStyle}</Text>
             </View>
           </View>
           <Text style={styles.previewFocus}>
@@ -622,6 +633,10 @@ export default function TripSetupScreen({ navigation, route }: Props) {
               ? `${previewFocus}. ${startArea.trim() ? `Day 1 starts around ${startArea.trim()}.` : 'First day starts flexibly around your chosen city.'}`
               : previewFocus)}
           </Text>
+          <View style={styles.startingAreaPreview}>
+            <Ionicons name="navigate-outline" size={14} color={colors.teal} />
+            <Text style={styles.startingAreaPreviewText}>{startingAreaInsight}</Text>
+          </View>
         </View>
 
         <View style={styles.startCard}>
@@ -631,8 +646,8 @@ export default function TripSetupScreen({ navigation, route }: Props) {
                 <Ionicons name="business-outline" size={18} color={colors.teal} />
               </View>
               <View style={styles.startTitleCopy}>
-                <Text style={styles.startLabel}>Starting area</Text>
-                <Text style={styles.startHelper}>Optional, but it helps Journy keep the first route realistic.</Text>
+                <Text style={styles.startLabel}>Where will you start your days?</Text>
+                <Text style={styles.startHelper}>Search a hotel area, station or neighborhood so Journy can reduce first-leg walking.</Text>
               </View>
             </View>
             {startArea.trim() ? (
@@ -805,6 +820,35 @@ function estimateDailyWalkKm(stopsPerDay: number, pace: string, budget: string) 
   const paceBase = pace === 'Relaxed' ? 1.1 : pace === 'Full' ? 1.55 : 1.35;
   const budgetAdjustment = budget === 'Lean' ? -0.2 : budget === 'Comfort' ? 0.15 : 0;
   return Math.max(2.4, Math.round(stopsPerDay * (paceBase + budgetAdjustment) * 10) / 10);
+}
+
+function localWalkRange(dailyWalkKm: number, pace: string) {
+  const spread = pace === 'Relaxed' ? 0.6 : pace === 'Full' ? 1 : 0.8;
+  const low = Math.max(1.8, Math.round((dailyWalkKm - spread) * 10) / 10);
+  const high = Math.round((dailyWalkKm + spread) * 10) / 10;
+  return `${low.toFixed(1)}-${high.toFixed(1)} km/day`;
+}
+
+function localPlanningStyle(city: string, days: number, pace: string, budget: string, selectedInterests: string[], startArea: string) {
+  const focus = selectedInterests.includes('Museums')
+    ? 'Culture-led'
+    : selectedInterests.includes('Local food') || selectedInterests.includes('Coffee')
+      ? 'Food-led'
+      : selectedInterests.includes('Walking')
+        ? 'Walkable'
+        : 'Balanced';
+  const rhythm = pace === 'Relaxed' ? 'slow exploration' : pace === 'Full' ? 'full-day discovery' : 'balanced daily rhythm';
+  const spend = budget === 'Lean' ? 'low-cost picks' : budget === 'Comfort' ? 'comfort-friendly stops' : 'local breaks';
+  const area = startArea.trim() ? ` starting from ${startArea.trim()}` : '';
+  return `${focus} ${rhythm} with ${spend} across ${days} days${city ? ` in ${city}` : ''}${area}.`;
+}
+
+function localStartingAreaInsight(startArea: string, dailyWalkKm: number) {
+  if (!startArea.trim()) {
+    return 'Add a starting neighborhood to make the first route leg more realistic.';
+  }
+  const reduction = Math.max(0.5, Math.min(1.4, Math.round(dailyWalkKm * 0.22 * 10) / 10));
+  return `Starting from ${startArea.trim()} can reduce your first-leg walk by ~${reduction.toFixed(1)} km.`;
 }
 
 function routeStyleFor({
@@ -1339,6 +1383,39 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   previewMetricLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900', marginTop: spacing.xs },
   previewMetricValue: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900', marginTop: 2 },
+  planningStyleCard: {
+    alignItems: 'flex-start',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    padding: spacing.sm,
+  },
+  planningStyleIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  planningStyleCopy: { flex: 1, minWidth: 0 },
+  planningStyleLabel: {
+    color: colors.teal,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  planningStyleText: {
+    color: colors.midnight,
+    fontSize: typography.small,
+    fontWeight: '900',
+    lineHeight: 18,
+    marginTop: 3,
+  },
   previewInsightRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1367,6 +1444,24 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     fontWeight: '800',
     lineHeight: 19,
     marginTop: spacing.md,
+  },
+  startingAreaPreview: {
+    alignItems: 'flex-start',
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+  },
+  startingAreaPreviewText: {
+    color: colors.slate,
+    flex: 1,
+    fontSize: typography.tiny,
+    fontWeight: '800',
+    lineHeight: 16,
   },
   section: {
     alignItems: 'center',
