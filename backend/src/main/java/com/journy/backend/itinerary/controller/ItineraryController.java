@@ -4,6 +4,7 @@ import com.journy.backend.itinerary.dto.AddPlaceToPlanRequest;
 import com.journy.backend.itinerary.dto.ItineraryResponse;
 import com.journy.backend.itinerary.dto.MoveStopRequest;
 import com.journy.backend.itinerary.dto.ReorderStopRequest;
+import com.journy.backend.itinerary.dto.WeatherAdjustmentResponse;
 import com.journy.backend.itinerary.service.ItineraryService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,6 +28,11 @@ public class ItineraryController {
     @GetMapping
     public ItineraryResponse getItinerary(@PathVariable String tripId) {
         return itineraryService.getItinerary(tripId);
+    }
+
+    @GetMapping("/weather-adjustment")
+    public WeatherAdjustmentResponse weatherAdjustment(@PathVariable String tripId) {
+        return itineraryService.weatherAdjustment(tripId);
     }
 
     @PostMapping("/days/{dayNumber}/stops")

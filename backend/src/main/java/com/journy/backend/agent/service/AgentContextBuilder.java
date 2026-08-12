@@ -37,7 +37,7 @@ public class AgentContextBuilder {
     private AgentContext.UserAgentContext userContext(UserAccount user, Trip trip, List<SavedPlace> savedPlaces) {
         return new AgentContext.UserAgentContext(
                 user.getId(),
-                user.getTravelStyle(),
+                fallback(user.getTravelStyle(), "Balanced traveler"),
                 fallback(user.getDefaultPace(), "BALANCED"),
                 fallback(user.getDefaultBudget(), "BALANCED"),
                 fallback(user.getFoodDiscovery(), "LOCAL_FIRST"),
@@ -92,8 +92,8 @@ public class AgentContextBuilder {
         return new AgentContext.SavedPlaceSignal(
                 place.getName(),
                 place.getCity(),
-                place.getCategory(),
-                place.getPriceLevel(),
+                fallback(place.getCategory(), "WALKING"),
+                fallback(place.getPriceLevel(), "Mid"),
                 place.getRating(),
                 place.getTags()
         );

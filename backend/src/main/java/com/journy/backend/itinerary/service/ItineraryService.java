@@ -6,6 +6,7 @@ import com.journy.backend.itinerary.dto.AddPlaceToPlanRequest;
 import com.journy.backend.itinerary.dto.ItineraryResponse;
 import com.journy.backend.itinerary.dto.MoveStopRequest;
 import com.journy.backend.itinerary.dto.ReorderStopRequest;
+import com.journy.backend.itinerary.dto.WeatherAdjustmentResponse;
 import com.journy.backend.itinerary.mapper.ItineraryMapper;
 import com.journy.backend.itinerary.model.ItineraryDay;
 import com.journy.backend.itinerary.model.ItineraryStop;
@@ -14,10 +15,13 @@ import com.journy.backend.security.CurrentUserService;
 import com.journy.backend.trip.model.Trip;
 import com.journy.backend.trip.repository.TripRepository;
 import com.journy.backend.user.model.UserAccount;
+import com.journy.backend.weather.WeatherForecastService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ItineraryService {
@@ -26,19 +30,22 @@ public class ItineraryService {
     private final ItineraryMapper itineraryMapper;
     private final CurrentUserService currentUserService;
     private final DestinationCoordinateResolver destinationCoordinateResolver;
+    private final WeatherForecastService weatherForecastService;
 
     public ItineraryService(
             TripRepository tripRepository,
             ItineraryDayRepository itineraryDayRepository,
             ItineraryMapper itineraryMapper,
             CurrentUserService currentUserService,
-            DestinationCoordinateResolver destinationCoordinateResolver
+            DestinationCoordinateResolver destinationCoordinateResolver,
+            WeatherForecastService weatherForecastService
     ) {
         this.tripRepository = tripRepository;
         this.itineraryDayRepository = itineraryDayRepository;
         this.itineraryMapper = itineraryMapper;
         this.currentUserService = currentUserService;
         this.destinationCoordinateResolver = destinationCoordinateResolver;
+        this.weatherForecastService = weatherForecastService;
     }
 
     @Transactional(readOnly = true)
@@ -50,6 +57,81 @@ public class ItineraryService {
                         .orElseThrow(() -> new ResourceNotFoundException("Trip was not found")));
         List<ItineraryDay> days = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId());
         return itineraryMapper.toResponse(trip, days);
+    }
+
+    @Transactional(readOnly = true)
+    public WeatherAdjustmentResponse weatherAdjustment(String tripId) {
+        Trip trip = ownedTrip(tripId);
+        List<ItineraryDay> days = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId());
+        ItineraryDay targetDay = days.stream()
+                .filter(day -> day.getStops().stream().anyMatch(this::isWeatherSensitive))
+                .max(Comparator.comparingInt(this::weatherSensitivityScore))
+                .orElse(null);
+
+        if (targetDay == null) {
+            return new WeatherAdjustmentResponse(
+                    false,
+                    1,
+                    null,
+                    "No weather adjustment needed",
+                    "This itinerary is already mostly indoor-friendly.",
+                    null,
+                    null,
+                    0,
+                    0,
+                    0,
+                    0,
+                    List.of(),
+                    List.of("No outdoor-heavy stop was found")
+            );
+        }
+
+        ItineraryStop affectedStop = targetDay.getStops().stream()
+                .filter(this::isWeatherSensitive)
+                .max(Comparator.comparingInt(ItineraryStop::getStopOrder))
+                .orElse(targetDay.getStops().getFirst());
+        ItineraryStop indoorStop = targetDay.getStops().stream()
+                .filter(stop -> !isWeatherSensitive(stop))
+                .findFirst()
+                .orElse(null);
+        String indoorAlternative = indoorStop == null
+                ? trip.getDestination() + " Indoor Culture Window"
+                : indoorStop.getTitle();
+        double afterWalkKm = Math.max(1.2, round(targetDay.getWalkKm() - weatherWalkReduction(affectedStop)));
+        Optional<WeatherForecastService.RainForecast> forecast = weatherForecastService.rainForecastFor(trip, targetDay.getDayNumber());
+        String rainWindow = forecast.map(WeatherForecastService.RainForecast::rainWindow)
+                .orElseGet(() -> rainWindowFor(trip, targetDay));
+        String sourceReason = forecast
+                .map(value -> value.source() + " forecast shows " + value.precipitationProbability() + "% precipitation risk")
+                .orElse("Forecast provider was unavailable, so Journy used the route weather-risk fallback");
+
+        return new WeatherAdjustmentResponse(
+                true,
+                targetDay.getDayNumber(),
+                rainWindow,
+                forecast.isPresent()
+                        ? "Rain risk around Day " + targetDay.getDayNumber() + " at " + rainWindow
+                        : "Weather-sensitive route around Day " + targetDay.getDayNumber(),
+                "Journy can protect the wettest window by moving " + affectedStop.getTitle()
+                        + " earlier and using " + indoorAlternative + " as the safer afternoon anchor.",
+                affectedStop.getTitle(),
+                indoorAlternative,
+                targetDay.getStops().size(),
+                targetDay.getWalkKm(),
+                targetDay.getStops().size(),
+                afterWalkKm,
+                List.of(
+                        "Move " + affectedStop.getTitle() + " out of the rain window",
+                        "Keep culture, cafe or food stops for " + rainWindow,
+                        "Preserve the day rhythm before applying changes"
+                ),
+                List.of(
+                        sourceReason,
+                        affectedStop.getTitle() + " is weather-sensitive",
+                        "Day " + targetDay.getDayNumber() + " has " + targetDay.getWalkKm() + " km of walking",
+                        "Indoor-friendly stops reduce route risk without rebuilding the whole trip"
+                ).stream().limit(3).toList()
+        );
     }
 
     @Transactional
@@ -230,5 +312,35 @@ public class ItineraryService {
 
     private double fallbackLongitude(String city, int order) {
         return destinationCoordinateResolver.longitudeFor(city, order);
+    }
+
+    private int weatherSensitivityScore(ItineraryDay day) {
+        return day.getStops().stream().mapToInt(stop -> isWeatherSensitive(stop) ? 2 : 0).sum()
+                + (day.getWalkKm() >= 5 ? 2 : day.getWalkKm() >= 4 ? 1 : 0);
+    }
+
+    private boolean isWeatherSensitive(ItineraryStop stop) {
+        String category = normalizeCategory(stop.getCategory());
+        String title = normalizeCategory(stop.getTitle());
+        return category.contains("WALKING")
+                || category.contains("FREE")
+                || title.contains("WALK")
+                || title.contains("PARK")
+                || title.contains("GARDEN")
+                || title.contains("WATERFRONT")
+                || title.contains("VIEW");
+    }
+
+    private double weatherWalkReduction(ItineraryStop stop) {
+        return isWeatherSensitive(stop) ? 0.8 : 0.4;
+    }
+
+    private String rainWindowFor(Trip trip, ItineraryDay day) {
+        int seed = Math.abs((trip.getDestination() + trip.getStartDate() + day.getDayNumber()).hashCode());
+        return seed % 2 == 0 ? "14:00 - 17:00" : "15:00 - 18:00";
+    }
+
+    private double round(double value) {
+        return Math.round(value * 10.0) / 10.0;
     }
 }

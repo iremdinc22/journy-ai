@@ -7,12 +7,12 @@ import com.journy.backend.agent.dto.AgentApplyRequest;
 import com.journy.backend.agent.dto.AgentMessageRequest;
 import com.journy.backend.agent.dto.AgentMessageResponse;
 import com.journy.backend.agent.enums.AgentIntent;
-import com.journy.backend.ai.dto.AiItineraryApplyRequest;
 import com.journy.backend.ai.dto.AiItinerarySuggestionRequest;
 import com.journy.backend.ai.dto.AiItinerarySuggestionResponse;
 import com.journy.backend.ai.service.AiService;
 import com.journy.backend.common.exception.ResourceNotFoundException;
 import com.journy.backend.itinerary.dto.ItineraryResponse;
+import com.journy.backend.itinerary.mapper.ItineraryMapper;
 import com.journy.backend.itinerary.model.ItineraryDay;
 import com.journy.backend.itinerary.model.ItineraryStop;
 import com.journy.backend.itinerary.repository.ItineraryDayRepository;
@@ -23,7 +23,9 @@ import com.journy.backend.user.model.UserAccount;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class AgentService {
@@ -33,6 +35,7 @@ public class AgentService {
     private final AiService aiService;
     private final PythonAgentClient pythonAgentClient;
     private final AgentContextBuilder agentContextBuilder;
+    private final ItineraryMapper itineraryMapper;
 
     public AgentService(
             CurrentUserService currentUserService,
@@ -40,7 +43,8 @@ public class AgentService {
             ItineraryDayRepository itineraryDayRepository,
             AiService aiService,
             PythonAgentClient pythonAgentClient,
-            AgentContextBuilder agentContextBuilder
+            AgentContextBuilder agentContextBuilder,
+            ItineraryMapper itineraryMapper
     ) {
         this.currentUserService = currentUserService;
         this.tripRepository = tripRepository;
@@ -48,6 +52,7 @@ public class AgentService {
         this.aiService = aiService;
         this.pythonAgentClient = pythonAgentClient;
         this.agentContextBuilder = agentContextBuilder;
+        this.itineraryMapper = itineraryMapper;
     }
 
     @Transactional(readOnly = true)
@@ -57,6 +62,17 @@ public class AgentService {
         List<ItineraryDay> itineraryDays = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId());
         ItineraryDay day = resolveDay(itineraryDays, request.dayNumber(), request.message());
         AgentContext context = agentContextBuilder.build(user, trip, day, itineraryDays);
+        AgentIntent intent = detectIntent(request.message());
+        if (intent != AgentIntent.GENERAL_GUIDANCE) {
+            AgentActionPreview preview = buildPreview(intent, trip, day, itineraryDays, context);
+            return new AgentMessageResponse(
+                    "agent_" + trip.getId(),
+                    buildAgentMessage(intent, trip, day, preview, itineraryDays, context),
+                    intent,
+                    preview
+            );
+        }
+
         AgentMessageResponse pythonResponse = pythonAgentClient.message(request.message(), context).orElse(null);
         if (pythonResponse != null) {
             return new AgentMessageResponse(
@@ -67,7 +83,6 @@ public class AgentService {
             );
         }
 
-        AgentIntent intent = detectIntent(request.message());
         AgentActionPreview preview = buildPreview(intent, trip, day, itineraryDays, context);
 
         return new AgentMessageResponse(
@@ -84,11 +99,26 @@ public class AgentService {
         if (intent == AgentIntent.GENERAL_GUIDANCE) {
             intent = AgentIntent.MAKE_DAY_LIGHTER;
         }
-        return aiService.applyItinerarySuggestion(new AiItineraryApplyRequest(
-                request.tripId(),
-                request.dayNumber(),
-                actionFor(intent)
-        ));
+        UserAccount user = currentUserService.currentUser();
+        Trip trip = resolveTrip(user, request.tripId());
+        ItineraryDay day = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId()).stream()
+                .filter(foundDay -> foundDay.getDayNumber() == request.dayNumber())
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Itinerary day was not found"));
+
+        switch (intent) {
+            case MAKE_DAY_LIGHTER -> applyMakeDayLighter(day);
+            case ADD_FOOD_STOP -> applyAddFoodStop(trip, day);
+            case REPLACE_STOP -> applyReplaceStop(trip, day);
+            case BUDGET_OPTIMIZE -> applyBudgetOptimize(trip, day);
+            case RAIN_REPLAN -> applyRainReplan(trip, day);
+            case GENERAL_GUIDANCE -> applyMakeDayLighter(day);
+        }
+
+        normalizeStopOrder(day);
+        ItineraryDay savedDay = itineraryDayRepository.save(day);
+        refreshTripStats(trip);
+        return itineraryMapper.toDayResponse(savedDay);
     }
 
     private AgentActionPreview buildPreview(AgentIntent intent, Trip trip, ItineraryDay day, List<ItineraryDay> itineraryDays, AgentContext context) {
@@ -279,7 +309,7 @@ public class AgentService {
         if (containsAny(text, "budget", "cheap", "cheaper", "save money", "ucuz", "bütçe", "tasarruf", "euro")) {
             return AgentIntent.BUDGET_OPTIMIZE;
         }
-        if (containsAny(text, "rain", "weather", "rainy", "yağmur", "hava")) {
+        if (containsAny(text, "rain", "weather", "rainy", "indoor", "inside", "covered", "rain-ready", "yağmur", "hava", "kapalı")) {
             return AgentIntent.RAIN_REPLAN;
         }
         if (containsAny(text, "coffee", "cafe", "food", "dinner", "restaurant", "kahve", "yemek", "akşam")) {
@@ -288,7 +318,7 @@ public class AgentService {
         if (containsAny(text, "replace", "swap", "change stop", "değiştir", "yerine")) {
             return AgentIntent.REPLACE_STOP;
         }
-        if (containsAny(text, "light", "lighter", "easy", "short", "slow", "less walking", "hafif", "yorul", "kolay", "az yür")) {
+        if (containsAny(text, "light", "lighter", "easy", "short", "slow", "less walking", "tired", "finish earlier", "hafif", "yorul", "yorgun", "kolay", "az yür", "erken bit")) {
             return AgentIntent.MAKE_DAY_LIGHTER;
         }
         return AgentIntent.GENERAL_GUIDANCE;
@@ -311,6 +341,199 @@ public class AgentService {
             case REPLACE_STOP -> "replace";
             default -> "lighter";
         };
+    }
+
+    private void applyMakeDayLighter(ItineraryDay day) {
+        if (day.getStops().size() <= 2) {
+            day.getStops().forEach(stop -> stop.setOptionalStop(true));
+            day.setWalkKm(Math.max(1.2, round(day.getWalkKm() - 0.7)));
+            day.setSummary("Journy marked this compact day as optional-friendly so you can slow down without losing the route shape.");
+            return;
+        }
+
+        ItineraryStop removable = day.getStops().stream()
+                .filter(ItineraryStop::isOptionalStop)
+                .max(Comparator.comparingInt(ItineraryStop::getStopOrder))
+                .orElseGet(() -> day.getStops().stream()
+                        .filter(stop -> !isFoodOrCoffee(stop))
+                        .max(Comparator.comparingInt(ItineraryStop::getStopOrder))
+                        .orElse(day.getStops().getLast()));
+        day.getStops().remove(removable);
+        day.setWalkKm(Math.max(1.2, round(day.getWalkKm() - walkReductionFor(removable))));
+        day.setSummary("Journy removed " + removable.getTitle() + " to make the day lighter while keeping the strongest route anchors.");
+    }
+
+    private void applyAddFoodStop(Trip trip, ItineraryDay day) {
+        int insertOrder = Math.min(day.getStops().size() + 1, 3);
+        shiftStopsFrom(day, insertOrder);
+        ItineraryStop anchor = day.getStops().stream()
+                .filter(stop -> stop.getStopOrder() == Math.max(1, insertOrder - 1))
+                .findFirst()
+                .orElseGet(() -> day.getStops().isEmpty() ? null : day.getStops().getFirst());
+        ItineraryStop stop = new ItineraryStop(
+                insertOrder,
+                foodBreakTitle(trip),
+                "FOOD",
+                "13:00",
+                "Added by Journy AI as a local food break inside the existing route window.",
+                anchor == null ? 0 : anchor.getLatitude() + 0.002,
+                anchor == null ? 0 : anchor.getLongitude() + 0.002
+        );
+        day.addStop(stop);
+        day.setWalkKm(round(day.getWalkKm() + 0.4));
+        day.setSummary("Journy added a food break near the current route so the day feels more local without becoming much heavier.");
+    }
+
+    private void applyReplaceStop(Trip trip, ItineraryDay day) {
+        ItineraryStop target = weakestFlexibleStop(day);
+        target.setTitle(replacementTitle(trip, target));
+        target.setCategory(replacementCategory(target));
+        target.setNote("Replaced by Journy AI to better match your route, pace and taste profile.");
+        target.setTimeWindow(replacementTimeWindow(target));
+        target.setOptionalStop(false);
+        day.setWalkKm(Math.max(1.2, round(day.getWalkKm() - 0.2)));
+        day.setSummary("Journy replaced the weakest-fit stop while preserving the same route window.");
+    }
+
+    private void applyBudgetOptimize(Trip trip, ItineraryDay day) {
+        ItineraryStop target = day.getStops().stream()
+                .filter(this::isFoodOrCoffee)
+                .max(Comparator.comparingInt(ItineraryStop::getStopOrder))
+                .orElseGet(() -> weakestFlexibleStop(day));
+        target.setTitle(budgetTitle(trip, target));
+        target.setCategory(target.getCategory().equalsIgnoreCase("COFFEE") ? "COFFEE" : "FOOD");
+        target.setNote("Adjusted by Journy AI toward a lower-cost local option near the existing route.");
+        day.setWalkKm(Math.max(1.2, round(day.getWalkKm() - 0.1)));
+        day.setSummary("Journy kept the main anchors and made the flexible food window more budget-friendly.");
+    }
+
+    private void applyRainReplan(Trip trip, ItineraryDay day) {
+        ItineraryStop target = day.getStops().stream()
+                .filter(this::isOutdoor)
+                .max(Comparator.comparingInt(ItineraryStop::getStopOrder))
+                .orElseGet(() -> weakestFlexibleStop(day));
+        target.setTitle(indoorTitle(trip));
+        target.setCategory("CULTURE");
+        target.setTimeWindow("14:00");
+        target.setNote("Rain-aware adjustment from Journy AI: protected the afternoon with an indoor-friendly stop.");
+        target.setOptionalStop(false);
+        day.setWalkKm(Math.max(1.2, round(day.getWalkKm() - 0.5)));
+        day.setSummary("Journy moved the day toward an indoor culture window so rainy hours do not break the route.");
+    }
+
+    private ItineraryStop weakestFlexibleStop(ItineraryDay day) {
+        return day.getStops().stream()
+                .filter(ItineraryStop::isOptionalStop)
+                .findFirst()
+                .orElseGet(() -> day.getStops().stream()
+                        .max(Comparator.comparingInt(ItineraryStop::getStopOrder))
+                        .orElseThrow(() -> new ResourceNotFoundException("Itinerary stop was not found")));
+    }
+
+    private void shiftStopsFrom(ItineraryDay day, int order) {
+        day.getStops().stream()
+                .filter(stop -> stop.getStopOrder() >= order)
+                .forEach(stop -> stop.setStopOrder(stop.getStopOrder() + 1));
+    }
+
+    private void normalizeStopOrder(ItineraryDay day) {
+        day.getStops().sort(Comparator.comparingInt(ItineraryStop::getStopOrder));
+        for (int index = 0; index < day.getStops().size(); index++) {
+            day.getStops().get(index).setStopOrder(index + 1);
+        }
+    }
+
+    private void refreshTripStats(Trip trip) {
+        List<ItineraryDay> days = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId());
+        int totalStops = days.stream().mapToInt(day -> day.getStops().size()).sum();
+        int foodPicks = (int) days.stream()
+                .flatMap(day -> day.getStops().stream())
+                .filter(this::isFoodOrCoffee)
+                .count();
+        double averageWalk = days.stream().mapToDouble(ItineraryDay::getWalkKm).average().orElse(0);
+        trip.setTotalStops(totalStops);
+        trip.setFoodPicks(foodPicks);
+        trip.setAverageWalkKm(round(averageWalk));
+        tripRepository.save(trip);
+    }
+
+    private boolean isFoodOrCoffee(ItineraryStop stop) {
+        String category = normalize(stop.getCategory());
+        return category.contains("FOOD") || category.contains("COFFEE");
+    }
+
+    private boolean isOutdoor(ItineraryStop stop) {
+        String category = normalize(stop.getCategory());
+        String title = normalize(stop.getTitle());
+        return category.contains("WALKING")
+                || category.contains("FREE")
+                || title.contains("WALK")
+                || title.contains("GARDEN")
+                || title.contains("PARK")
+                || title.contains("WATERFRONT");
+    }
+
+    private double walkReductionFor(ItineraryStop stop) {
+        if (isOutdoor(stop)) {
+            return 1.4;
+        }
+        if (isFoodOrCoffee(stop)) {
+            return 0.6;
+        }
+        return 1.0;
+    }
+
+    private String foodBreakTitle(Trip trip) {
+        return trip.getDestination() + " Local Lunch Break";
+    }
+
+    private String replacementTitle(Trip trip, ItineraryStop target) {
+        String category = normalize(target.getCategory());
+        if (category.contains("CULTURE")) {
+            return trip.getDestination() + " Compact Culture Stop";
+        }
+        if (category.contains("COFFEE")) {
+            return trip.getDestination() + " Quiet Coffee Window";
+        }
+        if (category.contains("FOOD")) {
+            return trip.getDestination() + " Local Food Window";
+        }
+        return trip.getDestination() + " Easier Route Window";
+    }
+
+    private String replacementCategory(ItineraryStop target) {
+        String category = normalize(target.getCategory());
+        if (category.contains("COFFEE")) return "COFFEE";
+        if (category.contains("FOOD")) return "FOOD";
+        if (category.contains("CULTURE")) return "CULTURE";
+        return "WALKING";
+    }
+
+    private String replacementTimeWindow(ItineraryStop target) {
+        String category = normalize(target.getCategory());
+        if (category.contains("COFFEE")) return "11:30";
+        if (category.contains("FOOD")) return "13:00";
+        if (category.contains("CULTURE")) return "14:00";
+        return "16:00";
+    }
+
+    private String budgetTitle(Trip trip, ItineraryStop target) {
+        if (target.getCategory().equalsIgnoreCase("COFFEE")) {
+            return trip.getDestination() + " Low-Cost Coffee Break";
+        }
+        return trip.getDestination() + " Local Market Bite";
+    }
+
+    private String indoorTitle(Trip trip) {
+        return trip.getDestination() + " Indoor Culture Window";
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.toUpperCase(Locale.ROOT);
+    }
+
+    private double round(double value) {
+        return Math.round(value * 10.0) / 10.0;
     }
 
     private Trip resolveTrip(UserAccount user, String tripId) {

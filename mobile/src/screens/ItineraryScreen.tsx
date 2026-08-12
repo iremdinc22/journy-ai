@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { aiApi, tripApi } from '../api/journyApi';
+import { agentApi, tripApi } from '../api/journyApi';
 import { session } from '../api/session';
-import type { ItineraryDay, ItineraryResponse, ItineraryTimelineItem } from '../api/types';
+import type { ItineraryDay, ItineraryResponse, ItineraryTimelineItem, WeatherAdjustmentResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
 import { cityCoordinates } from '../utils/destinationVisuals';
@@ -21,6 +21,7 @@ export default function ItineraryScreen() {
   const [weatherPreviewOpen, setWeatherPreviewOpen] = useState(false);
   const [weatherApplying, setWeatherApplying] = useState(false);
   const [weatherApplied, setWeatherApplied] = useState(false);
+  const [weatherSignal, setWeatherSignal] = useState<WeatherAdjustmentResponse | null>(null);
 
   const loadItinerary = useCallback(async () => {
     setLoading(true);
@@ -29,7 +30,9 @@ export default function ItineraryScreen() {
       const current = session.getCurrentTrip() ?? await tripApi.current();
       session.setCurrentTrip(current);
       const response = await tripApi.itinerary(current.id);
+      const weather = await tripApi.weatherAdjustment(current.id).catch(() => null);
       setItinerary(response);
+      setWeatherSignal(weather?.available ? weather : null);
     } catch {
       setError(true);
     } finally {
@@ -45,8 +48,10 @@ export default function ItineraryScreen() {
         const current = session.getCurrentTrip() ?? await tripApi.current();
         session.setCurrentTrip(current);
         const response = await tripApi.itinerary(current.id);
+        const weather = await tripApi.weatherAdjustment(current.id).catch(() => null);
         if (mounted) {
           setItinerary(response);
+          setWeatherSignal(weather?.available ? weather : null);
         }
       } catch {
         if (mounted) {
@@ -72,10 +77,9 @@ export default function ItineraryScreen() {
   const tripId = itinerary?.tripId ?? session.getCurrentTrip()?.id ?? 'preview-trip';
   const totalWalk = visibleDays.reduce((sum, day) => sum + day.walkKm, 0);
   const totalStops = visibleDays.reduce((sum, day) => sum + day.stopCount, 0);
-  const weatherTargetDay = visibleDays.find((day) => hasWeatherSensitiveStop(day)) ?? visibleDays[0];
-  const weatherMovedStop = weatherTargetDay?.stops.find((stop) => isWeatherSensitiveCategory(stop.category)) ?? weatherTargetDay?.stops[0];
-  const indoorStop = weatherTargetDay?.stops.find((stop) => !isWeatherSensitiveCategory(stop.category)) ?? weatherTargetDay?.stops[1] ?? weatherMovedStop;
-  const weatherAfterWalk = weatherTargetDay ? Math.max(2.6, weatherTargetDay.walkKm - 0.8) : 0;
+  const weatherTargetDay = weatherSignal
+    ? visibleDays.find((day) => day.dayNumber === weatherSignal.dayNumber)
+    : undefined;
 
   const updateDay = (updatedDay: ItineraryDay) => {
     setItinerary((current) => current
@@ -90,9 +94,10 @@ export default function ItineraryScreen() {
     }
     setWeatherApplying(true);
     try {
-      const updatedDay = await aiApi.applyItinerarySuggestion(tripId, weatherTargetDay.dayNumber, 'weather');
+      const updatedDay = await agentApi.apply(tripId, weatherTargetDay.dayNumber, 'RAIN_REPLAN');
       updateDay(updatedDay);
       setWeatherApplied(true);
+      setWeatherSignal((current) => current ? { ...current, available: false } : current);
       setWeatherPreviewOpen(false);
     } catch {
       Alert.alert('Could not update for weather', 'Please check the backend connection and try again.');
@@ -213,7 +218,7 @@ export default function ItineraryScreen() {
           />
         ) : null}
 
-        {weatherTargetDay ? (
+        {weatherSignal?.available && weatherTargetDay ? (
           <View style={styles.weatherCard}>
             <View style={styles.weatherTop}>
               <View style={styles.weatherIcon}>
@@ -221,20 +226,19 @@ export default function ItineraryScreen() {
               </View>
               <View style={styles.weatherCopy}>
                 <Text style={styles.weatherKicker}>Weather adjustment available</Text>
-                <Text style={styles.weatherTitle}>Rain expected around Day {weatherTargetDay.dayNumber} afternoon.</Text>
-                <Text style={styles.weatherText}>
-                  Journy can move {weatherMovedStop?.title ?? 'the outdoor stop'} earlier and protect the afternoon with {indoorStop?.title ?? 'an indoor-friendly stop'}.
-                </Text>
+                <Text style={styles.weatherTitle}>{weatherSignal.title}</Text>
+                <Text style={styles.weatherText}>{weatherSignal.message}</Text>
               </View>
             </View>
 
             {weatherPreviewOpen ? (
               <View style={styles.weatherPreview}>
-                <WeatherPreviewMetric label="Before" value={`${weatherTargetDay.stopCount} stops - ${weatherTargetDay.walkKm.toFixed(1)} km`} styles={styles} />
-                <WeatherPreviewMetric label="After" value={`${weatherTargetDay.stopCount} stops - ${weatherAfterWalk.toFixed(1)} km`} styles={styles} />
+                <WeatherPreviewMetric label="Before" value={`${weatherSignal.beforeStopCount} stops - ${weatherSignal.beforeWalkKm.toFixed(1)} km`} styles={styles} />
+                <WeatherPreviewMetric label="After" value={`${weatherSignal.afterStopCount} stops - ${weatherSignal.afterWalkKm.toFixed(1)} km`} styles={styles} />
                 <View style={styles.weatherChangeList}>
-                  <Text style={styles.weatherChange}>Move {weatherMovedStop?.title ?? 'outdoor walking'} to the morning window</Text>
-                  <Text style={styles.weatherChange}>Keep culture, coffee or food stops for the wettest part of the day</Text>
+                  {weatherSignal.changes.slice(0, 3).map((change) => (
+                    <Text key={change} style={styles.weatherChange}>{change}</Text>
+                  ))}
                 </View>
               </View>
             ) : null}

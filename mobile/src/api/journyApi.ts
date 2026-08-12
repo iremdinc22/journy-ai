@@ -20,6 +20,7 @@ import type {
   TripPreviewRequest,
   TripPreviewResponse,
   UserPreferences,
+  WeatherAdjustmentResponse,
 } from './types';
 
 export const authApi = {
@@ -101,6 +102,10 @@ export const tripApi = {
 
   itinerary(tripId: string) {
     return apiRequest<ItineraryResponse>(`/api/trips/${tripId}/itinerary`);
+  },
+
+  weatherAdjustment(tripId: string) {
+    return apiRequest<WeatherAdjustmentResponse>(`/api/trips/${tripId}/itinerary/weather-adjustment`);
   },
 
   addPlaceToDay(tripId: string, dayNumber: number, place: AddPlaceToPlanRequest) {
@@ -215,6 +220,7 @@ export const agentApi = {
     return apiRequest<AgentMessageResponse>('/api/agent/message', {
       method: 'POST',
       body: { tripId, dayNumber, message },
+      timeoutMs: 20000,
     });
   },
 
@@ -222,6 +228,7 @@ export const agentApi = {
     return apiRequest<ItineraryDay>('/api/agent/apply', {
       method: 'POST',
       body: { tripId, dayNumber, intent },
+      timeoutMs: 20000,
     });
   },
 };

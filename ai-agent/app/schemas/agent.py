@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AgentIntent(str, Enum):
@@ -13,69 +13,129 @@ class AgentIntent(str, Enum):
 
 
 class AgentStop(BaseModel):
-    order: int
-    title: str
-    category: str
-    timeWindow: str
-    note: str
+    order: int = 1
+    title: str = "Route stop"
+    category: str = "WALKING"
+    timeWindow: str = "10:00"
+    note: str = "Flexible route stop."
     optional: bool = False
     latitude: float | None = None
     longitude: float | None = None
 
+    @field_validator("title", "category", "timeWindow", "note", mode="before")
+    @classmethod
+    def default_text(cls, value: str | None) -> str:
+        return value or ""
+
 
 class AgentDayContext(BaseModel):
-    dayNumber: int
-    title: str
-    summary: str
-    walkKm: float
-    stopCount: int
+    dayNumber: int = 1
+    title: str = "Trip day"
+    summary: str = "Flexible day route."
+    walkKm: float = 0
+    stopCount: int = 0
     nextStop: str | None = None
     optionalStops: list[str] = Field(default_factory=list)
     stops: list[AgentStop] = Field(default_factory=list)
 
+    @field_validator("title", "summary", mode="before")
+    @classmethod
+    def default_text(cls, value: str | None) -> str:
+        return value or ""
+
+    @field_validator("optionalStops", "stops", mode="before")
+    @classmethod
+    def default_list(cls, value):
+        return value or []
+
 
 class AgentTripContext(BaseModel):
-    tripId: str
-    destination: str
-    budget: str
-    pace: str
+    tripId: str = ""
+    destination: str = "Your trip"
+    budget: str = "BALANCED"
+    pace: str = "BALANCED"
     interests: list[str] = Field(default_factory=list)
     startingArea: str | None = None
 
+    @field_validator("tripId", "destination", "budget", "pace", mode="before")
+    @classmethod
+    def default_text(cls, value: str | None) -> str:
+        return value or ""
+
+    @field_validator("interests", mode="before")
+    @classmethod
+    def default_list(cls, value):
+        return value or []
+
 
 class SavedPlaceSignal(BaseModel):
-    name: str
-    city: str
-    category: str
-    priceLevel: str
-    rating: float
+    name: str | None = ""
+    city: str | None = ""
+    category: str | None = "WALKING"
+    priceLevel: str | None = "Mid"
+    rating: float | None = 0
     tags: str | None = None
+
+    @field_validator("name", "city", "category", "priceLevel", mode="before")
+    @classmethod
+    def default_text(cls, value: str | None) -> str:
+        return value or ""
 
 
 class PlanningStrategyContext(BaseModel):
-    title: str
-    description: str
+    title: str = "Journy plan"
+    description: str = "Adaptive route strategy."
     signals: list[str] = Field(default_factory=list)
+
+    @field_validator("title", "description", mode="before")
+    @classmethod
+    def default_text(cls, value: str | None) -> str:
+        return value or ""
+
+    @field_validator("signals", mode="before")
+    @classmethod
+    def default_list(cls, value):
+        return value or []
 
 
 class UserAgentContext(BaseModel):
-    userId: str
-    travelStyle: str
-    defaultPace: str
-    defaultBudget: str
-    foodDiscovery: str
+    userId: str = ""
+    travelStyle: str | None = "Balanced traveler"
+    defaultPace: str | None = "BALANCED"
+    defaultBudget: str | None = "BALANCED"
+    foodDiscovery: str | None = "LOCAL_FIRST"
     tasteSignals: list[str] = Field(default_factory=list)
     savedCategorySignals: list[str] = Field(default_factory=list)
     savedPlaces: list[SavedPlaceSignal] = Field(default_factory=list)
     planningStrategy: PlanningStrategyContext | None = None
 
+    @field_validator("userId", "travelStyle", "defaultPace", "defaultBudget", "foodDiscovery", mode="before")
+    @classmethod
+    def default_text(cls, value: str | None) -> str:
+        return value or ""
+
+    @field_validator("tasteSignals", "savedCategorySignals", "savedPlaces", mode="before")
+    @classmethod
+    def default_list(cls, value):
+        return value or []
+
 
 class AgentMessageRequest(BaseModel):
-    message: str
-    trip: AgentTripContext
-    day: AgentDayContext
+    message: str = ""
+    trip: AgentTripContext = Field(default_factory=AgentTripContext)
+    day: AgentDayContext = Field(default_factory=AgentDayContext)
     itineraryDays: list[AgentDayContext] = Field(default_factory=list)
     userProfile: UserAgentContext | None = None
+
+    @field_validator("message", mode="before")
+    @classmethod
+    def default_message(cls, value: str | None) -> str:
+        return value or ""
+
+    @field_validator("itineraryDays", mode="before")
+    @classmethod
+    def default_list(cls, value):
+        return value or []
 
 
 class AgentActionPreview(BaseModel):

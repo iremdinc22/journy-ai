@@ -112,6 +112,22 @@ export type ItineraryResponse = {
   days: ItineraryDay[];
 };
 
+export type WeatherAdjustmentResponse = {
+  available: boolean;
+  dayNumber: number;
+  rainWindow?: string | null;
+  title: string;
+  message: string;
+  affectedStop?: string | null;
+  indoorAlternative?: string | null;
+  beforeStopCount: number;
+  beforeWalkKm: number;
+  afterStopCount: number;
+  afterWalkKm: number;
+  changes: string[];
+  reasons: string[];
+};
+
 export type PlaceResponse = {
   id: string;
   name: string;

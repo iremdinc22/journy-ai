@@ -25,3 +25,9 @@ app:
     refresh-token-expiration-seconds: ${REFRESH_TOKEN_EXPIRATION_SECONDS:2592000}
   ai-agent:
     base-url: ${AI_AGENT_BASE_URL:http://localhost:8001}
+
+journy:
+  weather:
+    open-meteo:
+      enabled: ${OPEN_METEO_ENABLED:true}
+      endpoint: ${OPEN_METEO_ENDPOINT:https://api.open-meteo.com/v1/forecast}

@@ -31,6 +31,9 @@ class TravelAgent:
         analysis = self.context_analyzer.analyze_day(request.trip, request.day)
         itinerary_days = request.itineraryDays or [request.day]
         trip_analysis = self.context_analyzer.analyze_trip(request.trip, itinerary_days)
+        detected_intent = self._detect_intent(request.message)
+        if detected_intent != AgentIntent.GENERAL_GUIDANCE:
+            return self._decide_with_rules(request, analysis, trip_analysis, detected_intent)
         if self.client:
             response = self._decide_with_openai(request, analysis, trip_analysis)
             if response:
@@ -102,8 +105,9 @@ class TravelAgent:
         request: AgentMessageRequest,
         analysis: DayAnalysis,
         trip_analysis: TripAnalysis,
+        forced_intent: AgentIntent | None = None,
     ) -> AgentMessageResponse:
-        intent = self._detect_intent(request.message)
+        intent = forced_intent or self._detect_intent(request.message)
         preview = self._preview_for(intent, request, analysis)
         return AgentMessageResponse(
             message=self._message_for(intent, request, analysis, trip_analysis),
@@ -115,13 +119,13 @@ class TravelAgent:
         text = message.lower()
         if self._contains(text, "budget", "cheap", "cheaper", "save money", "ucuz", "bütçe", "tasarruf", "euro"):
             return AgentIntent.BUDGET_OPTIMIZE
-        if self._contains(text, "rain", "weather", "rainy", "yağmur", "hava"):
+        if self._contains(text, "rain", "weather", "rainy", "indoor", "inside", "covered", "rain-ready", "yağmur", "hava", "kapalı"):
             return AgentIntent.RAIN_REPLAN
         if self._contains(text, "coffee", "cafe", "food", "dinner", "restaurant", "kahve", "yemek", "akşam"):
             return AgentIntent.ADD_FOOD_STOP
         if self._contains(text, "replace", "swap", "change stop", "değiştir", "yerine"):
             return AgentIntent.REPLACE_STOP
-        if self._contains(text, "light", "lighter", "easy", "short", "slow", "less walking", "hafif", "yorul", "kolay", "az yür"):
+        if self._contains(text, "light", "lighter", "easy", "short", "slow", "less walking", "tired", "finish earlier", "hafif", "yorul", "yorgun", "kolay", "az yür", "erken bit"):
             return AgentIntent.MAKE_DAY_LIGHTER
         return AgentIntent.GENERAL_GUIDANCE
 

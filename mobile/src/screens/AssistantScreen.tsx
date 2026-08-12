@@ -96,6 +96,7 @@ export default function AssistantScreen() {
     [activeDayNumber, itinerary?.days],
   );
   const quickPrompts = useMemo(() => buildQuickPrompts(currentTrip ?? undefined, currentDay), [currentDay, currentTrip]);
+  const hasWeatherRisk = useMemo(() => currentDay?.stops.some(isWeatherSensitiveStop) ?? false, [currentDay]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -253,13 +254,13 @@ export default function AssistantScreen() {
           {currentTrip && currentDay ? (
             <View style={styles.contextCard}>
               <View style={styles.contextTop}>
-                <View>
+                <View style={styles.contextTitleWrap}>
                   <Text style={styles.contextKicker}>Today - Day {currentDay.dayNumber}</Text>
                   <Text style={styles.contextTitle}>{currentDay.title}</Text>
                 </View>
                 <View style={styles.contextBadge}>
                   <Ionicons name="sparkles-outline" size={13} color={colors.teal} />
-                  <Text style={styles.contextBadgeText}>Context aware</Text>
+                  <Text style={styles.contextBadgeText}>AI ready</Text>
                 </View>
               </View>
               <Text style={styles.contextSummary}>
@@ -274,6 +275,22 @@ export default function AssistantScreen() {
                 <Ionicons name="bulb-outline" size={14} color={colors.teal} />
                 <Text style={styles.contextHintText}>Ask naturally, or choose a quick action below.</Text>
               </View>
+              {hasWeatherRisk ? (
+                <TouchableOpacity
+                  style={styles.weatherAgentCard}
+                  activeOpacity={0.86}
+                  onPress={() => sendPrompt('Make an indoor plan for today.', 'I would protect the weather-sensitive parts of today by moving outdoor time earlier and keeping indoor culture, cafe or food stops for the rain window.')}
+                >
+                  <View style={styles.weatherAgentIcon}>
+                    <Ionicons name="rainy-outline" size={17} color={colors.teal} />
+                  </View>
+                  <View style={styles.weatherAgentCopy}>
+                    <Text style={styles.weatherAgentKicker}>Weather Agent</Text>
+                    <Text style={styles.weatherAgentText}>Rain-ready preview available for this route.</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={17} color={colors.teal} />
+                </TouchableOpacity>
+              ) : null}
             </View>
           ) : null}
 
@@ -564,10 +581,10 @@ function buildQuickPrompts(trip?: TripResponse, day?: ItineraryDay): QuickPrompt
 function intentFromSuggestion(value: string): AgentIntent {
   const lower = value.toLowerCase();
   if (lower.includes('budget') || lower.includes('cheap') || lower.includes('ucuz') || lower.includes('bütçe')) return 'BUDGET_OPTIMIZE';
-  if (lower.includes('rain') || lower.includes('weather') || lower.includes('yağmur')) return 'RAIN_REPLAN';
+  if (lower.includes('rain') || lower.includes('weather') || lower.includes('indoor') || lower.includes('inside') || lower.includes('covered') || lower.includes('yağmur') || lower.includes('kapalı')) return 'RAIN_REPLAN';
   if (lower.includes('coffee') || lower.includes('dinner') || lower.includes('food') || lower.includes('kahve') || lower.includes('yemek')) return 'ADD_FOOD_STOP';
   if (lower.includes('replace') || lower.includes('change') || lower.includes('değiştir')) return 'REPLACE_STOP';
-  if (lower.includes('light') || lower.includes('easy') || lower.includes('short') || lower.includes('slow') || lower.includes('yorul') || lower.includes('hafif')) return 'MAKE_DAY_LIGHTER';
+  if (lower.includes('light') || lower.includes('easy') || lower.includes('short') || lower.includes('slow') || lower.includes('tired') || lower.includes('finish earlier') || lower.includes('yorul') || lower.includes('yorgun') || lower.includes('hafif')) return 'MAKE_DAY_LIGHTER';
   return 'GENERAL_GUIDANCE';
 }
 
@@ -650,6 +667,18 @@ function afterWalkKm(day: ItineraryDay, preview: AgentActionPreview) {
   if (preview.intent === 'ADD_FOOD_STOP') return day.walkKm + 0.3;
   if (preview.intent === 'BUDGET_OPTIMIZE') return Math.max(1.2, day.walkKm - 0.2);
   return day.walkKm;
+}
+
+function isWeatherSensitiveStop(stop: ItineraryDay['stops'][number]) {
+  const category = stop.category.toUpperCase();
+  const title = stop.title.toUpperCase();
+  return category.includes('WALKING')
+    || category.includes('FREE')
+    || title.includes('WALK')
+    || title.includes('PARK')
+    || title.includes('GARDEN')
+    || title.includes('WATERFRONT')
+    || title.includes('VIEW');
 }
 
 function ContextStat({
@@ -781,6 +810,10 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     gap: spacing.sm,
     justifyContent: 'space-between',
   },
+  contextTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
   contextKicker: {
     color: colors.teal,
     fontSize: typography.tiny,
@@ -798,6 +831,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     alignItems: 'center',
     backgroundColor: colors.fog,
     borderRadius: radius.pill,
+    flexShrink: 0,
     flexDirection: 'row',
     gap: 4,
     paddingHorizontal: spacing.sm,
@@ -856,6 +890,42 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     fontSize: 11,
     fontWeight: '800',
     lineHeight: 16,
+  },
+  weatherAgentCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+  },
+  weatherAgentIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  weatherAgentCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  weatherAgentKicker: {
+    color: colors.teal,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  weatherAgentText: {
+    color: colors.midnight,
+    fontSize: typography.tiny,
+    fontWeight: '800',
+    lineHeight: 16,
+    marginTop: 2,
   },
   messageLine: {
     alignItems: 'flex-end',
