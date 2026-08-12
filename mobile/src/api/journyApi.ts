@@ -72,6 +72,7 @@ export const tripApi = {
     return apiRequest<TripPreviewResponse>('/api/trips/preview', {
       method: 'POST',
       body: request,
+      timeoutMs: 45000,
     });
   },
 
@@ -83,6 +84,7 @@ export const tripApi = {
     const trip = await apiRequest<TripResponse>('/api/trips', {
       method: 'POST',
       body: request,
+      timeoutMs: 60000,
     });
     session.setCurrentTrip(trip);
     return trip;
@@ -91,6 +93,7 @@ export const tripApi = {
   async generate(tripId: string) {
     const trip = await apiRequest<TripResponse>(`/api/trips/${tripId}/generate`, {
       method: 'POST',
+      timeoutMs: 60000,
     });
     session.setCurrentTrip(trip);
     return trip;

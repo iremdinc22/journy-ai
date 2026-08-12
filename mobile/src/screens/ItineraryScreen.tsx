@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { aiApi, tripApi } from '../api/journyApi';
 import { session } from '../api/session';
-import type { ItineraryDay, ItineraryResponse } from '../api/types';
+import type { ItineraryDay, ItineraryResponse, ItineraryTimelineItem } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
 import { cityCoordinates } from '../utils/destinationVisuals';
@@ -303,22 +303,41 @@ export default function ItineraryScreen() {
             </View>
 
             <View style={styles.timeline}>
-              {item.stops.slice(0, 3).map((stop, index) => (
-                <View key={`${stop.order}-${stop.title}`} style={styles.stopRow}>
-                  <View style={styles.stopNumber}>
-                    <Text style={styles.stopNumberText}>{index + 1}</Text>
+              {timelineForDay(item).slice(0, 5).map((timelineItem, index, visibleTimeline) => (
+                timelineItem.type === 'TRAVEL' ? (
+                  <View key={timelineItem.id} style={styles.travelTimelineRow}>
+                    <View style={styles.travelTimelineIcon}>
+                      <Ionicons name="walk-outline" size={12} color={colors.teal} />
+                    </View>
+                    <View style={styles.stopLine} />
+                    <View style={styles.stopCopy}>
+                      <Text style={styles.travelTimelineText}>{timelineItem.startTime} - {timelineItem.endTime} · {timelineItem.title}</Text>
+                    </View>
                   </View>
-                  <View style={styles.stopLine} />
-                  <View style={styles.stopCopy}>
-                    <Text style={[styles.stopText, stop.optional && styles.stopOptional]}>{stop.title}</Text>
-                    <Text style={styles.stopTime}>{stop.timeWindow}{stop.optional ? ' - Optional' : ''}</Text>
+                ) : (
+                  <View key={timelineItem.id} style={styles.stopRow}>
+                    <View style={styles.stopNumber}>
+                      <Text style={styles.stopNumberText}>{stopNumberForTimelineItem(visibleTimeline, index)}</Text>
+                    </View>
+                    <View style={styles.stopLine} />
+                    <View style={styles.stopCopy}>
+                      <Text style={styles.stopText}>{timelineItem.title}</Text>
+                      <Text style={styles.stopTime}>{timelineItem.startTime} - {timelineItem.endTime}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.stopMenuButton}
+                      activeOpacity={0.78}
+                      onPress={() => {
+                        const stop = item.stops.find((candidate) => candidate.id === timelineItem.id);
+                        if (stop) openStopActions(item, stop);
+                      }}
+                    >
+                      <Ionicons name="ellipsis-horizontal" size={18} color={colors.teal} />
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity style={styles.stopMenuButton} activeOpacity={0.78} onPress={() => openStopActions(item, stop)}>
-                    <Ionicons name="ellipsis-horizontal" size={18} color={colors.teal} />
-                  </TouchableOpacity>
-                </View>
+                )
               ))}
-              {item.stops.length > 3 ? <Text style={styles.moreStops}>+{item.stops.length - 3} more stops in detail</Text> : null}
+              {timelineForDay(item).length > 5 ? <Text style={styles.moreStops}>+{timelineForDay(item).length - 5} more schedule items in detail</Text> : null}
             </View>
             <View style={styles.openRouteRow}>
               <Text style={styles.openRouteText}>Open route map</Text>
@@ -513,6 +532,27 @@ function iconForCategory(category: string): keyof typeof Ionicons.glyphMap {
   if (normalized.includes('WALKING')) return 'walk-outline';
   if (normalized.includes('FREE')) return 'leaf-outline';
   return 'location-outline';
+}
+
+function timelineForDay(day: ItineraryDay): ItineraryTimelineItem[] {
+  if (day.timeline?.length) {
+    return day.timeline;
+  }
+  return day.stops.map((stop) => ({
+    id: stop.id,
+    type: 'STOP',
+    title: stop.title,
+    startTime: stop.timeWindow,
+    endTime: stop.timeWindow,
+    durationMinutes: 0,
+    category: stop.category,
+    note: stop.note,
+    constraintStatus: 'OK',
+  }));
+}
+
+function stopNumberForTimelineItem(items: ItineraryTimelineItem[], index: number) {
+  return items.slice(0, index + 1).filter((item) => item.type === 'STOP').length;
 }
 
 function hasWeatherSensitiveStop(day: ItineraryDay) {
@@ -723,6 +763,25 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   routeLine: { backgroundColor: colors.mist, flex: 1, height: 2, marginHorizontal: spacing.xs },
   timeline: { marginTop: spacing.md },
   stopRow: { alignItems: 'center', flexDirection: 'row', minHeight: 38 },
+  travelTimelineRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    minHeight: 30,
+    paddingLeft: 2,
+  },
+  travelTimelineIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderRadius: radius.pill,
+    height: 24,
+    justifyContent: 'center',
+    width: 24,
+  },
+  travelTimelineText: {
+    color: colors.slate,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+  },
   stopNumber: {
     alignItems: 'center',
     backgroundColor: colors.midnight,

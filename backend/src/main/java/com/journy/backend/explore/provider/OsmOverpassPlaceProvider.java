@@ -6,9 +6,11 @@ import com.journy.backend.destination.provider.DestinationCoordinateResolver;
 import com.journy.backend.destination.provider.DestinationCoordinates;
 import com.journy.backend.place.enums.PlaceCategory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -21,6 +23,7 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
     private final boolean enabled;
     private final String endpoint;
     private final int radiusMeters;
+    private final List<Integer> searchRadii;
 
     public OsmOverpassPlaceProvider(
             RestClient.Builder restClientBuilder,
@@ -32,12 +35,21 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
     ) {
         this.restClient = restClientBuilder
                 .defaultHeader("User-Agent", "Journy/1.0 place-provider")
+                .requestFactory(requestFactory())
                 .build();
         this.objectMapper = objectMapper;
         this.destinationCoordinateResolver = destinationCoordinateResolver;
         this.enabled = enabled;
         this.endpoint = endpoint;
         this.radiusMeters = radiusMeters;
+        this.searchRadii = List.of(radiusMeters, Math.max(radiusMeters * 2, 9000));
+    }
+
+    private SimpleClientHttpRequestFactory requestFactory() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(3));
+        factory.setReadTimeout(Duration.ofSeconds(9));
+        return factory;
     }
 
     @Override
@@ -50,10 +62,20 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
         if (!enabled || city == null || city.isBlank()) {
             return List.of();
         }
+        for (int radius : searchRadii) {
+            List<ExternalPlaceCandidate> candidates = fetch(city, category, limit, query(city, category, limit, radius));
+            if (!candidates.isEmpty()) {
+                return candidates;
+            }
+        }
+        return List.of();
+    }
+
+    private List<ExternalPlaceCandidate> fetch(String city, PlaceCategory category, int limit, String query) {
         try {
             String body = restClient.post()
                     .uri(endpoint)
-                    .body(query(city, category, limit))
+                    .body(query)
                     .retrieve()
                     .body(String.class);
             return parse(city, category, body, limit);
@@ -62,9 +84,9 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
         }
     }
 
-    private String query(String city, PlaceCategory category, int limit) {
+    private String query(String city, PlaceCategory category, int limit, int radius) {
         DestinationCoordinates coordinates = destinationCoordinateResolver.coordinatesFor(city);
-        String filters = filtersFor(category, coordinates);
+        String filters = filtersFor(category, coordinates, radius);
         return """
                 [out:json][timeout:8];
                 (
@@ -74,24 +96,32 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
                 """.formatted(filters, Math.max(limit, 8));
     }
 
-    private String filtersFor(PlaceCategory category, DestinationCoordinates coordinates) {
+    private String filtersFor(PlaceCategory category, DestinationCoordinates coordinates, int radius) {
         if (category == null) {
             return String.join("\n",
-                    osmLines("\"tourism\"~\"museum|gallery|attraction\"", coordinates),
-                    osmLines("\"amenity\"~\"cafe|restaurant|food_court\"", coordinates),
-                    osmLines("\"leisure\"~\"park|garden\"", coordinates)
+                    osmLines("\"tourism\"~\"museum|gallery|attraction|artwork|viewpoint\"", coordinates, radius),
+                    osmLines("\"amenity\"~\"cafe|restaurant|food_court|bar|pub\"", coordinates, radius),
+                    osmLines("\"leisure\"~\"park|garden\"", coordinates, radius),
+                    osmLines("\"historic\"", coordinates, radius)
             );
         }
         return switch (category) {
-            case COFFEE -> osmLines("\"amenity\"=\"cafe\"", coordinates);
-            case FOOD -> osmLines("\"amenity\"~\"restaurant|food_court|bar\"", coordinates);
-            case CULTURE -> osmLines("\"tourism\"~\"museum|gallery|attraction\"", coordinates);
-            case FREE, WALKING -> osmLines("\"leisure\"~\"park|garden\"", coordinates);
+            case COFFEE -> osmLines("\"amenity\"=\"cafe\"", coordinates, radius);
+            case FOOD -> osmLines("\"amenity\"~\"restaurant|food_court|bar|pub\"", coordinates, radius);
+            case CULTURE -> String.join("\n",
+                    osmLines("\"tourism\"~\"museum|gallery|attraction|artwork\"", coordinates, radius),
+                    osmLines("\"historic\"", coordinates, radius)
+            );
+            case FREE, WALKING -> String.join("\n",
+                    osmLines("\"leisure\"~\"park|garden\"", coordinates, radius),
+                    osmLines("\"tourism\"=\"viewpoint\"", coordinates, radius),
+                    osmLines("\"historic\"", coordinates, radius)
+            );
         };
     }
 
-    private String osmLines(String filter, DestinationCoordinates coordinates) {
-        String around = "(around:%d,%.6f,%.6f)".formatted(radiusMeters, coordinates.latitude(), coordinates.longitude());
+    private String osmLines(String filter, DestinationCoordinates coordinates, int radius) {
+        String around = "(around:%d,%.6f,%.6f)".formatted(radius, coordinates.latitude(), coordinates.longitude());
         return "node[" + filter + "]" + around + ";\nway[" + filter + "]" + around + ";";
     }
 

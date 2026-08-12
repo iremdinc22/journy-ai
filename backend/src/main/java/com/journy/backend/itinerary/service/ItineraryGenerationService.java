@@ -2,6 +2,7 @@ package com.journy.backend.itinerary.service;
 
 import com.journy.backend.destination.provider.DestinationCoordinateResolver;
 import com.journy.backend.explore.model.Place;
+import com.journy.backend.explore.provider.PlaceProviderService;
 import com.journy.backend.explore.repository.PlaceRepository;
 import com.journy.backend.itinerary.model.ItineraryDay;
 import com.journy.backend.itinerary.model.ItineraryStop;
@@ -20,21 +21,25 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.text.Normalizer;
 
 @Service
 public class ItineraryGenerationService {
     private final ItineraryDayRepository itineraryDayRepository;
     private final PlaceRepository placeRepository;
     private final DestinationCoordinateResolver destinationCoordinateResolver;
+    private final PlaceProviderService placeProviderService;
 
     public ItineraryGenerationService(
             ItineraryDayRepository itineraryDayRepository,
             PlaceRepository placeRepository,
-            DestinationCoordinateResolver destinationCoordinateResolver
+            DestinationCoordinateResolver destinationCoordinateResolver,
+            PlaceProviderService placeProviderService
     ) {
         this.itineraryDayRepository = itineraryDayRepository;
         this.placeRepository = placeRepository;
         this.destinationCoordinateResolver = destinationCoordinateResolver;
+        this.placeProviderService = placeProviderService;
     }
 
     public void generateIfMissing(Trip trip) {
@@ -51,6 +56,7 @@ public class ItineraryGenerationService {
     }
 
     private void generate(Trip trip) {
+        enrichDestinationPlaces(trip);
         List<Place> candidatePlaces = selectPlaces(trip);
         Set<String> usedPlaceIds = new HashSet<>();
         int days = trip.dayCount();
@@ -120,6 +126,18 @@ public class ItineraryGenerationService {
         }
 
         return List.of();
+    }
+
+    private void enrichDestinationPlaces(Trip trip) {
+        String destination = trip.getDestination();
+        if (destination == null || destination.isBlank()) {
+            return;
+        }
+        int desiredPlaces = Math.max(trip.dayCount() * stopsPerDay(trip), 8);
+        if (placeRepository.countByCityIgnoreCase(destination) >= desiredPlaces) {
+            return;
+        }
+        placeProviderService.enrichCity(destination, null, Math.min(12, desiredPlaces + 4));
     }
 
     private List<Place> filterPlaces(List<Place> places, Trip trip, Set<PlaceCategory> categories, String city) {
@@ -333,7 +351,17 @@ public class ItineraryGenerationService {
     }
 
     private String normalize(String value) {
-        return value == null ? "" : value.toLowerCase().trim();
+        if (value == null) {
+            return "";
+        }
+        return Normalizer.normalize(value.toLowerCase().trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replace("ı", "i")
+                .replace("ç", "c")
+                .replace("ğ", "g")
+                .replace("ö", "o")
+                .replace("ş", "s")
+                .replace("ü", "u");
     }
 
     private boolean categoryMatchesInterest(PlaceCategory category, List<TravelInterest> interests) {
@@ -480,11 +508,73 @@ public class ItineraryGenerationService {
         Map<PlaceCategory, Place> anchors = anchorsByCategory(places);
         PlaceCategory lead = leadCategory(rhythm, anchors);
         PlaceCategory support = supportCategory(rhythm, anchors, lead);
+        String cityTheme = cityDayTheme(trip, dayNumber, lead, support);
+        if (cityTheme != null) {
+            return new DayTheme(cityTheme, summaryPhrase(lead, support, trip), rhythm);
+        }
         String leadLabel = titleLabel(trip, anchors.get(lead), lead, dayNumber);
         String supportLabel = support == null ? paceLabel(trip) : categoryPhrase(support, anchors.get(support));
         String title = leadLabel + " & " + supportLabel;
         String summary = summaryPhrase(lead, support, trip);
         return new DayTheme(title, summary, rhythm);
+    }
+
+    private String cityDayTheme(Trip trip, int dayNumber, PlaceCategory lead, PlaceCategory support) {
+        List<String> themes = switch (normalize(trip.getDestination())) {
+            case "rome", "roma" -> List.of(
+                    "Monti, Espresso & Ancient Streets",
+                    "Museums, Piazzas & Trastevere Dinner",
+                    "Borghese Morning, Market Lunch",
+                    "Tiber Walk & Local Roman Bites"
+            );
+            case "paris" -> List.of(
+                    "Marais Coffee & Gallery Walk",
+                    "Seine, Orsay & Saint-Germain",
+                    "Market Lunch & Canal Stroll",
+                    "Montmartre Views, Local Dinner"
+            );
+            case "amsterdam" -> List.of(
+                    "Jordaan Canals & Coffee",
+                    "Museum Quarter, Bakery Pause",
+                    "De Pijp Market & Slow Walk",
+                    "Noord Ferry, Dinner Streets"
+            );
+            case "bursa" -> List.of(
+                    "Tophane Views & Koza Han",
+                    "Green Mosque, Market Lunch",
+                    "Cumalikizik Village Walk",
+                    "Mudanya Seaside & Local Dinner"
+            );
+            case "canakkale" -> List.of(
+                    "Kordon Walk & Old Town Coffee",
+                    "Troy Museum, Market Lunch",
+                    "Dardanelles Views & Meze",
+                    "Gallipoli History Window"
+            );
+            default -> List.of();
+        };
+        if (!themes.isEmpty()) {
+            return themes.get(Math.floorMod(dayNumber - 1, themes.size()));
+        }
+        return genericDayTheme(lead, support, trip);
+    }
+
+    private String genericDayTheme(PlaceCategory lead, PlaceCategory support, Trip trip) {
+        String first = switch (lead) {
+            case CULTURE -> "Museum Morning";
+            case WALKING -> "Old Town Walk";
+            case FREE -> "Scenic Free Windows";
+            case COFFEE -> "Coffee & Slow Streets";
+            case FOOD -> "Market Lunch & Local Bites";
+        };
+        String second = support == null ? paceLabel(trip) : switch (support) {
+            case CULTURE -> "Culture Stop";
+            case WALKING -> "Easy Walk";
+            case FREE -> "Viewpoints";
+            case COFFEE -> "Coffee Break";
+            case FOOD -> "Local Dinner";
+        };
+        return first + " & " + second;
     }
 
     private Map<PlaceCategory, Place> anchorsByCategory(List<Place> places) {
@@ -656,12 +746,47 @@ public class ItineraryGenerationService {
                     PlaceCategory.CULTURE, List.of("Sultanahmet Culture Anchor", "Pera Museum Window", "Istanbul Modern Stop", "Balat Heritage Walk"),
                     PlaceCategory.FREE, List.of("Bosphorus Ferry Window", "Gulhane Garden Reset", "Galata Viewpoint", "Moda Sunset Stop")
             );
+            case "rome", "roma" -> Map.of(
+                    PlaceCategory.WALKING, List.of("Trastevere Lane Walk", "Monti Morning Loop", "Tiber River Stroll", "Centro Storico Evening Walk"),
+                    PlaceCategory.COFFEE, List.of("Sant'Eustachio Coffee Stop", "Monti Espresso Bar", "Campo de' Fiori Cafe Break", "Trastevere Bakery Pause"),
+                    PlaceCategory.FOOD, List.of("Testaccio Lunch Window", "Trastevere Dinner Streets", "Campo de' Fiori Market Bites", "Monti Local Dinner"),
+                    PlaceCategory.CULTURE, List.of("Capitoline Museums Block", "Pantheon Heritage Window", "Galleria Borghese Anchor", "MAXXI Design Stop"),
+                    PlaceCategory.FREE, List.of("Spanish Steps Viewpoint", "Villa Borghese Reset", "Piazza Navona Free Window", "Janiculum Sunset Stop")
+            );
+            case "paris" -> Map.of(
+                    PlaceCategory.WALKING, List.of("Marais Gallery Walk", "Seine Riverside Loop", "Saint-Germain Slow Walk", "Canal Saint-Martin Stroll"),
+                    PlaceCategory.COFFEE, List.of("Le Marais Coffee Break", "Saint-Germain Cafe Window", "Canal Bakery Pause", "Montmartre Espresso Stop"),
+                    PlaceCategory.FOOD, List.of("Rue Cler Lunch Window", "Bastille Market Bites", "Latin Quarter Dinner", "Belleville Food Streets"),
+                    PlaceCategory.CULTURE, List.of("Orsay Museum Block", "Pompidou Culture Window", "Rodin Museum Garden", "Louvre Morning Anchor"),
+                    PlaceCategory.FREE, List.of("Luxembourg Garden Reset", "Sacré-Coeur Viewpoint", "Tuileries Free Window", "Seine Sunset Stop")
+            );
+            case "amsterdam" -> Map.of(
+                    PlaceCategory.WALKING, List.of("Jordaan Canal Walk", "De Pijp Slow Loop", "Nine Streets Window", "Museum Quarter Walk"),
+                    PlaceCategory.COFFEE, List.of("De Pijp Coffee Break", "Jordaan Bakery Pause", "Nine Streets Espresso Stop", "Oud-West Cafe Window"),
+                    PlaceCategory.FOOD, List.of("Foodhallen Lunch", "Jordaan Local Dinner", "Albert Cuyp Market Bites", "Noord Dinner Window"),
+                    PlaceCategory.CULTURE, List.of("Rijksmuseum Morning Block", "Van Gogh Museum Window", "Stedelijk Design Stop", "Foam Photo Anchor"),
+                    PlaceCategory.FREE, List.of("Vondelpark Reset", "IJ Ferry Window", "Begijnhof Quiet Stop", "Canal Viewpoint")
+            );
+            case "bursa" -> Map.of(
+                    PlaceCategory.WALKING, List.of("Cumalikizik Village Walk", "Tophane Heritage Loop", "Setbasi Slow Walk", "Mudanya Seaside Stroll"),
+                    PlaceCategory.COFFEE, List.of("Tophane Coffee Break", "Setbasi Tea Pause", "Nilufer Cafe Window", "Mudanya Bakery Stop"),
+                    PlaceCategory.FOOD, List.of("Iskender Lunch Window", "Kayhan Market Bites", "Mudanya Dinner Stop", "Nilufer Local Dinner"),
+                    PlaceCategory.CULTURE, List.of("Green Mosque Culture Block", "Koza Han Heritage Stop", "Muradiye Complex Window", "Bursa City Museum Anchor"),
+                    PlaceCategory.FREE, List.of("Tophane Viewpoint", "Botanik Park Reset", "Koza Han Courtyard", "Uludag Foothill View")
+            );
+            case "canakkale" -> Map.of(
+                    PlaceCategory.WALKING, List.of("Kordon Waterfront Walk", "Clock Tower Old Town Loop", "Trojan Horse Seafront Stop", "Dardanelles Sunset Walk"),
+                    PlaceCategory.COFFEE, List.of("Kordon Coffee Break", "Old Town Cafe Window", "Marina Espresso Stop", "Clock Tower Tea Pause"),
+                    PlaceCategory.FOOD, List.of("Kordon Fish Lunch", "Old Town Local Dinner", "Marina Meze Window", "Market Bites Stop"),
+                    PlaceCategory.CULTURE, List.of("Troy Museum Anchor", "Naval Museum Window", "Aynali Carsi Heritage Stop", "Gallipoli History Block"),
+                    PlaceCategory.FREE, List.of("Dardanelles Viewpoint", "Kordon Free Window", "Clock Tower Square", "Seafront Sunset Stop")
+            );
             default -> Map.of(
-                    PlaceCategory.WALKING, List.of(city + " Waterfront Walk", city + " Old Town Loop", city + " Design District Walk", city + " Garden Route"),
-                    PlaceCategory.COFFEE, List.of(city + " Coffee Break", city + " Bakery Pause", city + " Espresso Window", city + " Cafe Stop"),
-                    PlaceCategory.FOOD, List.of(city + " Market Lunch", city + " Local Dinner Zone", city + " Food Street Stop", city + " Neighborhood Bites"),
-                    PlaceCategory.CULTURE, List.of(city + " Culture Anchor", city + " Museum Window", city + " Gallery Block", city + " Design Stop"),
-                    PlaceCategory.FREE, List.of(city + " Free Viewpoint", city + " Park Reset", city + " Public Square Window", city + " Scenic Pause")
+                    PlaceCategory.WALKING, List.of("Old Town Walk", "Waterfront Loop", "Historic Center Stroll", "Garden Route"),
+                    PlaceCategory.COFFEE, List.of("Local Coffee Break", "Neighborhood Bakery Pause", "Central Espresso Stop", "Quiet Cafe Window"),
+                    PlaceCategory.FOOD, List.of("Market Lunch Window", "Local Dinner Streets", "Neighborhood Bites", "Old Town Food Stop"),
+                    PlaceCategory.CULTURE, List.of("Museum Morning Block", "Heritage Quarter Walk", "Gallery Window", "Design & History Stop"),
+                    PlaceCategory.FREE, List.of("Public Square Window", "City Viewpoint", "Park Reset", "Scenic Free Stop")
             );
         };
         return cityNames.get(category);

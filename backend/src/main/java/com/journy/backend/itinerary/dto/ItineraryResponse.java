@@ -13,7 +13,8 @@ public record ItineraryResponse(
             String summary,
             double walkKm,
             int stopCount,
-            List<ItineraryStopResponse> stops
+            List<ItineraryStopResponse> stops,
+            List<ItineraryTimelineItemResponse> timeline
     ) {
     }
 
@@ -27,6 +28,23 @@ public record ItineraryResponse(
             boolean optional,
             double latitude,
             double longitude
+    ) {
+    }
+
+    public record ItineraryTimelineItemResponse(
+            String id,
+            String type,
+            String title,
+            String startTime,
+            String endTime,
+            int durationMinutes,
+            Double distanceKm,
+            String fromStopId,
+            String toStopId,
+            String category,
+            String note,
+            String constraintStatus,
+            String constraintWarning
     ) {
     }
 }

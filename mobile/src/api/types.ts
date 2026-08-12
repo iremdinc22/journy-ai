@@ -80,6 +80,22 @@ export type ItineraryStop = {
   longitude: number;
 };
 
+export type ItineraryTimelineItem = {
+  id: string;
+  type: 'STOP' | 'TRAVEL';
+  title: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  distanceKm?: number | null;
+  fromStopId?: string | null;
+  toStopId?: string | null;
+  category?: string | null;
+  note?: string | null;
+  constraintStatus?: 'OK' | 'WARNING' | string;
+  constraintWarning?: string | null;
+};
+
 export type ItineraryDay = {
   dayNumber: number;
   title: string;
@@ -87,6 +103,7 @@ export type ItineraryDay = {
   walkKm: number;
   stopCount: number;
   stops: ItineraryStop[];
+  timeline?: ItineraryTimelineItem[];
 };
 
 export type ItineraryResponse = {

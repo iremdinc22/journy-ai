@@ -10,6 +10,7 @@ declare const process: {
 const localHost = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const configuredBaseUrl = process.env?.EXPO_PUBLIC_API_BASE_URL;
 const REQUEST_TIMEOUT_MS = 3500;
+const LONG_REQUEST_TIMEOUT_MS = 45000;
 
 function resolveDevHost() {
   const scriptUrl = NativeModules.SourceCode?.scriptURL as string | undefined;
@@ -25,6 +26,7 @@ type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   auth?: boolean;
+  timeoutMs?: number;
 };
 
 export class ApiError extends Error {
@@ -72,7 +74,7 @@ async function sendRequest<T>(path: string, options: RequestOptions, allowRefres
   let networkError: unknown;
   for (const baseUrl of requestBaseUrls()) {
     try {
-      response = await fetchWithTimeout(`${baseUrl}${path}`, request);
+      response = await fetchWithTimeout(`${baseUrl}${path}`, request, options.timeoutMs);
       break;
     } catch (error) {
       networkError = error;
@@ -118,7 +120,7 @@ async function refreshAccessToken() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ refreshToken }),
-        });
+        }, LONG_REQUEST_TIMEOUT_MS);
         break;
       } catch {
         response = undefined;
@@ -165,9 +167,9 @@ function uniqueUrls(urls: Array<string | undefined>) {
   return urls.filter((url, index): url is string => Boolean(url) && urls.indexOf(url) === index);
 }
 
-function fetchWithTimeout(url: string, options: RequestInit) {
+function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { ...options, signal: controller.signal })
     .finally(() => clearTimeout(timeout));
 }

@@ -6,7 +6,7 @@ import MapView, { Marker, Polyline, type LatLng } from 'react-native-maps';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { aiApi } from '../api/journyApi';
-import type { AiItinerarySuggestionResponse, ItineraryDay, ItineraryStop, PlaceResponse } from '../api/types';
+import type { AiItinerarySuggestionResponse, ItineraryDay, ItineraryStop, ItineraryTimelineItem, PlaceResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 import { placeImage } from '../utils/destinationVisuals';
 
@@ -36,6 +36,7 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
     ? 'Food breaks included'
     : 'Culture-first flow';
   const mapRef = useRef<MapView | null>(null);
+  const timelineItems = useMemo(() => timelineForDay(currentDay), [currentDay]);
   const routeCoordinates = useMemo(() => stopsToCoordinates(currentDay.stops), [currentDay.stops]);
   const mapRegion = useMemo(() => regionForCoordinates(routeCoordinates), [routeCoordinates]);
   const mappedWalkKm = useMemo(() => estimateRouteDistanceKm(currentDay.stops), [currentDay.stops]);
@@ -284,31 +285,50 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Stop timeline</Text>
+        <Text style={styles.sectionTitle}>Daily schedule</Text>
         <View style={styles.stopList}>
-          {currentDay.stops.map((stop, index) => (
-            <TouchableOpacity
-              key={`${stop.order}-${stop.title}`}
-              style={styles.stopRow}
-              activeOpacity={0.86}
-              onPress={() => openStop(stop)}
-            >
-              <View style={styles.stopRail}>
-                <View style={styles.stopNumber}>
-                  <Text style={styles.stopNumberText}>{index + 1}</Text>
+          {timelineItems.map((item, index) => (
+            item.type === 'TRAVEL' ? (
+              <View key={item.id} style={styles.travelRow}>
+                <View style={styles.stopRail}>
+                  <View style={styles.travelIcon}>
+                    <Ionicons name="walk-outline" size={14} color={colors.teal} />
+                  </View>
+                  {index !== timelineItems.length - 1 ? <View style={styles.verticalLine} /> : null}
                 </View>
-                {index !== currentDay.stops.length - 1 ? <View style={styles.verticalLine} /> : null}
-              </View>
-              <View style={styles.stopCopy}>
-                <View style={styles.stopTopLine}>
-                  <Text style={styles.stopWindow}>{stop.timeWindow}</Text>
-                  <Text style={styles.stopCategory}>{formatCategory(stop.category)}</Text>
+                <View style={styles.stopCopy}>
+                  <Text style={styles.travelTime}>{item.startTime} - {item.endTime}</Text>
+                  <Text style={styles.travelTitle}>{item.title}{item.distanceKm ? ` · ${item.distanceKm.toFixed(1)} km` : ''}</Text>
                 </View>
-                <Text style={styles.stopTitle}>{stop.title}</Text>
-                <Text style={styles.stopNote}>{stop.note}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.softMuted} />
-            </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.stopRow}
+                activeOpacity={0.86}
+                onPress={() => {
+                  const stop = currentDay.stops.find((candidate) => candidate.id === item.id);
+                  if (stop) openStop(stop);
+                }}
+              >
+                <View style={styles.stopRail}>
+                  <View style={styles.stopNumber}>
+                    <Text style={styles.stopNumberText}>{stopNumberForTimelineItem(timelineItems, index)}</Text>
+                  </View>
+                  {index !== timelineItems.length - 1 ? <View style={styles.verticalLine} /> : null}
+                </View>
+                <View style={styles.stopCopy}>
+                  <View style={styles.stopTopLine}>
+                    <Text style={styles.stopWindow}>{item.startTime} - {item.endTime}</Text>
+                    <Text style={styles.stopCategory}>{formatCategory(item.category ?? 'STOP')}</Text>
+                  </View>
+                  <Text style={styles.stopTitle}>{item.title}</Text>
+                  <Text style={styles.stopNote}>{item.note}</Text>
+                  {item.constraintWarning ? <Text style={styles.constraintWarning}>{item.constraintWarning}</Text> : null}
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.softMuted} />
+              </TouchableOpacity>
+            )
           ))}
         </View>
       </ScrollView>
@@ -461,6 +481,27 @@ function previewWalkImpact(action: ActionKey, minutesSaved?: number | null) {
 
 function estimateRouteMinutes(km: number) {
   return Math.max(8, Math.round(km * 13));
+}
+
+function timelineForDay(day: ItineraryDay): ItineraryTimelineItem[] {
+  if (day.timeline?.length) {
+    return day.timeline;
+  }
+  return day.stops.map((stop) => ({
+    id: stop.id,
+    type: 'STOP',
+    title: stop.title,
+    startTime: stop.timeWindow,
+    endTime: stop.timeWindow,
+    durationMinutes: 0,
+    category: stop.category,
+    note: stop.note,
+    constraintStatus: 'OK',
+  }));
+}
+
+function stopNumberForTimelineItem(items: ItineraryTimelineItem[], index: number) {
+  return items.slice(0, index + 1).filter((item) => item.type === 'STOP').length;
 }
 
 function iconForStop(category: string): React.ComponentProps<typeof Ionicons>['name'] {
@@ -1158,7 +1199,25 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       width: 34,
     },
     stopNumberText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900' },
+    travelIcon: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaceWarm,
+      borderRadius: radius.pill,
+      height: 28,
+      justifyContent: 'center',
+      width: 28,
+    },
     verticalLine: { backgroundColor: colors.mist, flex: 1, marginTop: 6, width: 1 },
+    travelRow: {
+      alignItems: 'center',
+      backgroundColor: colors.ivory,
+      flexDirection: 'row',
+      minHeight: 58,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    travelTime: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900' },
+    travelTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900', marginTop: 2 },
     stopCopy: { flex: 1, marginLeft: spacing.md, marginRight: spacing.sm },
     stopTopLine: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: 4 },
     stopWindow: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
@@ -1175,5 +1234,12 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
     },
     stopTitle: { color: colors.midnight, fontSize: typography.body, fontWeight: '900' },
     stopNote: { color: colors.slate, fontSize: typography.small, fontWeight: '700', lineHeight: 18, marginTop: 4 },
+    constraintWarning: {
+      color: colors.teal,
+      fontSize: typography.tiny,
+      fontWeight: '900',
+      lineHeight: 16,
+      marginTop: spacing.xs,
+    },
   });
 }

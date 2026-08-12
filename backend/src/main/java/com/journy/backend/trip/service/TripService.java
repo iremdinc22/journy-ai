@@ -66,7 +66,7 @@ public class TripService {
         int estimatedStops = days * stopsPerDay;
         int availablePlaceCount = destination.isBlank() ? 0 : (int) placeRepository.countByCityIgnoreCase(destination);
         if (!destination.isBlank() && availablePlaceCount < 4) {
-            placeProviderService.enrichCity(destination, null, 16);
+            placeProviderService.enrichCity(destination, null, 8);
             availablePlaceCount = (int) placeRepository.countByCityIgnoreCase(destination);
         }
         int matchedPlaceCount = destination.isBlank() || interests.isEmpty()
