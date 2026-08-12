@@ -19,12 +19,13 @@ public class PythonAgentClient {
                 .build();
     }
 
-    public Optional<AgentMessageResponse> message(String message, AgentContext context) {
+    public Optional<AgentMessageResponse> message(String message, AgentContext context, String language) {
         try {
             AgentMessageResponse response = restClient.post()
                     .uri("/v1/agent/message")
                     .body(new PythonAgentMessageRequest(
                             message,
+                            language,
                             context.trip(),
                             context.day(),
                             context.itineraryDays(),
@@ -40,6 +41,7 @@ public class PythonAgentClient {
 
     private record PythonAgentMessageRequest(
             String message,
+            String language,
             AgentContext.TripAgentContext trip,
             AgentContext.DayAgentContext day,
             java.util.List<AgentContext.DayAgentContext> itineraryDays,

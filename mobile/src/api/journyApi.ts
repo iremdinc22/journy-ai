@@ -200,34 +200,34 @@ export const aiApi = {
     });
   },
 
-  itinerarySuggestion(tripId: string, dayNumber: number, action: string) {
+  itinerarySuggestion(tripId: string, dayNumber: number, action: string, language: 'en' | 'tr' = 'en') {
     return apiRequest<AiItinerarySuggestionResponse>('/api/ai/itinerary-suggestion', {
       method: 'POST',
-      body: { tripId, dayNumber, action },
+      body: { tripId, dayNumber, action, language },
     });
   },
 
-  applyItinerarySuggestion(tripId: string, dayNumber: number, action: string) {
+  applyItinerarySuggestion(tripId: string, dayNumber: number, action: string, language: 'en' | 'tr' = 'en') {
     return apiRequest<ItineraryDay>('/api/ai/itinerary-apply', {
       method: 'POST',
-      body: { tripId, dayNumber, action },
+      body: { tripId, dayNumber, action, language },
     });
   },
 };
 
 export const agentApi = {
-  message(message: string, tripId?: string, dayNumber = 1) {
+  message(message: string, tripId?: string, dayNumber = 1, language: 'en' | 'tr' = 'en') {
     return apiRequest<AgentMessageResponse>('/api/agent/message', {
       method: 'POST',
-      body: { tripId, dayNumber, message },
+      body: { tripId, dayNumber, message, language },
       timeoutMs: 20000,
     });
   },
 
-  apply(tripId: string, dayNumber: number, intent: AgentIntent) {
+  apply(tripId: string, dayNumber: number, intent: AgentIntent, language: 'en' | 'tr' = 'en') {
     return apiRequest<ItineraryDay>('/api/agent/apply', {
       method: 'POST',
-      body: { tripId, dayNumber, intent },
+      body: { tripId, dayNumber, intent, language },
       timeoutMs: 20000,
     });
   },

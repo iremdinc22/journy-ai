@@ -5,25 +5,26 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { tripApi } from '../api/journyApi';
+import { useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { ApiError } from '../api/client';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LoadingPlan'>;
 
-const steps = [
-  'Reading your travel style',
-  'Clustering nearby places',
-  'Selecting local food stops',
-  'Optimizing the daily rhythm',
-];
-
 export default function LoadingPlanScreen({ navigation, route }: Props) {
   const { isDark, theme } = useAppTheme();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const [error, setError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('Make sure the backend is running, then try again.');
+  const [errorMessage, setErrorMessage] = useState(t('loading.backendError'));
   const [creating, setCreating] = useState(false);
+  const steps = [
+    t('loading.readStyle'),
+    t('loading.clusterPlaces'),
+    t('loading.foodStops'),
+    t('loading.optimize'),
+  ];
 
   const createPlan = useCallback(async () => {
     setCreating(true);
@@ -32,7 +33,7 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
       await tripApi.create(route.params.tripDraft);
       navigation.replace('MainTabs', { screen: 'Itinerary' });
     } catch (requestError) {
-      setErrorMessage(messageForError(requestError));
+      setErrorMessage(messageForError(requestError, t));
       setError(true);
     } finally {
       setCreating(false);
@@ -51,7 +52,7 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
         }
       } catch (requestError) {
         if (!cancelled) {
-          setErrorMessage(messageForError(requestError));
+          setErrorMessage(messageForError(requestError, t));
           setError(true);
         }
       } finally {
@@ -78,10 +79,8 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
           <Ionicons name="sparkles" size={36} color={colors.surface} />
         </View>
 
-        <Text style={styles.title}>Building your AI plan.</Text>
-        <Text style={styles.subtitle}>
-          Journy is combining route logic, pace, local experiences and food picks for your city.
-        </Text>
+        <Text style={styles.title}>{t('loading.title')}</Text>
+        <Text style={styles.subtitle}>{t('loading.subtitle')}</Text>
 
         <View style={styles.card}>
           {steps.map((step, index) => (
@@ -104,14 +103,14 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
 
         {error ? (
           <View style={styles.errorCard}>
-            <Text style={styles.errorTitle}>Plan could not be created</Text>
+            <Text style={styles.errorTitle}>{t('loading.errorTitle')}</Text>
             <Text style={styles.errorText}>{errorMessage}</Text>
             <View style={styles.errorActions}>
               <TouchableOpacity style={styles.retryButton} activeOpacity={0.88} onPress={createPlan} disabled={creating}>
-                <Text style={styles.retryText}>{creating ? 'Retrying...' : 'Retry'}</Text>
+                <Text style={styles.retryText}>{creating ? t('loading.retrying') : t('common.retry')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.88} onPress={() => navigation.replace('TripSetup')}>
-                <Text style={styles.secondaryText}>Edit setup</Text>
+                <Text style={styles.secondaryText}>{t('loading.editSetup')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -121,17 +120,19 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
   );
 }
 
-function messageForError(error: unknown) {
+type Translate = ReturnType<typeof useTranslation>;
+
+function messageForError(error: unknown, t: Translate) {
   if (error instanceof ApiError && error.status === 401) {
-    return 'Your session expired. Please sign in again, then retry creating the plan.';
+    return t('loading.sessionExpired');
   }
   if (error instanceof ApiError && error.status === 403) {
-    return 'Your session needs a fresh sign in before Journy can create this plan.';
+    return t('loading.freshSignIn');
   }
   if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
-    return error.message || 'Some trip details need attention. Go back to setup and check your destination, dates and interests.';
+    return error.message || t('loading.checkDetails');
   }
-  return 'Make sure the backend is running and your phone is using the correct API address, then try again.';
+  return t('loading.networkError');
 }
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];

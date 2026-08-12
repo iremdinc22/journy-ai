@@ -23,6 +23,7 @@ import AssistantScreen from '../screens/AssistantScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 import type { CreateTripRequest, ItineraryDay, PlaceResponse } from '../api/types';
+import { useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 
 export type RootStackParamList = {
@@ -57,6 +58,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 function MainTabs() {
   const { theme } = useAppTheme();
+  const t = useTranslation();
   const { colors, radius } = theme;
 
   return (
@@ -105,27 +107,27 @@ function MainTabs() {
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        options={{ title: 'Home' }}
+        options={{ title: t('tabs.home') }}
       />
       <Tab.Screen
         name="Itinerary"
         component={ItineraryScreen}
-        options={{ title: 'Plan' }}
+        options={{ title: t('tabs.plan') }}
       />
       <Tab.Screen
         name="Explore"
         component={ExploreScreen}
-        options={{ title: 'Explore' }}
+        options={{ title: t('tabs.explore') }}
       />
       <Tab.Screen
         name="Assistant"
         component={AssistantScreen}
-        options={{ title: 'AI' }}
+        options={{ title: t('tabs.ai') }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ title: 'Profile' }}
+        options={{ title: t('tabs.profile') }}
       />
     </Tab.Navigator>
   );

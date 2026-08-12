@@ -61,13 +61,14 @@ public class AiService {
                 .orElseThrow(() -> new ResourceNotFoundException("Itinerary day was not found"));
 
         String action = request.action().toLowerCase();
+        boolean Turkish = isTurkish(request.language());
         if (action.contains("food")) {
-            return buildFoodSuggestion(day, trip);
+            return buildFoodSuggestion(day, trip, Turkish);
         }
         if (action.contains("replace")) {
-            return buildReplaceSuggestion(day, trip);
+            return buildReplaceSuggestion(day, trip, Turkish);
         }
-        return buildLighterSuggestion(day, trip);
+        return buildLighterSuggestion(day, trip, Turkish);
     }
 
     @Transactional
@@ -81,16 +82,17 @@ public class AiService {
                 .orElseThrow(() -> new ResourceNotFoundException("Itinerary day was not found"));
 
         String action = request.action().toLowerCase();
+        boolean Turkish = isTurkish(request.language());
         if (action.contains("food")) {
-            applyFoodStop(day, trip);
+            applyFoodStop(day, trip, Turkish);
         } else if (action.contains("rain") || action.contains("weather")) {
-            applyRainReplan(day, trip);
+            applyRainReplan(day, trip, Turkish);
         } else if (action.contains("budget") || action.contains("cheap")) {
-            applyBudgetOptimization(day, trip);
+            applyBudgetOptimization(day, trip, Turkish);
         } else if (action.contains("replace")) {
-            applyReplacement(day, trip);
+            applyReplacement(day, trip, Turkish);
         } else {
-            applyLighterDay(day);
+            applyLighterDay(day, Turkish);
         }
 
         normalizeStopOrder(day);
@@ -200,10 +202,20 @@ public class AiService {
                 .orElseGet(() -> aiConversationRepository.save(new AiConversation(user, null, "Travel assistant")));
     }
 
-    private AiItinerarySuggestionResponse buildLighterSuggestion(ItineraryDay day, Trip trip) {
+    private AiItinerarySuggestionResponse buildLighterSuggestion(ItineraryDay day, Trip trip, boolean Turkish) {
         ItineraryStop affectedStop = day.getStops().isEmpty() ? null : day.getStops().getLast();
         List<String> affected = affectedStop == null ? List.of() : List.of(affectedStop.getTitle());
         int minutesSaved = Math.max(14, (int) Math.round(day.getWalkKm() * 3.4));
+        if (Turkish) {
+            return new AiItinerarySuggestionResponse(
+                    day.getDayNumber() + ". günü hafiflet",
+                    "En güçlü ana durakları koruyup son durağı opsiyonel bir aralığa çeviririm. Böylece ana deneyim korunurken günün baskısı azalır.",
+                    "Opsiyonel son durağı kaldır",
+                    minutesSaved,
+                    affected,
+                    trip.getDestination() + " " + day.getDayNumber() + ". gün daha sakin " + Math.max(2, day.getStops().size() - 1) + " duraklı rotaya dönüşür."
+            );
+        }
         return new AiItinerarySuggestionResponse(
                 "Make Day " + day.getDayNumber() + " lighter",
                 "Keep the strongest anchor stops and turn the final stop into an optional window. This protects the main experience while reducing pressure.",
@@ -214,12 +226,22 @@ public class AiService {
         );
     }
 
-    private AiItinerarySuggestionResponse buildFoodSuggestion(ItineraryDay day, Trip trip) {
+    private AiItinerarySuggestionResponse buildFoodSuggestion(ItineraryDay day, Trip trip, boolean Turkish) {
         ItineraryStop anchor = day.getStops().stream()
                 .filter(stop -> stop.getCategory().equalsIgnoreCase("FOOD") || stop.getCategory().equalsIgnoreCase("COFFEE"))
                 .findFirst()
                 .orElse(day.getStops().isEmpty() ? null : day.getStops().get(Math.min(1, day.getStops().size() - 1)));
         List<String> affected = anchor == null ? List.of() : List.of(anchor.getTitle());
+        if (Turkish) {
+            return new AiItinerarySuggestionResponse(
+                    "Yakına yemek molası ekle",
+                    "Seni şehrin öbür ucuna göndermeden mevcut rotanın yakınına yerel yemek veya kahve durağı eklerim.",
+                    "Rotaya yakın yemek durağı ekle",
+                    0,
+                    affected,
+                    trip.getDestination() + " " + day.getDayNumber() + ". gün aynı rota şeklini korur ama daha iyi bir mola aralığı kazanır."
+            );
+        }
         return new AiItinerarySuggestionResponse(
                 "Add a nearby food break",
                 "Add one local food or coffee stop near the current route instead of sending you across the city.",
@@ -230,9 +252,19 @@ public class AiService {
         );
     }
 
-    private AiItinerarySuggestionResponse buildReplaceSuggestion(ItineraryDay day, Trip trip) {
+    private AiItinerarySuggestionResponse buildReplaceSuggestion(ItineraryDay day, Trip trip, boolean Turkish) {
         ItineraryStop affectedStop = day.getStops().size() > 2 ? day.getStops().get(1) : day.getStops().stream().findFirst().orElse(null);
         List<String> affected = affectedStop == null ? List.of() : List.of(affectedStop.getTitle());
+        if (Turkish) {
+            return new AiItinerarySuggestionResponse(
+                    "Bir durağı değiştir",
+                    "En zayıf uyumlu durağı aynı bölgede başka bir seçenekle değiştiririm; gün değişir ama rota bozulmaz.",
+                    "Aynı bölgede durağı değiştir",
+                    10,
+                    affected,
+                    trip.getDestination() + " " + day.getDayNumber() + ". gün yürünebilir kalır ve tercihlerine daha iyi uyar."
+            );
+        }
         return new AiItinerarySuggestionResponse(
                 "Replace one stop",
                 "Swap the weakest-fit stop for another option in the same area so the day changes without breaking the route.",
@@ -243,23 +275,31 @@ public class AiService {
         );
     }
 
-    private void applyLighterDay(ItineraryDay day) {
+    private void applyLighterDay(ItineraryDay day, boolean Turkish) {
         day.setTitle(lightTitle(day.getTitle()));
         if (day.getStops().size() <= 2) {
-            day.setSummary("Journy kept the core stops and marked the pace as already light.");
+            day.setSummary(Turkish
+                    ? "Journy ana durakları korudu; bu gün zaten hafif tempoya uygun."
+                    : "Journy kept the core stops and marked the pace as already light.");
             day.setWalkKm(Math.max(2.4, Math.round((day.getWalkKm() - 0.4) * 10.0) / 10.0));
             return;
         }
         day.getStops().removeLast();
-        day.setSummary("A lighter version of the day with the final optional stop removed and more room between anchors.");
+        day.setSummary(Turkish
+                ? "Son esnek durak çıkarıldı; ana duraklar arasında daha fazla boşluk bırakıldı."
+                : "A lighter version of the day with the final optional stop removed and more room between anchors.");
         day.setWalkKm(Math.max(2.4, Math.round((day.getWalkKm() - 1.1) * 10.0) / 10.0));
+    }
+
+    private boolean isTurkish(String language) {
+        return language != null && language.equalsIgnoreCase("tr");
     }
 
     private String lightTitle(String title) {
         return title.toLowerCase().startsWith("lighter ") ? title : "Lighter " + title;
     }
 
-    private void applyFoodStop(ItineraryDay day, Trip trip) {
+    private void applyFoodStop(ItineraryDay day, Trip trip, boolean Turkish) {
         int insertIndex = bestBreakInsertIndex(day);
         int order = insertIndex + 1;
         ItineraryStop anchor = day.getStops().isEmpty()
@@ -270,19 +310,23 @@ public class AiService {
                 foodStopTitle(trip),
                 foodStopCategory(trip),
                 foodTimeWindow(order),
-                "Added by Journy inside the current route window so the day has a better local break without a long transfer.",
+                Turkish
+                        ? "Journy bu molayı mevcut rota aralığına ekledi; gün uzun aktarma olmadan daha iyi bir yerel mola kazanır."
+                        : "Added by Journy inside the current route window so the day has a better local break without a long transfer.",
                 coordinateNear(anchor, true, order),
                 coordinateNear(anchor, false, order)
         );
         day.getStops().add(insertIndex, stop);
         stop.setDay(day);
-        day.setSummary("Updated with a local break placed inside the route window while keeping the day walkable.");
+        day.setSummary(Turkish
+                ? "Rota yürünebilir kalırken gün içine yerel bir mola eklendi."
+                : "Updated with a local break placed inside the route window while keeping the day walkable.");
         day.setWalkKm(Math.round((day.getWalkKm() + 0.5) * 10.0) / 10.0);
     }
 
-    private void applyReplacement(ItineraryDay day, Trip trip) {
+    private void applyReplacement(ItineraryDay day, Trip trip, boolean Turkish) {
         if (day.getStops().isEmpty()) {
-            applyFoodStop(day, trip);
+            applyFoodStop(day, trip, Turkish);
             return;
         }
         int index = day.getStops().size() > 2 ? 1 : 0;
@@ -292,19 +336,25 @@ public class AiService {
                 trip.getDestination() + " better-fit stop",
                 oldStop.getCategory(),
                 oldStop.getTimeWindow(),
-                "Replaced by Journy with a better-fit option in the same route window.",
+                Turkish
+                        ? "Journy aynı rota aralığında daha uygun bir alternatifle değiştirdi."
+                        : "Replaced by Journy with a better-fit option in the same route window.",
                 oldStop.getLatitude(),
                 oldStop.getLongitude()
         );
         day.getStops().add(index, replacement);
         replacement.setDay(day);
-        day.setSummary("Updated with one better-fit stop while preserving the original route shape.");
+        day.setSummary(Turkish
+                ? "Rota şekli korunarak bir durak daha uygun bir seçenekle değiştirildi."
+                : "Updated with one better-fit stop while preserving the original route shape.");
     }
 
-    private void applyRainReplan(ItineraryDay day, Trip trip) {
+    private void applyRainReplan(ItineraryDay day, Trip trip, boolean Turkish) {
         if (day.getStops().isEmpty()) {
-            applyFoodStop(day, trip);
-            day.setSummary("Updated with a covered food or cafe window so the route is safer in rain.");
+            applyFoodStop(day, trip, Turkish);
+            day.setSummary(Turkish
+                    ? "Yağmurda daha güvenli olması için kapalı yemek veya kafe aralığı eklendi."
+                    : "Updated with a covered food or cafe window so the route is safer in rain.");
             return;
         }
 
@@ -315,20 +365,24 @@ public class AiService {
                 trip.getDestination() + " indoor culture window",
                 indoorCategoryFor(oldStop),
                 oldStop.getTimeWindow(),
-                "Replanned by Journy for rain with a covered culture, cafe or local indoor stop in the same route window.",
+                Turkish
+                        ? "Journy yağmur için aynı rota aralığında kapalı kültür, kafe veya yerel iç mekan durağı önerdi."
+                        : "Replanned by Journy for rain with a covered culture, cafe or local indoor stop in the same route window.",
                 oldStop.getLatitude(),
                 oldStop.getLongitude()
         );
         day.getStops().add(index, replacement);
         replacement.setDay(day);
         day.setTitle(rainTitle(day.getTitle()));
-        day.setSummary("Outdoor stop moved indoors for rain.");
+        day.setSummary(Turkish
+                ? "Açık hava durağı yağmur için kapalı mekana taşındı."
+                : "Outdoor stop moved indoors for rain.");
         day.setWalkKm(Math.max(2.2, Math.round((day.getWalkKm() - 0.3) * 10.0) / 10.0));
     }
 
-    private void applyBudgetOptimization(ItineraryDay day, Trip trip) {
+    private void applyBudgetOptimization(ItineraryDay day, Trip trip, boolean Turkish) {
         if (day.getStops().isEmpty()) {
-            applyFoodStop(day, trip);
+            applyFoodStop(day, trip, Turkish);
             return;
         }
 
@@ -339,13 +393,17 @@ public class AiService {
                 trip.getDestination() + " local budget pick",
                 budgetCategoryFor(oldStop),
                 oldStop.getTimeWindow(),
-                "Replaced by Journy with a lower-cost local option that keeps the same area and avoids an extra transfer.",
+                Turkish
+                        ? "Journy aynı bölgede kalan, ekstra aktarma gerektirmeyen daha ekonomik yerel bir seçenekle değiştirdi."
+                        : "Replaced by Journy with a lower-cost local option that keeps the same area and avoids an extra transfer.",
                 oldStop.getLatitude(),
                 oldStop.getLongitude()
         );
         day.getStops().add(index, replacement);
         replacement.setDay(day);
-        day.setSummary("Budget-aware version of the day with one flexible stop changed to a lower-cost local option.");
+        day.setSummary(Turkish
+                ? "Esnek bir durak daha ekonomik yerel seçenekle değiştirilerek gün bütçeye daha uygun hale getirildi."
+                : "Budget-aware version of the day with one flexible stop changed to a lower-cost local option.");
         day.setWalkKm(Math.max(2.2, Math.round((day.getWalkKm() - 0.2) * 10.0) / 10.0));
     }
 

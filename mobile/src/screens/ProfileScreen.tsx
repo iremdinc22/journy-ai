@@ -14,21 +14,18 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { authApi, destinationApi, profileApi } from '../api/journyApi';
 import { session } from '../api/session';
 import type { ProfileResponse, TripResponse } from '../api/types';
+import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
 import { cityBackupImage, cityImage } from '../utils/destinationVisuals';
+import { localizeDynamicText } from '../utils/localizedDynamicText';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-const tasteSignals: Array<{ label: string; detail: string; icon: IconName }> = [
-  { label: 'Local food', detail: 'Hidden restaurants', icon: 'restaurant-outline' },
-  { label: 'Museums', detail: 'Culture windows', icon: 'color-palette-outline' },
-  { label: 'Coffee', detail: 'Quiet breaks', icon: 'cafe-outline' },
-  { label: 'Walking', detail: 'Easy pace', icon: 'walk-outline' },
-];
-
 export default function ProfileScreen() {
   const { isDark, theme } = useAppTheme();
+  const { language } = useLanguage();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const navigation = useNavigation<any>();
@@ -79,7 +76,7 @@ export default function ProfileScreen() {
   }, []));
 
   const currentTrip = normalizeCurrentTrip(profile?.currentTrip, session.getCurrentTrip());
-  const fallbackDestination = currentTrip?.destination ?? 'Plan a trip';
+  const fallbackDestination = currentTrip?.destination ?? t('profile.planATrip');
   const savedPlanDestinations = useMemo(() => {
     const seen = new Set<string>();
     const destinations = [
@@ -136,7 +133,12 @@ export default function ProfileScreen() {
         detail: item.description,
         icon: mapTasteIcon(item.icon),
       }))
-    : tasteSignals;
+    : [
+        { label: t('setup.localFood'), detail: t('profile.hiddenRestaurants'), icon: 'restaurant-outline' as IconName },
+        { label: t('setup.museums'), detail: t('profile.cultureWindows'), icon: 'color-palette-outline' as IconName },
+        { label: t('setup.coffee'), detail: t('profile.quietBreaks'), icon: 'cafe-outline' as IconName },
+        { label: t('setup.walking'), detail: t('profile.easyPace'), icon: 'walk-outline' as IconName },
+      ];
   const displaySavedPlans = profile?.savedPlans?.length
     ? profile.savedPlans.map((plan) => ({
         key: plan.id,
@@ -154,7 +156,9 @@ export default function ProfileScreen() {
             key: `preview-${currentTrip.destination}`,
             id: `preview-${currentTrip.id}`,
             city: currentTrip.destination,
-            detail: `${currentTrip.days} days - ${formatEnum(currentTrip.pace)} pace`,
+            detail: language === 'tr'
+              ? `${currentTrip.days} gün - ${formatEnum(currentTrip.pace, language)} tempo`
+              : `${currentTrip.days} days - ${formatEnum(currentTrip.pace)} pace`,
             image: profileCityImage(currentTrip.destination, destinationImages),
             stops: currentTrip.stops,
             walk: currentTrip.averageWalkKm,
@@ -163,22 +167,22 @@ export default function ProfileScreen() {
   const displayFavoritePlaces = profile?.savedPlaces
     ? profile.savedPlaces.map((place) => ({
         title: place.name,
-        meta: `${formatCategory(place.category)} - ${place.city} - ${place.rating.toFixed(1)}`,
+        meta: `${formatCategory(place.category, language)} - ${place.city} - ${place.rating.toFixed(1)}`,
         icon: mapPlaceIcon(place.category),
       }))
     : [];
   const accountPreferences: Array<{ label: string; value: string; icon: IconName }> = [
-    { label: 'Default pace', value: formatEnum(profile?.preferences.defaultPace ?? currentTrip?.pace ?? 'BALANCED'), icon: 'speedometer-outline' },
-    { label: 'Default budget', value: formatEnum(profile?.preferences.defaultBudget ?? currentTrip?.budget ?? 'BALANCED'), icon: 'wallet-outline' },
-    { label: 'Food discovery', value: formatEnum(profile?.preferences.foodDiscovery ?? 'LOCAL_FIRST'), icon: 'restaurant-outline' },
+    { label: t('profile.defaultPace'), value: formatEnum(profile?.preferences.defaultPace ?? currentTrip?.pace ?? 'BALANCED', language), icon: 'speedometer-outline' },
+    { label: t('profile.defaultBudget'), value: formatEnum(profile?.preferences.defaultBudget ?? currentTrip?.budget ?? 'BALANCED', language), icon: 'wallet-outline' },
+    { label: t('profile.foodDiscovery'), value: formatEnum(profile?.preferences.foodDiscovery ?? 'LOCAL_FIRST', language), icon: 'restaurant-outline' },
     {
-      label: 'Notifications',
-      value: profile?.preferences.planChangeNotifications ? 'Plan changes on' : 'Plan changes off',
+      label: t('profile.notifications'),
+      value: profile?.preferences.planChangeNotifications ? t('profile.planChangesOn') : t('profile.planChangesOff'),
       icon: 'notifications-outline',
     },
   ];
-  const tripStatus = currentTrip ? `${currentTrip.destination} live` : displaySavedPlans.length ? 'Saved' : 'Ready';
-  const travelIdentity = useMemo(() => buildTravelIdentity(profile), [profile]);
+  const tripStatus = currentTrip ? `${currentTrip.destination} ${t('profile.live')}` : displaySavedPlans.length ? t('profile.saved') : t('profile.ready');
+  const travelIdentity = useMemo(() => buildTravelIdentity(profile, language), [language, profile]);
 
   const editCurrentTrip = () => {
     if (!currentTrip) {
@@ -218,7 +222,7 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.headerCopy}>
             <Text style={styles.name}>{profile?.fullName ?? 'Irem Dinc'}</Text>
-            <Text style={styles.meta}>{profile?.travelStyle ?? 'Balanced traveler'}</Text>
+            <Text style={styles.meta}>{localizeDynamicText(profile?.travelStyle ?? t('profile.balancedTraveler'), language)}</Text>
           </View>
           <TouchableOpacity style={styles.settingsButton} activeOpacity={0.86} onPress={() => navigation.navigate('Settings')}>
             <Ionicons name="settings-outline" size={21} color={colors.midnight} />
@@ -228,25 +232,25 @@ export default function ProfileScreen() {
         <View style={styles.memberStrip}>
           <View style={styles.memberMetric}>
             <Text style={styles.memberValue}>{profile ? profile.favoriteCount : 3}</Text>
-            <Text style={styles.memberLabel}>Favorites</Text>
+            <Text style={styles.memberLabel}>{t('profile.favorites')}</Text>
           </View>
           <View style={styles.memberDivider} />
           <View style={styles.memberMetric}>
             <Text style={styles.memberValue}>{displayTaste.length}</Text>
-            <Text style={styles.memberLabel}>Taste signals</Text>
+            <Text style={styles.memberLabel}>{t('profile.tasteSignals')}</Text>
           </View>
           <View style={styles.memberDivider} />
           <View style={styles.memberMetric}>
             <Text style={styles.memberValue} numberOfLines={1} adjustsFontSizeToFit>{tripStatus}</Text>
-            <Text style={styles.memberLabel}>Trip status</Text>
+            <Text style={styles.memberLabel}>{t('profile.tripStatus')}</Text>
           </View>
         </View>
 
-        {loading ? <InlineLoading label="Loading your profile..." /> : null}
+        {loading ? <InlineLoading label={t('profile.loading')} /> : null}
         {error ? (
           <InlineError
-            title="Profile is showing a local preview"
-            description="Retry after the API connection is available."
+            title={t('profile.previewTitle')}
+            description={t('profile.previewDescription')}
             onRetry={loadProfile}
           />
         ) : null}
@@ -254,25 +258,25 @@ export default function ProfileScreen() {
         <View style={styles.tripCard}>
           <View style={styles.tripTop}>
             <View>
-              <Text style={styles.kicker}>Current trip</Text>
+              <Text style={styles.kicker}>{t('profile.currentTrip')}</Text>
               <Text style={styles.tripTitle}>{fallbackDestination}</Text>
             </View>
             <TouchableOpacity style={styles.editPill} activeOpacity={0.82} onPress={editCurrentTrip}>
               <Ionicons name="pencil-outline" size={14} color={colors.teal} />
-              <Text style={styles.editText}>Edit</Text>
+              <Text style={styles.editText}>{t('profile.edit')}</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.tripMetaRow}>
-            <InfoChip icon="calendar-outline" text={currentTrip?.dates ?? 'Choose dates'} colors={colors} styles={styles} />
-            <InfoChip icon="wallet-outline" text={`${formatEnum(currentTrip?.budget ?? 'BALANCED')} budget`} colors={colors} styles={styles} />
-            <InfoChip icon="speedometer-outline" text={`${formatEnum(currentTrip?.pace ?? 'BALANCED')} pace`} colors={colors} styles={styles} />
+            <InfoChip icon="calendar-outline" text={currentTrip?.dates ?? t('profile.chooseDates')} colors={colors} styles={styles} />
+            <InfoChip icon="wallet-outline" text={`${formatEnum(currentTrip?.budget ?? 'BALANCED', language)} ${t('profile.budget')}`} colors={colors} styles={styles} />
+            <InfoChip icon="speedometer-outline" text={`${formatEnum(currentTrip?.pace ?? 'BALANCED', language)} ${t('profile.pace')}`} colors={colors} styles={styles} />
           </View>
 
           <View style={styles.statRow}>
-            <Stat icon="location-outline" value={`${currentTrip?.stops ?? 0}`} label="Stops" colors={colors} styles={styles} />
-            <Stat icon="restaurant-outline" value={`${currentTrip?.foodPicks ?? 0}`} label="Food picks" colors={colors} styles={styles} />
-            <Stat icon="walk-outline" value={`${(currentTrip?.averageWalkKm ?? 0).toFixed(1)} km`} label="Avg walk" colors={colors} styles={styles} />
+            <Stat icon="location-outline" value={`${currentTrip?.stops ?? 0}`} label={t('profile.stops')} colors={colors} styles={styles} />
+            <Stat icon="restaurant-outline" value={`${currentTrip?.foodPicks ?? 0}`} label={t('profile.foodPicks')} colors={colors} styles={styles} />
+            <Stat icon="walk-outline" value={`${(currentTrip?.averageWalkKm ?? 0).toFixed(1)} km`} label={t('profile.avgWalk')} colors={colors} styles={styles} />
           </View>
         </View>
 
@@ -283,15 +287,15 @@ export default function ProfileScreen() {
                 <Ionicons name="sparkles-outline" size={18} color={colors.teal} />
               </View>
               <View style={styles.strategyCopy}>
-                <Text style={styles.strategyKicker}>Trip style</Text>
-                <Text style={styles.strategyTitle}>{currentTrip.planningStrategy.title}</Text>
+                <Text style={styles.strategyKicker}>{t('profile.tripStyle')}</Text>
+                <Text style={styles.strategyTitle}>{localizeDynamicText(currentTrip.planningStrategy.title, language)}</Text>
               </View>
             </View>
-            <Text style={styles.strategyDescription}>{currentTrip.planningStrategy.description}</Text>
+            <Text style={styles.strategyDescription}>{localizeDynamicText(currentTrip.planningStrategy.description, language)}</Text>
             <View style={styles.strategySignals}>
               {currentTrip.planningStrategy.signals.map((signal) => (
                 <View key={signal} style={styles.strategyChip}>
-                  <Text style={styles.strategyChipText}>{signal}</Text>
+                  <Text style={styles.strategyChipText}>{localizeDynamicText(signal, language)}</Text>
                 </View>
               ))}
             </View>
@@ -299,9 +303,9 @@ export default function ProfileScreen() {
         ) : null}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Taste profile</Text>
+          <Text style={styles.sectionTitle}>{t('profile.tasteProfile')}</Text>
           <TouchableOpacity activeOpacity={0.82} onPress={editCurrentTrip}>
-            <Text style={styles.sectionAction}>Refine</Text>
+            <Text style={styles.sectionAction}>{t('profile.refine')}</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.tasteGrid}>
@@ -311,8 +315,8 @@ export default function ProfileScreen() {
                 <Ionicons name={item.icon} size={18} color={colors.teal} />
               </View>
               <View style={styles.tasteCopy}>
-                <Text style={styles.tasteLabel}>{item.label}</Text>
-                <Text style={styles.tasteDetail}>{item.detail}</Text>
+                <Text style={styles.tasteLabel}>{localizeDynamicText(item.label, language)}</Text>
+                <Text style={styles.tasteDetail}>{localizeDynamicText(item.detail, language)}</Text>
               </View>
             </View>
           ))}
@@ -321,7 +325,7 @@ export default function ProfileScreen() {
         <View style={styles.identityCard}>
           <View style={styles.identityTop}>
             <View>
-              <Text style={styles.identityKicker}>Your travel taste</Text>
+              <Text style={styles.identityKicker}>{t('profile.yourTravelTaste')}</Text>
               <Text style={styles.identityTitle}>{travelIdentity.headline}</Text>
             </View>
             <View style={styles.identityIcon}>
@@ -346,7 +350,7 @@ export default function ProfileScreen() {
             <Ionicons name="analytics-outline" size={15} color={colors.teal} />
             <Text style={styles.identityLearningText}>{travelIdentity.learningSource}</Text>
           </View>
-          <Text style={styles.preferenceSectionLabel}>Journy knows you prefer</Text>
+          <Text style={styles.preferenceSectionLabel}>{t('profile.knowsPrefer')}</Text>
           <View style={styles.preferenceChips}>
             {travelIdentity.preferences.map((item) => (
               <View key={item} style={styles.preferenceChip}>
@@ -358,9 +362,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Saved plans</Text>
+          <Text style={styles.sectionTitle}>{t('profile.savedPlans')}</Text>
           <TouchableOpacity activeOpacity={0.82} onPress={() => navigation.navigate('SavedPlans')}>
-            <Text style={styles.sectionAction}>View all</Text>
+            <Text style={styles.sectionAction}>{t('profile.viewAll')}</Text>
           </TouchableOpacity>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedRail}>
@@ -371,6 +375,7 @@ export default function ProfileScreen() {
               onPress={() => navigation.navigate('SavedPlans')}
               colors={colors}
               styles={styles}
+              t={t}
             />
           ))}
           {!displaySavedPlans.length ? (
@@ -378,16 +383,16 @@ export default function ProfileScreen() {
               <View style={styles.savedEmptyIcon}>
                 <Ionicons name="map-outline" size={22} color={colors.teal} />
               </View>
-              <Text style={styles.savedCity}>No saved plans yet</Text>
-              <Text style={styles.savedDetail}>Create a trip and Journy will keep it ready here.</Text>
+              <Text style={styles.savedCity}>{t('profile.noSavedPlans')}</Text>
+              <Text style={styles.savedDetail}>{t('profile.noSavedPlansHint')}</Text>
             </TouchableOpacity>
           ) : null}
         </ScrollView>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Favorites</Text>
+          <Text style={styles.sectionTitle}>{t('profile.favorites')}</Text>
           <TouchableOpacity activeOpacity={0.82} onPress={() => navigation.navigate('SavedPlaces')}>
-            <Text style={styles.sectionAction}>Manage</Text>
+            <Text style={styles.sectionAction}>{t('profile.manage')}</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.favoriteList}>
@@ -410,15 +415,15 @@ export default function ProfileScreen() {
                 <Ionicons name="heart-outline" size={18} color={colors.teal} />
               </View>
               <View style={styles.favoriteCopy}>
-                <Text style={styles.favoriteTitle}>No saved places yet</Text>
-                <Text style={styles.favoriteMeta}>Save places from Explore or day route details.</Text>
+                <Text style={styles.favoriteTitle}>{t('profile.noSavedPlaces')}</Text>
+                <Text style={styles.favoriteMeta}>{t('profile.savePlacesHint')}</Text>
               </View>
             </View>
           )}
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent trips</Text>
+          <Text style={styles.sectionTitle}>{t('profile.recentTrips')}</Text>
         </View>
         <View style={styles.recentCard}>
           {displaySavedPlans.slice(0, 3).map((plan, index) => (
@@ -436,7 +441,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Account preferences</Text>
+          <Text style={styles.sectionTitle}>{t('profile.accountPreferences')}</Text>
         </View>
         <View style={styles.preferenceCard}>
           {accountPreferences.map((item, index) => (
@@ -452,7 +457,7 @@ export default function ProfileScreen() {
 
         <TouchableOpacity style={styles.signOutButton} activeOpacity={0.86} onPress={signOut}>
           <Ionicons name="log-out-outline" size={18} color={colors.teal} />
-          <Text style={styles.signOutText}>Sign out</Text>
+          <Text style={styles.signOutText}>{t('common.signOut')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -482,11 +487,13 @@ function SavedPlanCard({
   onPress,
   colors,
   styles,
+  t,
 }: {
   plan: DisplaySavedPlan;
   onPress: () => void;
   colors: Theme['colors'];
   styles: ProfileStyles;
+  t: ReturnType<typeof useTranslation>;
 }) {
   const [imageUri, setImageUri] = useState(plan.image);
   const [usedBackup, setUsedBackup] = useState(false);
@@ -513,11 +520,11 @@ function SavedPlanCard({
       <View style={styles.savedBody}>
         <Text style={styles.savedCity}>{plan.city}</Text>
         <Text style={styles.savedDetail}>{plan.detail}</Text>
-        <View style={styles.savedStats}>
-          <View style={styles.savedMetric}>
-            <Ionicons name="location-outline" size={13} color={colors.teal} />
-            <Text style={styles.savedMetricText}>{plan.stops} stops</Text>
-          </View>
+          <View style={styles.savedStats}>
+            <View style={styles.savedMetric}>
+              <Ionicons name="location-outline" size={13} color={colors.teal} />
+            <Text style={styles.savedMetricText}>{plan.stops} {t('profile.stops').toLowerCase()}</Text>
+            </View>
           <View style={styles.savedMetric}>
             <Ionicons name="walk-outline" size={13} color={colors.teal} />
             <Text style={styles.savedMetricText}>{plan.walk.toFixed(1)} km</Text>
@@ -596,11 +603,28 @@ function mapPlaceIcon(category: string): IconName {
   return 'walk-outline';
 }
 
-function formatCategory(category: string) {
-  return category.toLowerCase().replace(/_/g, ' ');
+function formatCategory(category: string, language: 'en' | 'tr' = 'en') {
+  const value = category.toLowerCase().replace(/_/g, ' ');
+  if (language !== 'tr') return value;
+  if (value.includes('local food') || value.includes('food')) return 'yemek';
+  if (value.includes('coffee')) return 'kahve';
+  if (value.includes('culture') || value.includes('museum')) return 'kültür';
+  if (value.includes('walk')) return 'yürüyüş';
+  if (value.includes('free')) return 'ücretsiz';
+  return value;
 }
 
-function formatEnum(value: string) {
+function formatEnum(value: string, language: 'en' | 'tr' = 'en') {
+  const normalized = value.toLowerCase().replace(/_/g, ' ');
+  if (language === 'tr') {
+    if (normalized.includes('balanced')) return 'Dengeli';
+    if (normalized.includes('relaxed')) return 'Rahat';
+    if (normalized.includes('full')) return 'Dolu';
+    if (normalized.includes('lean') || normalized.includes('budget')) return 'Ekonomik';
+    if (normalized.includes('comfort')) return 'Konfor';
+    if (normalized.includes('local first')) return 'Yerel öncelikli';
+    return normalized.replace(/\b\w/g, (char) => char.toLocaleUpperCase('tr-TR'));
+  }
   return value
     .toLowerCase()
     .replace(/_/g, ' ')
@@ -620,7 +644,7 @@ function profileCityImage(destination: string, destinationImages: Record<string,
   return localImage;
 }
 
-function buildTravelIdentity(profile: ProfileResponse | null) {
+function buildTravelIdentity(profile: ProfileResponse | null, language: 'en' | 'tr' = 'en') {
   const weights: Record<string, number> = {
     Coffee: 18,
     'Local food': 20,
@@ -652,27 +676,36 @@ function buildTravelIdentity(profile: ProfileResponse | null) {
   });
 
   const levels = Object.entries(weights).map(([label, value]) => ({
-    label,
+    label: language === 'tr' ? travelTasteLabel(label) : label,
     value: Math.min(96, Math.max(28, value)),
+    key: label,
   })).sort((first, second) => second.value - first.value);
   const strongest = levels[0];
-  const headline = `${strongest.label} stands out`;
-  const insight = `Your saved places point toward ${strongest.label.toLowerCase()}.`;
+  const headline = language === 'tr' ? `${strongest.label} öne çıkıyor` : `${strongest.label} stands out`;
+  const insight = language === 'tr'
+    ? `Kayıtlı yerlerin ${strongest.label.toLocaleLowerCase('tr-TR')} tarafını güçlendiriyor.`
+    : `Your saved places point toward ${strongest.label.toLowerCase()}.`;
   const savedCount = profile?.savedPlaces.length ?? 0;
   const interestCount = profile?.currentTrip?.interests.length ?? 0;
-  const learningSource = savedCount
-    ? `Learned from ${savedCount} saved places and your current trip setup.`
-    : interestCount
-      ? `Learned from ${interestCount} trip setup signals. Save places to make this sharper.`
-      : 'Journy will sharpen this profile as you save places and plan trips.';
+  const learningSource = language === 'tr'
+    ? savedCount
+      ? `${savedCount} kayıtlı yer ve mevcut seyahat kurulumundan öğrenildi.`
+      : interestCount
+        ? `${interestCount} TripSetup sinyalinden öğrenildi. Yer kaydettikçe daha netleşir.`
+        : 'Yer kaydettikçe ve seyahat planladıkça Journy bu profili netleştirir.'
+    : savedCount
+      ? `Learned from ${savedCount} saved places and your current trip setup.`
+      : interestCount
+        ? `Learned from ${interestCount} trip setup signals. Save places to make this sharper.`
+        : 'Journy will sharpen this profile as you save places and plan trips.';
   const preferences: string[] = levels.slice(0, 3).map((level) => {
-    if (level.label === 'Coffee') return 'Independent coffee';
-    if (level.label === 'Local food') return 'Local food';
-    if (level.label === 'Culture') return 'Culture windows';
-    return 'Walkable routes';
+    if (level.key === 'Coffee') return language === 'tr' ? 'Bağımsız kahveciler' : 'Independent coffee';
+    if (level.key === 'Local food') return language === 'tr' ? 'Yerel yemek' : 'Local food';
+    if (level.key === 'Culture') return language === 'tr' ? 'Kültür aralıkları' : 'Culture windows';
+    return language === 'tr' ? 'Yürünebilir rotalar' : 'Walkable routes';
   });
   if (profile?.currentTrip?.pace) {
-    preferences.push(`${formatEnum(profile.currentTrip.pace)} days`);
+    preferences.push(language === 'tr' ? `${formatEnum(profile.currentTrip.pace, language)} günler` : `${formatEnum(profile.currentTrip.pace)} days`);
   }
 
   return {
@@ -682,6 +715,13 @@ function buildTravelIdentity(profile: ProfileResponse | null) {
     levels,
     preferences: [...new Set(preferences)].slice(0, 4),
   };
+}
+
+function travelTasteLabel(label: string) {
+  if (label === 'Coffee') return 'Kahve';
+  if (label === 'Local food') return 'Yerel yemek';
+  if (label === 'Culture') return 'Kültür';
+  return 'Yürüyüş';
 }
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];

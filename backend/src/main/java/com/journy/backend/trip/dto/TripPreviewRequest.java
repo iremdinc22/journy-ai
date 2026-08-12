@@ -14,6 +14,7 @@ public record TripPreviewRequest(
         LocalDate endDate,
         BudgetMode budget,
         TripPace pace,
-        Set<TravelInterest> interests
+        Set<TravelInterest> interests,
+        String language
 ) {
 }

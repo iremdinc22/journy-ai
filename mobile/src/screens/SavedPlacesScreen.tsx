@@ -8,9 +8,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { savedPlaceApi } from '../api/journyApi';
 import type { SavedPlaceResponse } from '../api/types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { InlineEmpty, InlineError, InlineLoading } from '../components/StateViews';
 import { useAppTheme } from '../theme/ThemeContext';
 import { placeImage } from '../utils/destinationVisuals';
+import { localizeDynamicText } from '../utils/localizedDynamicText';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SavedPlaces'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -20,6 +22,8 @@ const COLLECTIONS_STORAGE_KEY = 'journy.savedPlaceCollections';
 
 export default function SavedPlacesScreen({ navigation }: Props) {
   const { isDark, theme } = useAppTheme();
+  const { language } = useLanguage();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const [places, setPlaces] = useState<SavedPlaceResponse[]>([]);
@@ -63,11 +67,11 @@ export default function SavedPlacesScreen({ navigation }: Props) {
 
   const confirmRemove = (place: SavedPlaceResponse) => {
     Alert.alert(
-      'Remove favorite?',
-      `${place.name} will be removed from your saved places.`,
+      t('savedPlaces.removeTitle'),
+      t('savedPlaces.removeMessage', { name: place.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: () => removePlace(place) },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('savedPlaces.remove'), style: 'destructive', onPress: () => removePlace(place) },
       ],
     );
   };
@@ -78,7 +82,7 @@ export default function SavedPlacesScreen({ navigation }: Props) {
       await savedPlaceApi.remove(place.placeId);
       setPlaces((current) => current.filter((item) => item.placeId !== place.placeId));
     } catch {
-      Alert.alert('Could not remove favorite', 'Please check the backend connection and try again.');
+      Alert.alert(t('savedPlaces.removeErrorTitle'), t('savedPlaces.removeErrorMessage'));
     } finally {
       setBusyPlaceId(null);
     }
@@ -89,7 +93,7 @@ export default function SavedPlacesScreen({ navigation }: Props) {
     AsyncStorage.setItem(COLLECTIONS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
   };
 
-  const collections = useMemo(() => buildCollections(places, customCollections), [customCollections, places]);
+  const collections = useMemo(() => buildCollections(places, customCollections, t), [customCollections, places, t]);
   const activePlaces = useMemo(() => {
     const active = collections.find((collection) => collection.id === activeCollection);
     if (!active || active.id === 'all') {
@@ -154,21 +158,21 @@ export default function SavedPlacesScreen({ navigation }: Props) {
           </TouchableOpacity>
           <TouchableOpacity style={styles.exploreButton} activeOpacity={0.86} onPress={() => navigation.navigate('MainTabs', { screen: 'Explore' })}>
             <Ionicons name="map-outline" size={17} color={colors.surface} />
-            <Text style={styles.exploreButtonText}>Find places</Text>
+            <Text style={styles.exploreButtonText}>{t('savedPlaces.findPlaces')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>Favorites</Text>
-          <Text style={styles.title}>Saved places.</Text>
-          <Text style={styles.subtitle}>Organize the spots Journy should learn from and reuse in future trips.</Text>
+          <Text style={styles.eyebrow}>{t('savedPlaces.eyebrow')}</Text>
+          <Text style={styles.title}>{t('savedPlaces.title')}</Text>
+          <Text style={styles.subtitle}>{t('savedPlaces.subtitle')}</Text>
         </View>
 
         <View style={styles.collectionHeader}>
-          <Text style={styles.collectionTitle}>Collections</Text>
+          <Text style={styles.collectionTitle}>{t('savedPlaces.collections')}</Text>
           <TouchableOpacity style={styles.createButton} activeOpacity={0.86} onPress={createCollection}>
             <Ionicons name="add" size={14} color={colors.teal} />
-            <Text style={styles.createButtonText}>Create</Text>
+            <Text style={styles.createButtonText}>{t('savedPlaces.create')}</Text>
           </TouchableOpacity>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.collectionRail}>
@@ -185,36 +189,36 @@ export default function SavedPlacesScreen({ navigation }: Props) {
                   <Ionicons name={collection.icon} size={17} color={active ? colors.surface : colors.teal} />
                 </View>
                 <Text style={[styles.collectionName, active && styles.collectionNameActive]}>{collection.label}</Text>
-                <Text style={[styles.collectionCount, active && styles.collectionCountActive]}>{collection.count} places</Text>
+                <Text style={[styles.collectionCount, active && styles.collectionCountActive]}>{t('savedPlaces.places', { count: collection.count })}</Text>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
 
-        {loading ? <InlineLoading label="Loading saved places..." /> : null}
+        {loading ? <InlineLoading label={t('savedPlaces.loading')} /> : null}
         {error ? (
           <InlineError
-            title="Saved places could not load"
-            description="Retry after the API connection is available."
+            title={t('savedPlaces.errorTitle')}
+            description={t('savedPlaces.errorDescription')}
             onRetry={loadPlaces}
           />
         ) : null}
         {!loading && !error && !places.length ? (
           <InlineEmpty
-            title="No favorite places yet"
-            description="Save places from Explore and they will appear here."
+            title={t('savedPlaces.emptyTitle')}
+            description={t('savedPlaces.emptyDescription')}
           />
         ) : null}
 
         <View style={styles.listHeader}>
-          <Text style={styles.listTitle}>{collections.find((item) => item.id === activeCollection)?.label ?? 'All saved'}</Text>
-          <Text style={styles.listMeta}>{activePlaces.length} saved</Text>
+          <Text style={styles.listTitle}>{collections.find((item) => item.id === activeCollection)?.label ?? t('savedPlaces.allSaved')}</Text>
+          <Text style={styles.listMeta}>{t('savedPlaces.savedCount', { count: activePlaces.length })}</Text>
         </View>
         <View style={styles.placeList}>
           {!loading && !error && places.length > 0 && activePlaces.length === 0 ? (
             <InlineEmpty
-              title="This collection is empty"
-              description="Add saved places into this collection from the folder button on each card."
+              title={t('savedPlaces.collectionEmptyTitle')}
+              description={t('savedPlaces.collectionEmptyDescription')}
             />
           ) : null}
           {activePlaces.map((place) => {
@@ -226,27 +230,27 @@ export default function SavedPlacesScreen({ navigation }: Props) {
                   <View style={styles.placeTop}>
                     <View style={styles.placeCopy}>
                       <Text style={styles.placeTitle}>{place.name}</Text>
-                      <Text style={styles.placeMeta}>{formatCategory(place.category)} - {place.city} - {place.rating.toFixed(1)}</Text>
+                      <Text style={styles.placeMeta}>{formatCategory(place.category, t)} - {place.city} - {place.rating.toFixed(1)}</Text>
                     </View>
                     <View style={styles.categoryIcon}>
                       <Ionicons name={mapPlaceIcon(place.category)} size={18} color={colors.teal} />
                     </View>
                   </View>
-                  <Text style={styles.placeDescription} numberOfLines={2}>{place.description}</Text>
+                  <Text style={styles.placeDescription} numberOfLines={2}>{localizeDynamicText(place.description, language)}</Text>
                   <View style={styles.metaFooter}>
                     <View style={styles.footerLeft}>
                       <View style={styles.infoPill}>
                         <Ionicons name="wallet-outline" size={13} color={colors.teal} />
-                        <Text style={styles.infoPillText}>{place.priceLevel}</Text>
+                        <Text style={styles.infoPillText}>{formatPriceLevel(place.priceLevel, language)}</Text>
                       </View>
                       <View style={styles.savedState}>
                         <Ionicons name="heart" size={13} color={colors.teal} />
-                        <Text style={styles.savedStateText}>Saved</Text>
+                        <Text style={styles.savedStateText}>{t('savedPlaces.saved')}</Text>
                       </View>
                     </View>
                     <View style={styles.footerActions}>
                       <TouchableOpacity
-                        accessibilityLabel={`Add ${place.name} to a collection`}
+                        accessibilityLabel={t('savedPlaces.addToCollectionA11y', { name: place.name })}
                         style={styles.collectionActionButton}
                         activeOpacity={0.78}
                         onPress={() => openCollectionPicker(place)}
@@ -254,7 +258,7 @@ export default function SavedPlacesScreen({ navigation }: Props) {
                         <Ionicons name="folder-open-outline" size={16} color={colors.teal} />
                       </TouchableOpacity>
                       <TouchableOpacity
-                        accessibilityLabel={`Remove ${place.name} from favorites`}
+                        accessibilityLabel={t('savedPlaces.removeA11y', { name: place.name })}
                         style={[styles.removeButton, busy && styles.disabledButton]}
                         activeOpacity={0.78}
                         onPress={() => confirmRemove(place)}
@@ -275,11 +279,11 @@ export default function SavedPlacesScreen({ navigation }: Props) {
         <Pressable style={styles.modalBackdrop} onPress={() => setCollectionModalVisible(false)}>
           <Pressable style={styles.collectionSheet}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>{collectionPickerPlace ? 'Add to collection' : 'Create collection'}</Text>
+            <Text style={styles.sheetTitle}>{collectionPickerPlace ? t('savedPlaces.addToCollection') : t('savedPlaces.createCollection')}</Text>
             <Text style={styles.sheetSubtitle}>
               {collectionPickerPlace
-                ? `Organize ${collectionPickerPlace.name} into a trip idea or taste list.`
-                : 'Create a reusable list for coffee, food, culture or future trips.'}
+                ? t('savedPlaces.addToCollectionSubtitle', { name: collectionPickerPlace.name })
+                : t('savedPlaces.createCollectionSubtitle')}
             </Text>
 
             {collectionPickerPlace && customCollections.length ? (
@@ -298,7 +302,7 @@ export default function SavedPlacesScreen({ navigation }: Props) {
                       </View>
                       <View style={styles.collectionPickerCopy}>
                         <Text style={styles.collectionPickerTitle}>{collection.label}</Text>
-                        <Text style={styles.collectionPickerMeta}>{collection.placeIds.length} places</Text>
+                        <Text style={styles.collectionPickerMeta}>{t('savedPlaces.places', { count: collection.placeIds.length })}</Text>
                       </View>
                     </TouchableOpacity>
                   );
@@ -311,7 +315,7 @@ export default function SavedPlacesScreen({ navigation }: Props) {
               <TextInput
                 value={collectionName}
                 onChangeText={setCollectionName}
-                placeholder={collectionPickerPlace ? 'New collection name' : 'Coffee in Amsterdam'}
+                placeholder={collectionPickerPlace ? t('savedPlaces.newCollectionName') : t('savedPlaces.collectionPlaceholder')}
                 placeholderTextColor={colors.softMuted}
                 style={styles.collectionInput}
               />
@@ -322,7 +326,7 @@ export default function SavedPlacesScreen({ navigation }: Props) {
               onPress={saveCollection}
               disabled={!collectionName.trim()}
             >
-              <Text style={styles.sheetPrimaryText}>{collectionPickerPlace ? 'Create and add' : 'Create collection'}</Text>
+              <Text style={styles.sheetPrimaryText}>{collectionPickerPlace ? t('savedPlaces.createAndAdd') : t('savedPlaces.createCollection')}</Text>
               <Ionicons name="add" size={17} color={colors.surface} />
             </TouchableOpacity>
           </Pressable>
@@ -341,12 +345,14 @@ type SavedCollection = {
   manual?: boolean;
 };
 
-function buildCollections(places: SavedPlaceResponse[], customCollections: CustomCollection[]): SavedCollection[] {
+type Translate = ReturnType<typeof useTranslation>;
+
+function buildCollections(places: SavedPlaceResponse[], customCollections: CustomCollection[], t: Translate): SavedCollection[] {
   const base: SavedCollection[] = [
-    { id: 'all', label: 'All saved', count: places.length, icon: 'heart-outline', filter: () => true },
-    { id: 'coffee', label: 'Coffee spots', count: countCategory(places, 'coffee'), icon: 'cafe-outline', filter: (place) => place.category.toLowerCase().includes('coffee') },
-    { id: 'food', label: 'Food list', count: countCategory(places, 'food'), icon: 'restaurant-outline', filter: (place) => place.category.toLowerCase().includes('food') },
-    { id: 'culture', label: 'Culture', count: countCategory(places, 'culture'), icon: 'color-palette-outline', filter: (place) => place.category.toLowerCase().includes('culture') },
+    { id: 'all', label: t('savedPlaces.allSaved'), count: places.length, icon: 'heart-outline', filter: () => true },
+    { id: 'coffee', label: t('savedPlaces.coffeeSpots'), count: countCategory(places, 'coffee'), icon: 'cafe-outline', filter: (place) => place.category.toLowerCase().includes('coffee') },
+    { id: 'food', label: t('savedPlaces.foodList'), count: countCategory(places, 'food'), icon: 'restaurant-outline', filter: (place) => place.category.toLowerCase().includes('food') },
+    { id: 'culture', label: t('savedPlaces.culture'), count: countCategory(places, 'culture'), icon: 'color-palette-outline', filter: (place) => place.category.toLowerCase().includes('culture') },
   ];
   const cities: SavedCollection[] = [...new Set(places.map((place) => place.city).filter(Boolean))]
     .slice(0, 4)
@@ -381,8 +387,24 @@ function mapPlaceIcon(category: string): IconName {
   return 'walk-outline';
 }
 
-function formatCategory(category: string) {
-  return category.toLowerCase().replace(/_/g, ' ');
+function formatCategory(category: string, t?: Translate) {
+  const value = category.toLowerCase();
+  if (!t) return value.replace(/_/g, ' ');
+  if (value.includes('coffee')) return t('setup.coffee');
+  if (value.includes('food') || value.includes('restaurant')) return t('setup.localFood');
+  if (value.includes('culture') || value.includes('museum')) return t('setup.museums');
+  if (value.includes('walking')) return t('setup.walking');
+  return value.replace(/_/g, ' ');
+}
+
+function formatPriceLevel(value: string, language: 'en' | 'tr') {
+  if (language !== 'tr') return value;
+  const normalized = value.toLowerCase();
+  if (normalized.includes('free')) return 'Ücretsiz';
+  if (normalized.includes('lean') || normalized.includes('low')) return 'Ekonomik';
+  if (normalized.includes('mid') || normalized.includes('balanced')) return 'Orta';
+  if (normalized.includes('comfort')) return 'Konfor';
+  return value;
 }
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];

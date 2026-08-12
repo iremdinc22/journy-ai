@@ -7,8 +7,10 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { destinationApi, exploreApi, tripApi } from '../api/journyApi';
 import type { CreateTripRequest, DestinationResponse, TripPreviewResponse } from '../api/types';
+import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { cityCoordinates, cityImage, cityMeta } from '../utils/destinationVisuals';
+import { localizeDynamicText } from '../utils/localizedDynamicText';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TripSetup'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -97,7 +99,7 @@ const cityDetails = {
   },
 };
 const cities = Object.keys(cityDetails).filter((item) => item !== 'Discover');
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 const defaultCalendarDate = getDefaultCalendarDate();
 const years = Array.from({ length: 3 }, (_, index) => defaultCalendarDate.year + index);
 const weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -164,6 +166,8 @@ const fallbackDestinations: DestinationResponse[] = cities.map((name) => ({
 
 export default function TripSetupScreen({ navigation, route }: Props) {
   const { isDark, theme } = useAppTheme();
+  const { language } = useLanguage();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const [city, setCity] = useState('');
@@ -340,33 +344,33 @@ export default function TripSetupScreen({ navigation, route }: Props) {
   );
   const dateLabel = startDay && endDay
     ? `${months[monthIndex]} ${startDay} - ${months[monthIndex]} ${endDay}, ${year}`
-    : 'Choose travel dates';
+    : t('setup.chooseDates');
   const startDate = startDay ? toDateString(year, monthIndex, startDay) : null;
   const endDate = endDay ? toDateString(year, monthIndex, endDay) : null;
   const tripDays = startDate && endDate ? Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000)) : 0;
   const previewStops = tripDays ? tripDays * stopsForPace(pace) : 0;
-  const previewFocus = selectedInterests.slice(0, 3).join(' - ') || 'Choose taste signals';
+  const previewFocus = selectedInterests.slice(0, 3).map((item) => setupOptionLabel(item, t)).join(' - ') || t('setup.chooseTaste');
   const startSuggestions = startSuggestionsFor(city, startSuggestionPlaces);
   const estimatedDailyWalk = previewStops ? estimateDailyWalkKm(stopsForPace(pace), pace, budget) : 0;
-  const routeStyle = routeStyleFor({ pace, budget, selectedInterests, startArea });
+  const routeStyle = routeStyleFor({ pace, budget, selectedInterests, startArea }, t);
   const resolvedPreviewStops = backendPreview?.estimatedStops ?? previewStops;
   const resolvedTripDays = tripDays || (city.trim() && resolvedPreviewStops ? Math.max(1, Math.round(resolvedPreviewStops / stopsForPace(pace))) : 0);
   const resolvedDailyWalk = backendPreview?.dailyWalkKm ?? estimatedDailyWalk;
-  const resolvedDailyWalkRange = backendPreview?.dailyWalkRange ?? (resolvedDailyWalk ? localWalkRange(resolvedDailyWalk, pace) : '--');
-  const resolvedRouteStyle = backendPreview?.routeStyle ?? routeStyle;
+  const resolvedDailyWalkRange = backendPreview?.dailyWalkRange ?? (resolvedDailyWalk ? localWalkRange(resolvedDailyWalk, pace, t) : '--');
+  const resolvedRouteStyle = localizeDynamicText(backendPreview?.routeStyle ?? routeStyle, language);
   const resolvedPlaceCount = backendPreview?.availablePlaceCount ?? (destinationOptions.find((item) => item.name === city)?.placeCount ?? 0);
   const resolvedMatchedPlaceCount = backendPreview?.matchedPlaceCount ?? Math.min(resolvedPlaceCount, selectedInterests.length ? selectedInterests.length * 4 : resolvedPlaceCount);
   const placeInsightText = city.trim()
     ? resolvedPlaceCount
-      ? `${resolvedMatchedPlaceCount || resolvedPlaceCount} good fits in ${city}`
+      ? t('setup.goodFits', { count: resolvedMatchedPlaceCount || resolvedPlaceCount, city })
       : previewLoading
-        ? `Looking for places in ${city}`
-        : `Places will load for ${city}`
-    : 'Select a destination';
+        ? t('setup.lookingPlaces', { city })
+        : t('setup.placesLoad', { city })
+    : t('setup.selectDestination');
   const previewConfidence = backendPreview?.confidence ?? (city ? 'Draft' : 'Waiting');
-  const previewSummary = backendPreview?.summary;
-  const planningStyle = backendPreview?.planningStyle ?? localPlanningStyle(city, resolvedTripDays || 1, pace, budget, selectedInterests, startArea);
-  const startingAreaInsight = backendPreview?.startingAreaInsight ?? localStartingAreaInsight(startArea, resolvedDailyWalk);
+  const previewSummary = localizeDynamicText(backendPreview?.summary, language);
+  const planningStyle = localizeDynamicText(backendPreview?.planningStyle ?? localPlanningStyle(city, resolvedTripDays || 1, pace, budget, selectedInterests, startArea, t), language);
+  const startingAreaInsight = localizeDynamicText(backendPreview?.startingAreaInsight ?? localStartingAreaInsight(startArea, resolvedDailyWalk, t), language);
 
   useEffect(() => {
     if (!city.trim()) {
@@ -387,6 +391,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
         budget: mapBudget(budget),
         pace: mapPace(pace),
         interests: selectedInterests.map(mapInterest),
+        language,
       })
         .then((response) => {
           if (mounted) {
@@ -466,20 +471,20 @@ export default function TripSetupScreen({ navigation, route }: Props) {
   const generatePlan = () => {
     const selectedDestination = city.trim() || citySearch.trim();
     if (!selectedDestination) {
-      Alert.alert('Destination required', 'Please enter a city before generating a plan.');
+      Alert.alert(t('setup.destinationRequiredTitle'), t('setup.destinationRequiredMessage'));
       return;
     }
     if (!startDate || !endDate) {
-      Alert.alert('Travel dates required', 'Please choose a start date and a later end date from the calendar.');
+      Alert.alert(t('setup.datesRequiredTitle'), t('setup.datesRequiredMessage'));
       setCalendarOpen(true);
       return;
     }
     if (selectedInterests.length === 0) {
-      Alert.alert('Choose at least one interest', 'Journy needs a few taste signals to build a useful route.');
+      Alert.alert(t('setup.interestRequiredTitle'), t('setup.interestRequiredMessage'));
       return;
     }
     if (new Date(endDate) < new Date(startDate)) {
-      Alert.alert('Invalid dates', 'End date cannot be before the start date.');
+      Alert.alert(t('setup.invalidDatesTitle'), t('setup.invalidDatesMessage'));
       return;
     }
 
@@ -509,7 +514,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
           >
             <Ionicons name="arrow-back" size={21} color={colors.midnight} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{initialTrip ? 'Edit trip setup' : 'Plan setup'}</Text>
+          <Text style={styles.headerTitle}>{initialTrip ? t('setup.editTrip') : t('setup.planSetup')}</Text>
           <Text style={styles.stepText}>1/3</Text>
         </View>
 
@@ -517,10 +522,10 @@ export default function TripSetupScreen({ navigation, route }: Props) {
           <LinearGradient colors={['rgba(33,43,45,0.04)', 'rgba(33,43,45,0.74)']} style={styles.cityPreviewOverlay}>
             <View style={styles.cityBadge}>
               <Ionicons name="sparkles-outline" size={13} color={colors.surface} />
-              <Text style={styles.cityBadgeText}>Personal trip setup</Text>
+              <Text style={styles.cityBadgeText}>{t('setup.personalSetup')}</Text>
             </View>
             <View>
-              <Text style={styles.cityName}>{city || 'Choose your city'}</Text>
+              <Text style={styles.cityName}>{city || t('setup.chooseCity')}</Text>
               <Text style={styles.cityMeta}>{selectedCity.meta}</Text>
             </View>
           </LinearGradient>
@@ -528,8 +533,8 @@ export default function TripSetupScreen({ navigation, route }: Props) {
 
         <View style={styles.panel}>
           <PickerRow
-            label="Destination"
-            value={city || 'Select destination'}
+            label={t('setup.destination')}
+            value={city || t('setup.selectDestination')}
             icon="location-outline"
             expanded={cityOpen}
             onPress={() => setCityOpen((value) => !value)}
@@ -543,14 +548,14 @@ export default function TripSetupScreen({ navigation, route }: Props) {
                 <TextInput
                   value={citySearch}
                   onChangeText={setCitySearch}
-                  placeholder="Search city"
+                  placeholder={t('setup.searchCity')}
                   placeholderTextColor={colors.softMuted}
                   style={styles.searchInput}
                 />
               </View>
               {!citySearch.trim() ? (
                 <>
-                  <Text style={styles.dropdownSectionTitle}>Popular destinations</Text>
+                  <Text style={styles.dropdownSectionTitle}>{t('setup.popularDestinations')}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularRail}>
                     {popularOptions.map((item) => (
                       <TouchableOpacity key={item.id} style={styles.popularCard} activeOpacity={0.86} onPress={() => selectDestination(item)}>
@@ -565,8 +570,8 @@ export default function TripSetupScreen({ navigation, route }: Props) {
                   </ScrollView>
                 </>
               ) : null}
-              <Text style={styles.dropdownSectionTitle}>{citySearch.trim() ? 'Search results' : 'All available'}</Text>
-              {destinationLoading ? <Text style={styles.emptyDropdown}>Searching destinations...</Text> : null}
+              <Text style={styles.dropdownSectionTitle}>{citySearch.trim() ? t('setup.searchResults') : t('setup.allAvailable')}</Text>
+              {destinationLoading ? <Text style={styles.emptyDropdown}>{t('setup.searchingDestinations')}</Text> : null}
               {destinationOptions.map((item) => (
                 <TouchableOpacity
                   key={item.id}
@@ -580,21 +585,21 @@ export default function TripSetupScreen({ navigation, route }: Props) {
                   <View style={styles.destinationCopy}>
                     <View style={styles.destinationTitleRow}>
                       <Text style={styles.destinationName}>{item.name}</Text>
-                      {!item.available ? <Text style={styles.unavailablePill}>Draft</Text> : null}
+                      {!item.available ? <Text style={styles.unavailablePill}>{t('setup.draft')}</Text> : null}
                     </View>
                     <Text style={styles.destinationMeta}>{item.country} - {item.tags}</Text>
-                    <Text style={styles.destinationSmall}>{item.placeCount} picks - {item.averageDailyWalkKm.toFixed(1)} km avg walk</Text>
+                    <Text style={styles.destinationSmall}>{t('setup.destinationStats', { count: item.placeCount, km: item.averageDailyWalkKm.toFixed(1) })}</Text>
                   </View>
                   {item.name === city ? <Ionicons name="checkmark-circle" size={19} color={colors.teal} /> : <Ionicons name="chevron-forward" size={17} color={colors.softMuted} />}
                 </TouchableOpacity>
               ))}
-              {!destinationOptions.length && !destinationLoading ? <Text style={styles.emptyDropdown}>Type a city name to start a provider-backed plan</Text> : null}
+              {!destinationOptions.length && !destinationLoading ? <Text style={styles.emptyDropdown}>{t('setup.typeCity')}</Text> : null}
               {canCreateDraftDestination ? (
                 <TouchableOpacity style={styles.draftCard} activeOpacity={0.86} onPress={createDraftDestination}>
                   <Ionicons name="add-circle-outline" size={20} color={colors.teal} />
                   <View style={styles.draftCopy}>
-                    <Text style={styles.draftTitle}>Create a draft for {citySearch.trim()}</Text>
-                    <Text style={styles.draftText}>Curated data is not ready yet, but Journy can still build a flexible starter plan.</Text>
+                    <Text style={styles.draftTitle}>{t('setup.createDraft', { city: citySearch.trim() })}</Text>
+                    <Text style={styles.draftText}>{t('setup.draftText')}</Text>
                   </View>
                 </TouchableOpacity>
               ) : null}
@@ -604,7 +609,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
           <View style={styles.divider} />
 
           <PickerRow
-            label="Dates"
+            label={t('setup.dates')}
             value={dateLabel}
             icon="calendar-outline"
             expanded={calendarOpen}
@@ -662,24 +667,24 @@ export default function TripSetupScreen({ navigation, route }: Props) {
 
         <View style={styles.previewPanel}>
           <View style={styles.previewTop}>
-            <Text style={styles.previewTitle}>Plan preview</Text>
+            <Text style={styles.previewTitle}>{t('setup.planPreview')}</Text>
             <View style={styles.previewBadge}>
               <Ionicons name="sparkles-outline" size={13} color={colors.teal} />
-              <Text style={styles.previewBadgeText}>{previewLoading ? 'Updating' : previewLive ? `${previewConfidence} confidence` : `${[city, startDate && endDate ? 'dates' : '', selectedInterests.length ? 'taste' : '', pace, startArea.trim()].filter(Boolean).length}/5 ready`}</Text>
+              <Text style={styles.previewBadgeText}>{previewLoading ? t('setup.updating') : previewLive ? t('setup.confidence', { value: previewConfidence }) : t('setup.ready', { count: [city, startDate && endDate ? 'dates' : '', selectedInterests.length ? 'taste' : '', pace, startArea.trim()].filter(Boolean).length })}</Text>
             </View>
           </View>
-          <Text style={styles.previewMain}>{city ? 'Your plan is taking shape' : 'Choose a city to start shaping your route'}</Text>
+          <Text style={styles.previewMain}>{city ? t('setup.planTakingShape') : t('setup.chooseCityRoute')}</Text>
           <View style={styles.previewMetaRow}>
-            <PreviewMetric icon="calendar-outline" label="Days" value={resolvedTripDays ? `${resolvedTripDays}` : '--'} colors={colors} styles={styles} />
-            <PreviewMetric icon="location-outline" label="Stops" value={resolvedPreviewStops ? `~${resolvedPreviewStops}` : '--'} colors={colors} styles={styles} />
-            <PreviewMetric icon="walk-outline" label="Walk" value={resolvedDailyWalkRange} colors={colors} styles={styles} />
+            <PreviewMetric icon="calendar-outline" label={t('setup.days')} value={resolvedTripDays ? `${resolvedTripDays}` : '--'} colors={colors} styles={styles} />
+            <PreviewMetric icon="location-outline" label={t('setup.stops')} value={resolvedPreviewStops ? `~${resolvedPreviewStops}` : '--'} colors={colors} styles={styles} />
+            <PreviewMetric icon="walk-outline" label={t('setup.walk')} value={resolvedDailyWalkRange} colors={colors} styles={styles} />
           </View>
           <View style={styles.planningStyleCard}>
             <View style={styles.planningStyleIcon}>
               <Ionicons name="sparkles-outline" size={16} color={colors.teal} />
             </View>
             <View style={styles.planningStyleCopy}>
-              <Text style={styles.planningStyleLabel}>Planning style</Text>
+              <Text style={styles.planningStyleLabel}>{t('setup.planningStyle')}</Text>
               <Text style={styles.planningStyleText}>{planningStyle}</Text>
             </View>
           </View>
@@ -695,7 +700,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
           </View>
           <Text style={styles.previewFocus}>
             {previewSummary ?? (city && resolvedTripDays
-              ? `${previewFocus}. ${startArea.trim() ? `Day 1 starts around ${startArea.trim()}.` : 'First day starts flexibly around your chosen city.'}`
+              ? `${previewFocus}. ${startArea.trim() ? t('setup.dayStarts', { area: startArea.trim() }) : t('setup.flexibleStart')}`
               : previewFocus)}
           </Text>
           <View style={styles.startingAreaPreview}>
@@ -711,8 +716,8 @@ export default function TripSetupScreen({ navigation, route }: Props) {
                 <Ionicons name="business-outline" size={18} color={colors.teal} />
               </View>
               <View style={styles.startTitleCopy}>
-                <Text style={styles.startLabel}>Where will you start your days?</Text>
-                <Text style={styles.startHelper}>Search a hotel area, station or neighborhood so Journy can reduce first-leg walking.</Text>
+                <Text style={styles.startLabel}>{t('setup.startQuestion')}</Text>
+                <Text style={styles.startHelper}>{t('setup.startHelper')}</Text>
               </View>
             </View>
             {startArea.trim() ? (
@@ -727,7 +732,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
             <TextInput
               value={startArea}
               onChangeText={setStartArea}
-              placeholder={city ? `Search a ${city} area or hotel zone` : 'Hotel, station or neighborhood'}
+              placeholder={city ? t('setup.searchArea', { city }) : t('setup.hotelStation')}
               placeholderTextColor={colors.softMuted}
               style={styles.startInput}
             />
@@ -750,7 +755,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
             })}
           </ScrollView>
           {city.trim() && startSuggestionLoading ? (
-            <Text style={styles.startSuggestionLoading}>Finding real starting points in {city}...</Text>
+            <Text style={styles.startSuggestionLoading}>{t('setup.findingStartPoints', { city })}</Text>
           ) : null}
           {startArea.trim() ? (
             <View style={styles.startImpactCard}>
@@ -758,37 +763,37 @@ export default function TripSetupScreen({ navigation, route }: Props) {
                 <Ionicons name="navigate-outline" size={15} color={colors.teal} />
               </View>
               <View style={styles.startImpactCopy}>
-                <Text style={styles.startImpactLabel}>Route-aware start</Text>
+                <Text style={styles.startImpactLabel}>{t('setup.routeAwareStart')}</Text>
                 <Text style={styles.startImpactText}>{startingAreaInsight}</Text>
               </View>
             </View>
           ) : null}
         </View>
 
-        <Section title="Travelers" value={travelType} styles={styles} />
-        <Segment options={['Solo', 'Couple', 'Friends', 'Family']} value={travelType} onChange={setTravelType} styles={styles} />
+        <Section title={t('setup.travelers')} value={setupOptionLabel(travelType, t)} styles={styles} />
+        <Segment options={['Solo', 'Couple', 'Friends', 'Family']} value={travelType} onChange={setTravelType} labelForOption={(item) => setupOptionLabel(item, t)} styles={styles} />
 
-        <Section title="Pace" value={pace} styles={styles} />
-        <Segment options={paceOptions} value={pace} onChange={setPace} styles={styles} />
+        <Section title={t('setup.pace')} value={setupOptionLabel(pace, t)} styles={styles} />
+        <Segment options={paceOptions} value={pace} onChange={setPace} labelForOption={(item) => setupOptionLabel(item, t)} styles={styles} />
 
-        <Section title="Interests" value={`${selectedInterests.length} selected`} styles={styles} />
+        <Section title={t('setup.interests')} value={t('setup.selected', { count: selectedInterests.length })} styles={styles} />
         <View style={styles.interestGrid}>
           {interests.map((item) => {
             const active = selectedInterests.includes(item.label);
             return (
               <TouchableOpacity key={item.label} style={[styles.interest, active && styles.interestActive]} onPress={() => toggleInterest(item.label)} activeOpacity={0.86}>
                 <Ionicons name={item.icon} size={18} color={active ? colors.surface : colors.teal} />
-                <Text style={[styles.interestText, active && styles.interestTextActive]}>{item.label}</Text>
+                <Text style={[styles.interestText, active && styles.interestTextActive]}>{setupOptionLabel(item.label, t)}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <Section title="Budget" value={budget} styles={styles} />
-        <Segment options={['Lean', 'Balanced', 'Comfort']} value={budget} onChange={setBudget} styles={styles} />
+        <Section title={t('setup.budget')} value={setupOptionLabel(budget, t)} styles={styles} />
+        <Segment options={['Lean', 'Balanced', 'Comfort']} value={budget} onChange={setBudget} labelForOption={(item) => setupOptionLabel(item, t)} styles={styles} />
 
         <TouchableOpacity style={styles.primaryButton} activeOpacity={0.9} onPress={generatePlan}>
-          <Text style={styles.primaryButtonText}>{initialTrip ? 'Regenerate plan' : 'Generate plan'}</Text>
+          <Text style={styles.primaryButtonText}>{initialTrip ? t('setup.regeneratePlan') : t('setup.generatePlan')}</Text>
           <Ionicons name="arrow-forward" size={18} color={colors.surface} />
         </TouchableOpacity>
       </ScrollView>
@@ -972,25 +977,26 @@ function estimateDailyWalkKm(stopsPerDay: number, pace: string, budget: string) 
   return Math.max(2.4, Math.round(stopsPerDay * (paceBase + budgetAdjustment) * 10) / 10);
 }
 
-function localWalkRange(dailyWalkKm: number, pace: string) {
+function localWalkRange(dailyWalkKm: number, pace: string, t: Translate) {
   const spread = pace === 'Relaxed' ? 0.6 : pace === 'Full' ? 1 : 0.8;
   const low = Math.max(1.8, Math.round((dailyWalkKm - spread) * 10) / 10);
   const high = Math.round((dailyWalkKm + spread) * 10) / 10;
-  return `${low.toFixed(1)}-${high.toFixed(1)} km/day`;
+  return t('setup.kmPerDay', { range: `${low.toFixed(1)}-${high.toFixed(1)}` });
 }
 
-function localPlanningStyle(city: string, days: number, pace: string, budget: string, selectedInterests: string[], startArea: string) {
+function localPlanningStyle(city: string, days: number, pace: string, budget: string, selectedInterests: string[], startArea: string, t: Translate) {
   const focus = selectedInterests.includes('Museums')
-    ? 'Culture-led'
+    ? t('setup.cultureLed')
     : selectedInterests.includes('Local food') || selectedInterests.includes('Coffee')
-      ? 'Food-led'
+      ? t('setup.foodLed')
       : selectedInterests.includes('Walking')
-        ? 'Walkable'
-        : 'City';
-  const rhythm = pace === 'Relaxed' ? 'slow days' : pace === 'Full' ? 'full days' : 'easy days';
-  const spend = budget === 'Lean' ? 'low-cost stops' : budget === 'Comfort' ? 'comfort stops' : 'local breaks';
-  const area = startArea.trim() ? ` starting from ${startArea.trim()}` : '';
-  return `${focus} route, ${rhythm} and ${spend}${city ? ` in ${city}` : ''}${area}.`;
+        ? t('setup.walkable')
+        : t('setup.city');
+  const rhythm = pace === 'Relaxed' ? t('setup.slowDays') : pace === 'Full' ? t('setup.fullDays') : t('setup.easyDays');
+  const spend = budget === 'Lean' ? t('setup.lowCostStops') : budget === 'Comfort' ? t('setup.comfortStops') : t('setup.localBreaks');
+  const cityPart = city ? t('setup.inCity', { city }) : '';
+  const areaPart = startArea.trim() ? t('setup.startingFrom', { area: startArea.trim() }) : '';
+  return t('setup.planningSentence', { focus, rhythm, spend, cityPart, areaPart, days });
 }
 
 function dynamicCityDetail(city: string): CityDetail {
@@ -1025,12 +1031,12 @@ function countryForDraftCity() {
   return 'Provider-backed';
 }
 
-function localStartingAreaInsight(startArea: string, dailyWalkKm: number) {
+function localStartingAreaInsight(startArea: string, dailyWalkKm: number, t: Translate) {
   if (!startArea.trim()) {
-    return 'Add a starting neighborhood to make the first route leg more realistic.';
+    return t('setup.startNeighborhood');
   }
   const reduction = Math.max(0.5, Math.min(1.4, Math.round(dailyWalkKm * 0.22 * 10) / 10));
-  return `Starting from ${startArea.trim()} can reduce your first-leg walk by ~${reduction.toFixed(1)} km.`;
+  return t('setup.startReduction', { area: startArea.trim(), km: reduction.toFixed(1) });
 }
 
 function routeStyleFor({
@@ -1043,13 +1049,34 @@ function routeStyleFor({
   budget: string;
   selectedInterests: string[];
   startArea: string;
-}) {
-  if (pace === 'Relaxed') return 'Easy flow';
-  if (budget === 'Lean') return 'Low-cost';
-  if (selectedInterests.includes('Local food')) return 'Food-led';
-  if (selectedInterests.includes('Museums')) return 'Culture-led';
-  if (startArea.trim()) return 'Area-first';
-  return 'Balanced';
+}, t: Translate) {
+  if (pace === 'Relaxed') return t('setup.easyFlow');
+  if (budget === 'Lean') return t('setup.lowCost');
+  if (selectedInterests.includes('Local food')) return t('setup.foodLed');
+  if (selectedInterests.includes('Museums')) return t('setup.cultureLed');
+  if (startArea.trim()) return t('setup.areaFirst');
+  return t('setup.balanced');
+}
+
+function setupOptionLabel(value: string, t: Translate) {
+  const labels: Record<string, string> = {
+    Solo: t('setup.solo'),
+    Couple: t('setup.couple'),
+    Friends: t('setup.friends'),
+    Family: t('setup.family'),
+    Relaxed: t('setup.relaxed'),
+    Balanced: t('setup.balanced'),
+    Full: t('setup.full'),
+    Lean: t('setup.lean'),
+    Comfort: t('setup.comfort'),
+    Coffee: t('setup.coffee'),
+    Museums: t('setup.museums'),
+    'Local food': t('setup.localFood'),
+    Walking: t('setup.walking'),
+    Shopping: t('setup.shopping'),
+    Nightlife: t('setup.nightlife'),
+  };
+  return labels[value] ?? value;
 }
 
 function mapInterest(value: string): CreateTripRequest['interests'][number] {
@@ -1097,6 +1124,7 @@ function PickerRow({
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];
 type TripSetupStyles = ReturnType<typeof createStyles>;
+type Translate = ReturnType<typeof useTranslation>;
 
 function Section({ title, value, styles }: { title: string; value: string; styles: TripSetupStyles }) {
   return (
@@ -1111,18 +1139,20 @@ function Segment({
   options,
   value,
   onChange,
+  labelForOption,
   styles,
 }: {
   options: string[];
   value: string;
   onChange: (value: string) => void;
+  labelForOption?: (value: string) => string;
   styles: TripSetupStyles;
 }) {
   return (
     <View style={styles.segment}>
       {options.map((item) => (
         <TouchableOpacity key={item} style={[styles.segmentItem, item === value && styles.segmentItemActive]} onPress={() => onChange(item)} activeOpacity={0.86}>
-          <Text style={[styles.segmentText, item === value && styles.segmentTextActive]}>{item}</Text>
+          <Text style={[styles.segmentText, item === value && styles.segmentTextActive]}>{labelForOption?.(item) ?? item}</Text>
         </TouchableOpacity>
       ))}
     </View>

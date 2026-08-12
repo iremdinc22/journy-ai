@@ -7,8 +7,10 @@ import MapView, { Marker, Polyline, type LatLng } from 'react-native-maps';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { aiApi } from '../api/journyApi';
 import type { AiItinerarySuggestionResponse, ItineraryDay, ItineraryStop, ItineraryTimelineItem, PlaceResponse } from '../api/types';
+import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { placeImage } from '../utils/destinationVisuals';
+import { localizeDynamicText } from '../utils/localizedDynamicText';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DayRouteDetail'>;
 type ActionKey = 'lighter' | 'food' | 'replace';
@@ -16,6 +18,8 @@ type MapMode = 'Route' | 'Places';
 
 export default function DayRouteDetailScreen({ navigation, route }: Props) {
   const { isDark, theme } = useAppTheme();
+  const { language } = useLanguage();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const { colors } = theme;
   const { tripId, destination, day } = route.params;
@@ -29,21 +33,21 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
   const [mapMode, setMapMode] = useState<MapMode>('Route');
   const [selectedStop, setSelectedStop] = useState<ItineraryStop | null>(currentDay.stops[0] ?? null);
 
-  const displayTitle = cleanRepeatedPrefix(currentDay.title, 'Lighter');
-  const displaySummary = compactRepeatedSentences(currentDay.summary);
-  const paceLabel = currentDay.walkKm <= 4.5 ? 'Relaxed' : currentDay.walkKm >= 7 ? 'Full' : 'Balanced';
+  const displayTitle = localizeDynamicText(cleanRepeatedPrefix(currentDay.title, 'Lighter'), language);
+  const displaySummary = localizeDynamicText(compactRepeatedSentences(currentDay.summary), language);
+  const paceLabel = currentDay.walkKm <= 4.5 ? t('setup.relaxed') : currentDay.walkKm >= 7 ? t('setup.full') : t('setup.balanced');
   const focusLabel = currentDay.stops.some((stop) => stop.category === 'FOOD' || stop.category === 'COFFEE')
-    ? 'Food breaks included'
-    : 'Culture-first flow';
+    ? t('dayRoute.foodBreaksIncluded')
+    : t('dayRoute.cultureFirstFlow');
   const mapRef = useRef<MapView | null>(null);
   const timelineItems = useMemo(() => timelineForDay(currentDay), [currentDay]);
   const routeCoordinates = useMemo(() => stopsToCoordinates(currentDay.stops), [currentDay.stops]);
   const mapRegion = useMemo(() => regionForCoordinates(routeCoordinates), [routeCoordinates]);
   const mappedWalkKm = useMemo(() => estimateRouteDistanceKm(currentDay.stops), [currentDay.stops]);
   const fallbackActionMessage = {
-    lighter: 'Journy would remove the longest transfer and keep the strongest stops.',
-    food: 'Journy would add a nearby food or coffee stop without stretching the route.',
-    replace: 'Journy would swap one stop for a better fit in the same area.',
+    lighter: t('dayRoute.fallbackLighter'),
+    food: t('dayRoute.fallbackFood'),
+    replace: t('dayRoute.fallbackReplace'),
   }[selectedAction];
 
   const loadSuggestion = useCallback(async (action: ActionKey) => {
@@ -53,7 +57,7 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
     setSuggestionLoading(true);
     setSuggestionError(false);
     try {
-      const response = await aiApi.itinerarySuggestion(tripId, currentDay.dayNumber, action);
+      const response = await aiApi.itinerarySuggestion(tripId, currentDay.dayNumber, action, language);
       setSuggestion(response);
     } catch {
       setSuggestionError(true);
@@ -61,7 +65,7 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
     } finally {
       setSuggestionLoading(false);
     }
-  }, [currentDay.dayNumber, tripId]);
+  }, [currentDay.dayNumber, language, tripId]);
 
   useEffect(() => {
     loadSuggestion(selectedAction);
@@ -79,7 +83,7 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
     setApplyLoading(true);
     setApplySuccess(false);
     try {
-      const updatedDay = await aiApi.applyItinerarySuggestion(tripId, currentDay.dayNumber, selectedAction);
+      const updatedDay = await aiApi.applyItinerarySuggestion(tripId, currentDay.dayNumber, selectedAction, language);
       setCurrentDay(updatedDay);
       setApplySuccess(true);
       await loadSuggestion(selectedAction);
@@ -112,25 +116,25 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
           </TouchableOpacity>
           <TouchableOpacity style={styles.startButton} activeOpacity={0.88} onPress={startRoute}>
             <Ionicons name="navigate-outline" size={16} color={colors.surface} />
-            <Text style={styles.startButtonText}>Start route</Text>
+            <Text style={styles.startButtonText}>{t('dayRoute.startRoute')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>Day {currentDay.dayNumber} - {destination}</Text>
+          <Text style={styles.eyebrow}>{t('itinerary.dayDestination', { day: currentDay.dayNumber, destination })}</Text>
           <Text style={styles.title}>{displayTitle}</Text>
           <Text style={styles.subtitle}>{displaySummary}</Text>
           <View style={styles.heroMetaRow}>
-            <HeroMetric icon="walk-outline" value={`${currentDay.walkKm.toFixed(1)} km`} label="Walking" colors={colors} styles={styles} />
-            <HeroMetric icon="location-outline" value={`${currentDay.stopCount}`} label="Stops" colors={colors} styles={styles} />
-            <HeroMetric icon="speedometer-outline" value={paceLabel} label="Pace" colors={colors} styles={styles} />
+            <HeroMetric icon="walk-outline" value={`${currentDay.walkKm.toFixed(1)} km`} label={t('dayRoute.walking')} colors={colors} styles={styles} />
+            <HeroMetric icon="location-outline" value={`${currentDay.stopCount}`} label={t('dayRoute.stops')} colors={colors} styles={styles} />
+            <HeroMetric icon="speedometer-outline" value={paceLabel} label={t('dayRoute.pace')} colors={colors} styles={styles} />
           </View>
         </View>
 
         <View style={styles.routeCard}>
           <View style={styles.mapHeader}>
             <View>
-              <Text style={styles.mapTitle}>Route preview</Text>
+              <Text style={styles.mapTitle}>{t('dayRoute.routePreview')}</Text>
               <Text style={styles.mapSubtitle}>{focusLabel}</Text>
             </View>
             <View style={styles.mapModeToggle}>
@@ -141,7 +145,7 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
                   activeOpacity={0.86}
                   onPress={() => setMapMode(mode)}
                 >
-                  <Text style={[styles.mapModeText, mapMode === mode && styles.mapModeTextActive]}>{mode}</Text>
+                  <Text style={[styles.mapModeText, mapMode === mode && styles.mapModeTextActive]}>{mode === 'Route' ? t('dayRoute.route') : t('dayRoute.places')}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -202,11 +206,11 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
             </MapView>
             <View style={styles.routeDistanceBadge}>
               <Ionicons name="walk-outline" size={13} color={colors.teal} />
-              <Text style={styles.routeDistanceText}>Walking route · {mappedWalkKm.toFixed(1)} km · {estimateRouteMinutes(mappedWalkKm)} min</Text>
+              <Text style={styles.routeDistanceText}>{t('dayRoute.walkingRoute')} · {mappedWalkKm.toFixed(1)} km · {estimateRouteMinutes(mappedWalkKm)} min</Text>
             </View>
             <TouchableOpacity style={styles.openMapsPill} activeOpacity={0.86} onPress={startRoute}>
               <Ionicons name="open-outline" size={13} color={colors.teal} />
-              <Text style={styles.openMapsText}>Open in Maps</Text>
+              <Text style={styles.openMapsText}>{t('dayRoute.openMaps')}</Text>
             </TouchableOpacity>
           </View>
           {selectedStop ? (
@@ -217,24 +221,24 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
                 </View>
                 <View style={styles.markerCardCopy}>
                   <Text style={styles.markerCardTitle}>{selectedStop.title}</Text>
-                  <Text style={styles.markerCardMeta}>{selectedStop.timeWindow} · {formatCategory(selectedStop.category)}</Text>
+              <Text style={styles.markerCardMeta}>{selectedStop.timeWindow} · {formatCategory(selectedStop.category, t)}</Text>
                 </View>
                 <TouchableOpacity style={styles.markerViewButton} activeOpacity={0.86} onPress={() => openStop(selectedStop)}>
-                  <Text style={styles.markerViewText}>View</Text>
+                  <Text style={styles.markerViewText}>{t('dayRoute.view')}</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.markerActions}>
                 <TouchableOpacity style={styles.markerAction} activeOpacity={0.86} onPress={startRoute}>
                   <Ionicons name="navigate-outline" size={15} color={colors.teal} />
-                  <Text style={styles.markerActionText}>Directions</Text>
+                  <Text style={styles.markerActionText}>{t('dayRoute.directions')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.markerAction} activeOpacity={0.86} onPress={() => chooseAction('replace')}>
                   <Ionicons name="swap-horizontal-outline" size={15} color={colors.teal} />
-                  <Text style={styles.markerActionText}>Replace</Text>
+                  <Text style={styles.markerActionText}>{t('dayRoute.replace')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.markerAction} activeOpacity={0.86} onPress={() => chooseAction('lighter')}>
                   <Ionicons name="remove-circle-outline" size={15} color={colors.teal} />
-                  <Text style={styles.markerActionText}>Remove</Text>
+                  <Text style={styles.markerActionText}>{t('dayRoute.remove')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -242,9 +246,9 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.actionRow}>
-          <ActionChip label="Make lighter" icon="leaf-outline" active={selectedAction === 'lighter'} onPress={() => chooseAction('lighter')} styles={styles} />
-          <ActionChip label="Add food stop" icon="restaurant-outline" active={selectedAction === 'food'} onPress={() => chooseAction('food')} styles={styles} />
-          <ActionChip label="Replace stop" icon="swap-horizontal-outline" active={selectedAction === 'replace'} onPress={() => chooseAction('replace')} styles={styles} />
+          <ActionChip label={t('dayRoute.makeLighter')} icon="leaf-outline" active={selectedAction === 'lighter'} onPress={() => chooseAction('lighter')} styles={styles} />
+          <ActionChip label={t('dayRoute.addFoodStop')} icon="restaurant-outline" active={selectedAction === 'food'} onPress={() => chooseAction('food')} styles={styles} />
+          <ActionChip label={t('dayRoute.replaceStop')} icon="swap-horizontal-outline" active={selectedAction === 'replace'} onPress={() => chooseAction('replace')} styles={styles} />
         </View>
         <View style={styles.aiNote}>
           <View style={styles.aiNoteHeader}>
@@ -252,23 +256,23 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
               <Ionicons name="sparkles-outline" size={18} color={colors.teal} />
             </View>
             <View style={styles.aiNoteCopy}>
-              <Text style={styles.aiNoteLabel}>Preview change</Text>
-              <Text style={styles.aiNoteTitle}>{suggestion?.title ?? 'Suggested adjustment'}</Text>
+              <Text style={styles.aiNoteLabel}>{t('dayRoute.previewChange')}</Text>
+              <Text style={styles.aiNoteTitle}>{suggestion?.title ?? t('dayRoute.suggestedAdjustment')}</Text>
             </View>
           </View>
           <Text style={styles.aiNoteText}>
-            {suggestionLoading ? 'Checking your route context...' : suggestion?.message ?? fallbackActionMessage}
+            {suggestionLoading ? t('dayRoute.checkingContext') : suggestion?.message ?? fallbackActionMessage}
           </Text>
 
           <View style={styles.previewGrid}>
-            <PreviewRow icon="git-branch-outline" label="Change" value={suggestion?.suggestedAction ?? previewFallbackAction(selectedAction)} styles={styles} />
-            <PreviewRow icon="location-outline" label="Affected stop" value={previewAffectedStop(suggestion)} styles={styles} />
-            <PreviewRow icon="walk-outline" label="Walk impact" value={previewWalkImpact(selectedAction, suggestion?.minutesSaved)} styles={styles} />
+            <PreviewRow icon="git-branch-outline" label={t('dayRoute.change')} value={suggestion?.suggestedAction ?? previewFallbackAction(selectedAction, t)} styles={styles} />
+            <PreviewRow icon="location-outline" label={t('dayRoute.affectedStop')} value={previewAffectedStop(suggestion, t)} styles={styles} />
+            <PreviewRow icon="walk-outline" label={t('dayRoute.walkImpact')} value={previewWalkImpact(selectedAction, suggestion?.minutesSaved, t)} styles={styles} />
           </View>
 
           {suggestion?.routeSummary ? <Text style={styles.routeSummary}>{suggestion.routeSummary}</Text> : null}
-          {applySuccess ? <Text style={styles.applySuccess}>Plan updated. Timeline and route metrics refreshed.</Text> : null}
-          {suggestionError ? <Text style={styles.suggestionError}>Could not refresh suggestion. Showing local guidance.</Text> : null}
+          {applySuccess ? <Text style={styles.applySuccess}>{t('dayRoute.updated')}</Text> : null}
+          {suggestionError ? <Text style={styles.suggestionError}>{t('dayRoute.suggestionError')}</Text> : null}
 
           <View style={styles.previewActions}>
             <TouchableOpacity
@@ -277,15 +281,15 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
               onPress={() => loadSuggestion(selectedAction)}
               disabled={suggestionLoading || tripId === 'preview-trip'}
             >
-              <Text style={styles.previewSecondaryText}>{suggestionLoading ? 'Checking' : 'Refresh'}</Text>
+              <Text style={styles.previewSecondaryText}>{suggestionLoading ? t('dayRoute.checking') : t('dayRoute.refresh')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.applyButton, applyLoading && styles.applyButtonDisabled]} activeOpacity={0.86} onPress={applySuggestion}>
-              <Text style={styles.applyButtonText}>{applyLoading ? 'Applying...' : 'Apply changes'}</Text>
+              <Text style={styles.applyButtonText}>{applyLoading ? t('dayRoute.applying') : t('dayRoute.applyChanges')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Daily schedule</Text>
+        <Text style={styles.sectionTitle}>{t('dayRoute.dailySchedule')}</Text>
         <View style={styles.stopList}>
           {timelineItems.map((item, index) => (
             item.type === 'TRAVEL' ? (
@@ -298,7 +302,7 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
                 </View>
                 <View style={styles.stopCopy}>
                   <Text style={styles.travelTime}>{item.startTime} - {item.endTime}</Text>
-                  <Text style={styles.travelTitle}>{item.title}{item.distanceKm ? ` · ${item.distanceKm.toFixed(1)} km` : ''}</Text>
+                  <Text style={styles.travelTitle}>{localizeDynamicText(item.title, language)}{item.distanceKm ? ` · ${item.distanceKm.toFixed(1)} km` : ''}</Text>
                 </View>
               </View>
             ) : (
@@ -320,11 +324,11 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
                 <View style={styles.stopCopy}>
                   <View style={styles.stopTopLine}>
                     <Text style={styles.stopWindow}>{item.startTime} - {item.endTime}</Text>
-                    <Text style={styles.stopCategory}>{formatCategory(item.category ?? 'STOP')}</Text>
+                    <Text style={styles.stopCategory}>{formatCategory(item.category ?? 'STOP', t)}</Text>
                   </View>
-                  <Text style={styles.stopTitle}>{item.title}</Text>
-                  <Text style={styles.stopNote}>{item.note}</Text>
-                  {item.constraintWarning ? <Text style={styles.constraintWarning}>{item.constraintWarning}</Text> : null}
+                  <Text style={styles.stopTitle}>{localizeDynamicText(item.title, language)}</Text>
+                  <Text style={styles.stopNote}>{localizeDynamicText(item.note, language)}</Text>
+                  {item.constraintWarning ? <Text style={styles.constraintWarning}>{localizeDynamicText(item.constraintWarning, language)}</Text> : null}
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.softMuted} />
               </TouchableOpacity>
@@ -453,30 +457,32 @@ function toPlaceDetail(stop: ItineraryStop, destination: string): PlaceResponse 
   };
 }
 
-function previewFallbackAction(action: ActionKey) {
-  if (action === 'food') return 'Add nearby food break';
-  if (action === 'replace') return 'Swap one stop';
-  return 'Lighten route';
+type Translate = ReturnType<typeof useTranslation>;
+
+function previewFallbackAction(action: ActionKey, t: Translate) {
+  if (action === 'food') return t('dayRoute.addNearbyFood');
+  if (action === 'replace') return t('dayRoute.swapStop');
+  return t('dayRoute.lightenRoute');
 }
 
-function previewAffectedStop(suggestion: AiItinerarySuggestionResponse | null) {
+function previewAffectedStop(suggestion: AiItinerarySuggestionResponse | null, t: Translate) {
   if (!suggestion?.stopsAffected?.length) {
-    return 'Route rhythm';
+    return t('dayRoute.routeRhythm');
   }
   return suggestion.stopsAffected.slice(0, 2).join(', ');
 }
 
-function previewWalkImpact(action: ActionKey, minutesSaved?: number | null) {
+function previewWalkImpact(action: ActionKey, minutesSaved: number | null | undefined, t: Translate) {
   if (typeof minutesSaved === 'number' && minutesSaved > 0) {
-    return `${minutesSaved} min saved`;
+    return t('dayRoute.minSaved', { minutes: minutesSaved });
   }
   if (action === 'food') {
-    return 'Small detour';
+    return t('dayRoute.smallDetour');
   }
   if (action === 'replace') {
-    return 'Similar distance';
+    return t('dayRoute.similarDistance');
   }
-  return 'Lower effort';
+  return t('dayRoute.lowerEffort');
 }
 
 function estimateRouteMinutes(km: number) {
@@ -649,8 +655,14 @@ function toRadians(value: number) {
   return value * (Math.PI / 180);
 }
 
-function formatCategory(category: string) {
-  return category.toLowerCase().replace(/_/g, ' ');
+function formatCategory(category: string, t?: Translate) {
+  const value = category.toLowerCase();
+  if (!t) return value.replace(/_/g, ' ');
+  if (value.includes('coffee')) return t('setup.coffee');
+  if (value.includes('food')) return t('setup.localFood');
+  if (value.includes('culture') || value.includes('museum')) return t('setup.museums');
+  if (value.includes('walking')) return t('setup.walking');
+  return value.replace(/_/g, ' ');
 }
 
 function createStyles({ colors, radius, spacing, typography }: Theme, isDark: boolean) {

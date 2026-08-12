@@ -20,6 +20,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { authApi } from '../api/journyApi';
+import { useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { authErrorMessage } from '../utils/apiErrors';
 import { isStrongEnoughPassword, isValidEmail } from '../utils/validation';
@@ -27,14 +28,9 @@ import { isStrongEnoughPassword, isValidEmail } from '../utils/validation';
 type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 type AuthMode = 'login' | 'register';
 
-const featurePills = [
-  { title: 'Routes', text: 'Walkable days', icon: 'navigate-outline' },
-  { title: 'Local', text: 'Food & cafes', icon: 'restaurant-outline' },
-  { title: 'Personal', text: 'Your pace', icon: 'heart-outline' },
-] as const;
-
 export default function WelcomeScreen({ navigation }: Props) {
   const { isDark, theme } = useAppTheme();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const { colors } = theme;
   const [sheetMode, setSheetMode] = useState<AuthMode | null>(null);
@@ -43,20 +39,26 @@ export default function WelcomeScreen({ navigation }: Props) {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const featurePills = [
+    { title: t('welcome.routes'), text: t('welcome.routesText'), icon: 'navigate-outline' },
+    { title: t('welcome.local'), text: t('welcome.localText'), icon: 'restaurant-outline' },
+    { title: t('welcome.personal'), text: t('welcome.personalText'), icon: 'heart-outline' },
+  ] as const;
+
   const closeSheet = () => setSheetMode(null);
 
   const submitAuth = async () => {
     if (!sheetMode) return;
     if (!isValidEmail(email)) {
-      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      Alert.alert(t('auth.invalidEmailTitle'), t('auth.invalidEmailMessage'));
       return;
     }
     if (!isStrongEnoughPassword(password)) {
-      Alert.alert('Password too short', 'Password must be at least 6 characters.');
+      Alert.alert(t('auth.passwordShortTitle'), t('auth.passwordShortMessage'));
       return;
     }
     if (sheetMode === 'register' && !name.trim()) {
-      Alert.alert('Missing name', 'Please enter your full name to create an account.');
+      Alert.alert(t('auth.missingNameTitle'), t('auth.missingNameMessage'));
       return;
     }
 
@@ -69,7 +71,7 @@ export default function WelcomeScreen({ navigation }: Props) {
       }
       navigation.replace('TripSetup');
     } catch (error) {
-      Alert.alert('Authentication failed', authErrorMessage(error));
+      Alert.alert(t('auth.failedTitle'), authErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -81,7 +83,7 @@ export default function WelcomeScreen({ navigation }: Props) {
       await authApi.login('admin@journy.app', 'admin123');
       navigation.replace('TripSetup');
     } catch (error) {
-      Alert.alert('Guest mode unavailable', authErrorMessage(error));
+      Alert.alert(t('auth.guestUnavailableTitle'), authErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -106,25 +108,20 @@ export default function WelcomeScreen({ navigation }: Props) {
             <LinearGradient colors={['rgba(168,143,168,0.08)', 'rgba(80,72,80,0.54)']} style={styles.heroOverlay}>
               <View style={styles.aiPill}>
                 <Ionicons name="sparkles-outline" size={13} color={colors.surface} />
-                <Text style={styles.aiPillText}>AI travel planner</Text>
+                <Text style={styles.aiPillText}>{t('welcome.aiPlanner')}</Text>
               </View>
 
               <View>
-                <Text style={styles.title}>Welcome to calmer trips.</Text>
-                <Text style={styles.subtitle}>
-                  Plan realistic city days around your dates, budget and travel style.
-                </Text>
+                <Text style={styles.title}>{t('welcome.title')}</Text>
+                <Text style={styles.subtitle}>{t('welcome.subtitle')}</Text>
               </View>
             </LinearGradient>
           </ImageBackground>
 
           <View style={styles.previewCard}>
             <Ionicons name="sparkles-outline" size={22} color={colors.teal} />
-            <Text style={styles.previewTitle}>Your trip, perfectly planned.</Text>
-            <Text style={styles.previewText}>
-              Build walkable days around your <Text style={styles.previewAccent}>dates</Text>,{' '}
-              <Text style={styles.previewAccent}>budget</Text> and <Text style={styles.previewAccent}>style</Text>.
-            </Text>
+            <Text style={styles.previewTitle}>{t('welcome.previewTitle')}</Text>
+            <Text style={styles.previewText}>{t('welcome.previewText')}</Text>
 
             <View style={styles.featureRow}>
               {featurePills.map((item, index) => (
@@ -146,7 +143,7 @@ export default function WelcomeScreen({ navigation }: Props) {
               activeOpacity={0.9}
               onPress={() => setSheetMode('register')}
             >
-              <Text style={styles.primaryButtonText}>Create account</Text>
+              <Text style={styles.primaryButtonText}>{t('auth.createAccount')}</Text>
               <Ionicons name="arrow-forward" size={19} color={colors.surface} />
             </TouchableOpacity>
 
@@ -155,11 +152,11 @@ export default function WelcomeScreen({ navigation }: Props) {
               activeOpacity={0.86}
               onPress={() => setSheetMode('login')}
             >
-              <Text style={styles.secondaryButtonText}>Sign in</Text>
+              <Text style={styles.secondaryButtonText}>{t('auth.signIn')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.guestButton} activeOpacity={0.8} onPress={continueAsGuest}>
-              <Text style={styles.guestText}>Continue as guest</Text>
+              <Text style={styles.guestText}>{t('auth.continueGuest')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -175,12 +172,12 @@ export default function WelcomeScreen({ navigation }: Props) {
               <View style={styles.sheetHeader}>
                 <View>
                   <Text style={styles.sheetTitle}>
-                    {sheetMode === 'login' ? 'Welcome back.' : 'Create your profile.'}
+                    {sheetMode === 'login' ? t('auth.welcomeBack') : t('auth.createProfile')}
                   </Text>
                   <Text style={styles.sheetSubtitle}>
                     {sheetMode === 'login'
-                      ? 'Use the demo account or continue as guest.'
-                      : 'Save your routes, taste profile and city plans.'}
+                      ? t('auth.demoSubtitle')
+                      : t('auth.saveRoutesSubtitle')}
                   </Text>
                 </View>
                 <TouchableOpacity style={styles.closeButton} activeOpacity={0.82} onPress={closeSheet}>
@@ -190,12 +187,12 @@ export default function WelcomeScreen({ navigation }: Props) {
 
               <View style={styles.sheetForm}>
                 {sheetMode === 'register' ? (
-                  <AuthInput icon="person-outline" placeholder="Full name" value={name} onChangeText={setName} colors={colors} styles={styles} />
+                  <AuthInput icon="person-outline" placeholder={t('auth.fullName')} value={name} onChangeText={setName} colors={colors} styles={styles} />
                 ) : null}
-                <AuthInput icon="mail-outline" placeholder="Email" value={email} onChangeText={setEmail} colors={colors} styles={styles} />
+                <AuthInput icon="mail-outline" placeholder={t('auth.email')} value={email} onChangeText={setEmail} colors={colors} styles={styles} />
                 <AuthInput
                   icon="lock-closed-outline"
-                  placeholder="Password"
+                  placeholder={t('auth.password')}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
@@ -214,7 +211,7 @@ export default function WelcomeScreen({ navigation }: Props) {
                   ) : (
                     <>
                       <Text style={styles.sheetPrimaryText}>
-                        {sheetMode === 'login' ? 'Sign in' : 'Create account'}
+                        {sheetMode === 'login' ? t('auth.signIn') : t('auth.createAccount')}
                       </Text>
                       <Ionicons name="arrow-forward" size={18} color={colors.surface} />
                     </>
@@ -224,7 +221,7 @@ export default function WelcomeScreen({ navigation }: Props) {
                 <TouchableOpacity style={styles.googleButton} activeOpacity={0.86}>
                   <Ionicons name="logo-google" size={17} color={colors.midnight} />
                   <Text style={styles.googleText}>
-                    {sheetMode === 'login' ? 'Continue with Google' : 'Sign up with Google'}
+                    {sheetMode === 'login' ? t('auth.continueGoogle') : t('auth.signUpGoogle')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -234,13 +231,13 @@ export default function WelcomeScreen({ navigation }: Props) {
                 onPress={() => setSheetMode(sheetMode === 'login' ? 'register' : 'login')}
               >
                 <Text style={styles.switchText}>
-                  {sheetMode === 'login' ? 'New to Journy? ' : 'Already have an account? '}
-                  <Text style={styles.switchLink}>{sheetMode === 'login' ? 'Create account' : 'Sign in'}</Text>
+                  {sheetMode === 'login' ? `${t('auth.newToJourny')} ` : `${t('auth.alreadyAccount')} `}
+                  <Text style={styles.switchLink}>{sheetMode === 'login' ? t('auth.createAccount') : t('auth.signIn')}</Text>
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity activeOpacity={0.8} onPress={continueAsGuest}>
-                <Text style={styles.sheetGuestText}>Continue as guest</Text>
+                <Text style={styles.sheetGuestText}>{t('auth.continueGuest')}</Text>
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>

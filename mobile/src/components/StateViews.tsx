@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 
 export function InlineLoading({ label = 'Loading your trip...' }: { label?: string }) {
@@ -25,6 +26,7 @@ export function InlineError({
   onRetry?: () => void;
 }) {
   const { theme } = useAppTheme();
+  const t = useTranslation();
   const styles = createStyles(theme);
   const { colors } = theme;
 
@@ -37,7 +39,7 @@ export function InlineError({
       <Text style={styles.stateText}>{description}</Text>
       {onRetry ? (
         <TouchableOpacity style={styles.retryButton} activeOpacity={0.86} onPress={onRetry}>
-          <Text style={styles.retryText}>Retry</Text>
+          <Text style={styles.retryText}>{t('common.retry')}</Text>
         </TouchableOpacity>
       ) : null}
     </View>

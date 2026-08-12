@@ -5,12 +5,16 @@ import { useNavigation } from '@react-navigation/native';
 import { agentApi, tripApi } from '../api/journyApi';
 import { session } from '../api/session';
 import type { ItineraryDay, ItineraryResponse, ItineraryTimelineItem, WeatherAdjustmentResponse } from '../api/types';
+import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
 import { cityCoordinates } from '../utils/destinationVisuals';
+import { localizeDynamicList, localizeDynamicText } from '../utils/localizedDynamicText';
 
 export default function ItineraryScreen() {
   const { isDark, theme } = useAppTheme();
+  const { language } = useLanguage();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const navigation = useNavigation<any>();
@@ -71,7 +75,7 @@ export default function ItineraryScreen() {
     };
   }, []);
 
-  const fallbackDestination = session.getCurrentTrip()?.destination ?? 'Your trip';
+  const fallbackDestination = session.getCurrentTrip()?.destination ?? t('home.yourTrip');
   const destination = itinerary?.destination ?? fallbackDestination;
   const visibleDays = itinerary?.days ?? previewDays(destination, session.getCurrentTrip()?.days ?? 1);
   const tripId = itinerary?.tripId ?? session.getCurrentTrip()?.id ?? 'preview-trip';
@@ -89,18 +93,18 @@ export default function ItineraryScreen() {
 
   const applyWeatherAdjustment = async () => {
     if (!weatherTargetDay || tripId === 'preview-trip') {
-      Alert.alert('Live plan required', 'Refresh the itinerary before applying a weather adjustment.');
+      Alert.alert(t('itinerary.livePlanRequiredTitle'), t('itinerary.livePlanWeather'));
       return;
     }
     setWeatherApplying(true);
     try {
-      const updatedDay = await agentApi.apply(tripId, weatherTargetDay.dayNumber, 'RAIN_REPLAN');
+      const updatedDay = await agentApi.apply(tripId, weatherTargetDay.dayNumber, 'RAIN_REPLAN', language);
       updateDay(updatedDay);
       setWeatherApplied(true);
       setWeatherSignal((current) => current ? { ...current, available: false } : current);
       setWeatherPreviewOpen(false);
     } catch {
-      Alert.alert('Could not update for weather', 'Please check the backend connection and try again.');
+      Alert.alert(t('itinerary.weatherUpdateErrorTitle'), t('itinerary.backendRetry'));
     } finally {
       setWeatherApplying(false);
     }
@@ -108,7 +112,7 @@ export default function ItineraryScreen() {
 
   const ensureLivePlan = () => {
     if (!itinerary) {
-      Alert.alert('Live plan required', 'Refresh the itinerary before editing stops.');
+      Alert.alert(t('itinerary.livePlanRequiredTitle'), t('itinerary.livePlanEdit'));
       return false;
     }
     return true;
@@ -119,19 +123,19 @@ export default function ItineraryScreen() {
   const removeStop = (day: ItineraryDay, stop: ItineraryDay['stops'][number]) => {
     closeStopActions();
     Alert.alert(
-      'Remove stop?',
-      `${stop.title} will be removed from Day ${day.dayNumber}.`,
+      t('itinerary.removeStopTitle'),
+      t('itinerary.removeStopMessage', { stop: stop.title, day: day.dayNumber }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Remove',
+          text: t('itinerary.remove'),
           style: 'destructive',
           onPress: async () => {
             if (!ensureLivePlan()) return;
             try {
               updateDay(await tripApi.removeStop(tripId, day.dayNumber, stop.id));
             } catch {
-              Alert.alert('Could not remove stop', 'Please check the backend connection and try again.');
+              Alert.alert(t('itinerary.removeErrorTitle'), t('itinerary.backendRetry'));
             }
           },
         },
@@ -145,7 +149,7 @@ export default function ItineraryScreen() {
     try {
       updateDay(await tripApi.toggleStopOptional(tripId, day.dayNumber, stop.id));
     } catch {
-      Alert.alert('Could not update stop', 'Please check the backend connection and try again.');
+      Alert.alert(t('itinerary.updateErrorTitle'), t('itinerary.backendRetry'));
     }
   };
 
@@ -157,7 +161,7 @@ export default function ItineraryScreen() {
     try {
       updateDay(await tripApi.reorderStop(tripId, day.dayNumber, stop.id, targetOrder));
     } catch {
-      Alert.alert('Could not reorder stop', 'Please check the backend connection and try again.');
+      Alert.alert(t('itinerary.reorderErrorTitle'), t('itinerary.backendRetry'));
     }
   };
 
@@ -167,7 +171,7 @@ export default function ItineraryScreen() {
     try {
       setItinerary(await tripApi.moveStop(tripId, day.dayNumber, stop.id, targetDayNumber));
     } catch {
-      Alert.alert('Could not move stop', 'Please check the backend connection and try again.');
+      Alert.alert(t('itinerary.moveErrorTitle'), t('itinerary.backendRetry'));
     }
   };
 
@@ -185,35 +189,35 @@ export default function ItineraryScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.eyebrow}>AI itinerary</Text>
+            <Text style={styles.eyebrow}>{t('itinerary.aiItinerary')}</Text>
             <Text style={styles.title}>{destination}</Text>
           </View>
           <View style={styles.headerBadge}>
             <Ionicons name="sparkles-outline" size={14} color={colors.teal} />
-            <Text style={styles.headerBadgeText}>Optimized</Text>
+            <Text style={styles.headerBadgeText}>{t('itinerary.optimized')}</Text>
           </View>
         </View>
 
         <View style={styles.overviewCard}>
           <View style={styles.overviewTop}>
             <View>
-              <Text style={styles.overviewLabel}>Trip rhythm</Text>
-              <Text style={styles.overviewTitle}>{visibleDays.length} days planned around distance</Text>
+              <Text style={styles.overviewLabel}>{t('itinerary.tripRhythm')}</Text>
+              <Text style={styles.overviewTitle}>{t('itinerary.daysPlanned', { count: visibleDays.length })}</Text>
             </View>
             <Ionicons name="map-outline" size={24} color={colors.teal} />
           </View>
           <View style={styles.overviewStats}>
-            <OverviewStat label="Days" value={`${visibleDays.length}`} styles={styles} />
-            <OverviewStat label="Stops" value={`${totalStops}`} styles={styles} />
-            <OverviewStat label="Walk" value={`${totalWalk.toFixed(1)} km`} styles={styles} />
+            <OverviewStat label={t('itinerary.days')} value={`${visibleDays.length}`} styles={styles} />
+            <OverviewStat label={t('itinerary.stops')} value={`${totalStops}`} styles={styles} />
+            <OverviewStat label={t('itinerary.walk')} value={`${totalWalk.toFixed(1)} km`} styles={styles} />
           </View>
         </View>
 
-        {loading ? <InlineLoading label="Building your itinerary..." /> : null}
+        {loading ? <InlineLoading label={t('itinerary.loading')} /> : null}
         {error ? (
           <InlineError
-            title="Could not refresh the itinerary"
-            description="Showing the preview plan until the backend responds."
+            title={t('itinerary.refreshErrorTitle')}
+            description={t('itinerary.refreshErrorDescription')}
             onRetry={loadItinerary}
           />
         ) : null}
@@ -225,29 +229,29 @@ export default function ItineraryScreen() {
                 <Ionicons name="rainy-outline" size={20} color={colors.teal} />
               </View>
               <View style={styles.weatherCopy}>
-                <Text style={styles.weatherKicker}>Weather adjustment available</Text>
-                <Text style={styles.weatherTitle}>{weatherSignal.title}</Text>
-                <Text style={styles.weatherText}>{weatherSignal.message}</Text>
+                <Text style={styles.weatherKicker}>{t('itinerary.weatherAvailable')}</Text>
+                <Text style={styles.weatherTitle}>{localizeDynamicText(weatherSignal.title, language)}</Text>
+                <Text style={styles.weatherText}>{localizeDynamicText(weatherSignal.message, language)}</Text>
               </View>
             </View>
 
             {weatherPreviewOpen ? (
               <View style={styles.weatherPreview}>
-                <WeatherPreviewMetric label="Before" value={`${weatherSignal.beforeStopCount} stops - ${weatherSignal.beforeWalkKm.toFixed(1)} km`} styles={styles} />
-                <WeatherPreviewMetric label="After" value={`${weatherSignal.afterStopCount} stops - ${weatherSignal.afterWalkKm.toFixed(1)} km`} styles={styles} />
+                <WeatherPreviewMetric label={t('itinerary.before')} value={`${weatherSignal.beforeStopCount} ${t('itinerary.stops').toLowerCase()} - ${weatherSignal.beforeWalkKm.toFixed(1)} km`} styles={styles} />
+                <WeatherPreviewMetric label={t('itinerary.after')} value={`${weatherSignal.afterStopCount} ${t('itinerary.stops').toLowerCase()} - ${weatherSignal.afterWalkKm.toFixed(1)} km`} styles={styles} />
                 <View style={styles.weatherChangeList}>
-                  {weatherSignal.changes.slice(0, 3).map((change) => (
+                  {localizeDynamicList(weatherSignal.changes, language).slice(0, 3).map((change) => (
                     <Text key={change} style={styles.weatherChange}>{change}</Text>
                   ))}
                 </View>
               </View>
             ) : null}
 
-            {weatherApplied ? <Text style={styles.weatherSuccess}>Weather-ready plan applied. Day {weatherTargetDay.dayNumber} was refreshed.</Text> : null}
+            {weatherApplied ? <Text style={styles.weatherSuccess}>{t('itinerary.weatherApplied', { day: weatherTargetDay.dayNumber })}</Text> : null}
 
             <View style={styles.weatherActions}>
               <TouchableOpacity style={styles.weatherSecondaryButton} activeOpacity={0.86} onPress={() => setWeatherPreviewOpen((open) => !open)}>
-                <Text style={styles.weatherSecondaryText}>{weatherPreviewOpen ? 'Hide preview' : 'Preview changes'}</Text>
+                <Text style={styles.weatherSecondaryText}>{weatherPreviewOpen ? t('itinerary.hidePreview') : t('itinerary.previewChanges')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.weatherPrimaryButton, weatherApplying && styles.weatherButtonDisabled]}
@@ -255,7 +259,7 @@ export default function ItineraryScreen() {
                 onPress={applyWeatherAdjustment}
                 disabled={weatherApplying}
               >
-                <Text style={styles.weatherPrimaryText}>{weatherApplying ? 'Applying...' : 'Apply'}</Text>
+                <Text style={styles.weatherPrimaryText}>{weatherApplying ? t('itinerary.applying') : t('itinerary.apply')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -269,7 +273,7 @@ export default function ItineraryScreen() {
               activeOpacity={0.86}
               onPress={() => navigation.navigate('DayRouteDetail', { tripId, destination, day: item })}
             >
-              <Text style={styles.dayChipLabel}>Day {item.dayNumber}</Text>
+              <Text style={styles.dayChipLabel}>{t('itinerary.day', { day: item.dayNumber })}</Text>
               <Text style={styles.dayChipValue}>{item.walkKm.toFixed(1)} km</Text>
             </TouchableOpacity>
           ))}
@@ -284,16 +288,16 @@ export default function ItineraryScreen() {
           >
             <View style={styles.dayHeader}>
               <View style={styles.dayTitleBlock}>
-                <Text style={styles.day}>Day {item.dayNumber} - {destination}</Text>
-                <Text style={styles.area}>{item.title}</Text>
+                <Text style={styles.day}>{t('itinerary.dayDestination', { day: item.dayNumber, destination })}</Text>
+                <Text style={styles.area}>{localizeDynamicText(item.title, language)}</Text>
               </View>
               <View style={styles.badge}>
                 <Ionicons name="walk-outline" size={14} color={colors.teal} />
-                <Text style={styles.badgeText}>{item.walkKm.toFixed(1)} km - {item.stopCount} stops</Text>
+                <Text style={styles.badgeText}>{item.walkKm.toFixed(1)} km - {item.stopCount} {t('itinerary.stops').toLowerCase()}</Text>
               </View>
             </View>
 
-            <Text style={styles.summary}>{item.summary}</Text>
+            <Text style={styles.summary}>{localizeDynamicText(item.summary, language)}</Text>
 
             <View style={styles.routeStrip}>
               {item.stops.slice(0, 5).map((stop, index) => (
@@ -315,7 +319,7 @@ export default function ItineraryScreen() {
                     </View>
                     <View style={styles.stopLine} />
                     <View style={styles.stopCopy}>
-                      <Text style={styles.travelTimelineText}>{timelineItem.startTime} - {timelineItem.endTime} · {timelineItem.title}</Text>
+                      <Text style={styles.travelTimelineText}>{timelineItem.startTime} - {timelineItem.endTime} · {localizeDynamicText(timelineItem.title, language)}</Text>
                     </View>
                   </View>
                 ) : (
@@ -325,7 +329,7 @@ export default function ItineraryScreen() {
                     </View>
                     <View style={styles.stopLine} />
                     <View style={styles.stopCopy}>
-                      <Text style={styles.stopText}>{timelineItem.title}</Text>
+                      <Text style={styles.stopText}>{localizeDynamicText(timelineItem.title, language)}</Text>
                       <Text style={styles.stopTime}>{timelineItem.startTime} - {timelineItem.endTime}</Text>
                     </View>
                     <TouchableOpacity
@@ -341,10 +345,10 @@ export default function ItineraryScreen() {
                   </View>
                 )
               ))}
-              {timelineForDay(item).length > 5 ? <Text style={styles.moreStops}>+{timelineForDay(item).length - 5} more schedule items in detail</Text> : null}
+              {timelineForDay(item).length > 5 ? <Text style={styles.moreStops}>{t('itinerary.moreItems', { count: timelineForDay(item).length - 5 })}</Text> : null}
             </View>
             <View style={styles.openRouteRow}>
-              <Text style={styles.openRouteText}>Open route map</Text>
+              <Text style={styles.openRouteText}>{t('itinerary.openRouteMap')}</Text>
               <Ionicons name="chevron-forward" size={16} color={colors.teal} />
             </View>
           </TouchableOpacity>
@@ -363,8 +367,8 @@ export default function ItineraryScreen() {
                   <View style={styles.actionTitleBlock}>
                     <Text style={styles.actionTitle}>{selectedStop.stop.title}</Text>
                     <Text style={styles.actionMeta}>
-                      Day {selectedStop.day.dayNumber} - {selectedStop.stop.timeWindow}
-                      {selectedStop.stop.optional ? ' - Optional stop' : ''}
+                      {t('itinerary.day', { day: selectedStop.day.dayNumber })} - {selectedStop.stop.timeWindow}
+                      {selectedStop.stop.optional ? ` - ${t('itinerary.optionalStop')}` : ''}
                     </Text>
                   </View>
                   <TouchableOpacity style={styles.actionClose} activeOpacity={0.75} onPress={closeStopActions}>
@@ -375,23 +379,23 @@ export default function ItineraryScreen() {
                 <View style={styles.actionList}>
                   <StopActionRow
                     icon={selectedStop.stop.optional ? 'star-outline' : 'bookmark-outline'}
-                    title={selectedStop.stop.optional ? 'Keep as main stop' : 'Make optional'}
-                    description={selectedStop.stop.optional ? 'Bring it back into the core route.' : 'Keep it in the day, but lower the pressure.'}
+                    title={selectedStop.stop.optional ? t('itinerary.keepMain') : t('itinerary.makeOptional')}
+                    description={selectedStop.stop.optional ? t('itinerary.keepMainDescription') : t('itinerary.makeOptionalDescription')}
                     onPress={() => toggleOptional(selectedStop.day, selectedStop.stop)}
                     styles={styles}
                   />
                   <StopActionRow
                     icon="arrow-up-outline"
-                    title="Move earlier"
-                    description="Place this stop one step earlier in the route."
+                    title={t('itinerary.moveEarlier')}
+                    description={t('itinerary.moveEarlierDescription')}
                     disabled={selectedStop.stop.order <= 1}
                     onPress={() => reorderStop(selectedStop.day, selectedStop.stop, -1)}
                     styles={styles}
                   />
                   <StopActionRow
                     icon="arrow-down-outline"
-                    title="Move later"
-                    description="Place this stop one step later in the route."
+                    title={t('itinerary.moveLater')}
+                    description={t('itinerary.moveLaterDescription')}
                     disabled={selectedStop.stop.order >= selectedStop.day.stops.length}
                     onPress={() => reorderStop(selectedStop.day, selectedStop.stop, 1)}
                     styles={styles}
@@ -399,8 +403,8 @@ export default function ItineraryScreen() {
                   {targetDay ? (
                     <StopActionRow
                       icon="calendar-outline"
-                      title={`Move to Day ${targetDay.dayNumber}`}
-                      description="Shift it into another day and rebalance both days."
+                      title={t('itinerary.moveToDay', { day: targetDay.dayNumber })}
+                      description={t('itinerary.moveToDayDescription')}
                       onPress={() => moveStop(selectedStop.day, selectedStop.stop, targetDay.dayNumber)}
                       styles={styles}
                     />
@@ -416,8 +420,8 @@ export default function ItineraryScreen() {
                     <Ionicons name="trash-outline" size={18} color="#C65353" />
                   </View>
                   <View style={styles.removeCopy}>
-                    <Text style={styles.removeTitle}>Remove from plan</Text>
-                    <Text style={styles.removeDescription}>Delete this stop from Day {selectedStop.day.dayNumber}.</Text>
+                    <Text style={styles.removeTitle}>{t('itinerary.removeFromPlan')}</Text>
+                    <Text style={styles.removeDescription}>{t('itinerary.deleteFromDay', { day: selectedStop.day.dayNumber })}</Text>
                   </View>
                 </TouchableOpacity>
               </>

@@ -21,13 +21,17 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { savedPlaceApi, tripApi } from '../api/journyApi';
 import { session } from '../api/session';
 import type { AddPlaceToPlanRequest, ItineraryDay, PlaceResponse, SavedPlaceRequest } from '../api/types';
+import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { placeImage } from '../utils/destinationVisuals';
+import { localizeDynamicText } from '../utils/localizedDynamicText';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PlaceDetail'>;
 
 export default function PlaceDetailScreen({ navigation, route }: Props) {
   const { theme } = useAppTheme();
+  const { language } = useLanguage();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const { place } = route.params;
@@ -39,15 +43,16 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
   const [itineraryDays, setItineraryDays] = useState<ItineraryDay[]>([]);
   const [selectedDayNumber, setSelectedDayNumber] = useState(1);
   const [dayPickerOpen, setDayPickerOpen] = useState(false);
-  const categoryLabel = formatCategory(place.category);
-  const role = roleForCategory(place.category);
-  const walkTime = estimatedWalkTime(place.category);
+  const categoryLabel = formatCategory(place.category, t);
+  const role = roleForCategory(place.category, t);
+  const walkTime = estimatedWalkTime(place.category, language);
   const tags = (place.tags ?? `${categoryLabel},walkable`)
     .split(',')
     .map((tag) => tag.trim())
     .filter(Boolean)
+    .map((tag) => localizeDynamicText(tag, language))
     .slice(0, 4);
-  const bestFit = useMemo(() => bestFitForPlace(place, itineraryDays), [itineraryDays, place]);
+  const bestFit = useMemo(() => bestFitForPlace(place, itineraryDays, t, language), [itineraryDays, language, place, t]);
   const selectedDay = itineraryDays.find((day) => day.dayNumber === selectedDayNumber) ?? bestFit.day;
   const bestFitReasons = bestFit.reasons;
   const heroImage = place.imageUrl || fallbackImageForCategory(place.category, place.city, place.name);
@@ -84,7 +89,7 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
         const response = await tripApi.itinerary(currentTrip.id);
         if (mounted) {
           setItineraryDays(response.days);
-          const fit = bestFitForPlace(place, response.days);
+          const fit = bestFitForPlace(place, response.days, t, language);
           setSelectedDayNumber(fit.day?.dayNumber ?? 1);
         }
       } catch {
@@ -100,7 +105,7 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
     return () => {
       mounted = false;
     };
-  }, [place]);
+  }, [language, place, t]);
 
   const toggleSaved = async () => {
     if (saving) {
@@ -191,10 +196,10 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
             <View style={styles.heroCopy}>
               <View style={styles.categoryPill}>
                 <Ionicons name={iconForCategory(place.category)} size={14} color={colors.teal} />
-                <Text style={styles.categoryText}>{categoryLabel} pick</Text>
+                <Text style={styles.categoryText}>{categoryLabel} {t('place.pickSuffix')}</Text>
               </View>
               <Text style={styles.title}>{place.name}</Text>
-              <Text style={styles.location}>{place.city} - curated for your route</Text>
+              <Text style={styles.location}>{place.city} - {t('place.curatedRoute')}</Text>
             </View>
           </LinearGradient>
         </ImageBackground>
@@ -205,21 +210,21 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
               <Ionicons name="sparkles-outline" size={20} color={colors.teal} />
             </View>
             <View style={styles.matchCopy}>
-              <Text style={styles.matchTitle}>Route match</Text>
+              <Text style={styles.matchTitle}>{t('place.routeMatch')}</Text>
               <Text style={styles.matchText}>{role.text}</Text>
             </View>
           </View>
 
           <View style={styles.statsRow}>
-            <Stat icon="star" value={place.rating.toFixed(1)} label="Rating" colors={colors} styles={styles} />
-            <Stat icon="walk-outline" value={walkTime} label="Est. walk" colors={colors} styles={styles} />
-            <Stat icon="time-outline" value={`${place.estimatedVisitMinutes ?? 60}m`} label="Duration" colors={colors} styles={styles} />
+            <Stat icon="star" value={place.rating.toFixed(1)} label={t('place.rating')} colors={colors} styles={styles} />
+            <Stat icon="walk-outline" value={walkTime} label={t('place.estWalk')} colors={colors} styles={styles} />
+            <Stat icon="time-outline" value={`${place.estimatedVisitMinutes ?? 60}m`} label={t('place.duration')} colors={colors} styles={styles} />
           </View>
 
           <View style={styles.detailGrid}>
-            <DetailItem icon="location-outline" label="Address" value={place.address ?? `${place.city} city center`} colors={colors} styles={styles} />
-            <DetailItem icon="cash-outline" label="Budget" value={place.priceLevel} colors={colors} styles={styles} />
-            <DetailItem icon="time-outline" label="Hours" value={place.openingHours ?? 'Flexible route window'} colors={colors} styles={styles} />
+            <DetailItem icon="location-outline" label={t('place.address')} value={place.address ?? t('place.cityCenter', { city: place.city })} colors={colors} styles={styles} />
+            <DetailItem icon="cash-outline" label={t('place.budget')} value={localizeDynamicText(place.priceLevel, language)} colors={colors} styles={styles} />
+            <DetailItem icon="time-outline" label={t('place.hours')} value={localizeDynamicText(place.openingHours ?? t('place.flexibleWindow'), language)} colors={colors} styles={styles} />
           </View>
 
           <View style={styles.tagRow}>
@@ -238,30 +243,30 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
             >
               <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={17} color={saved ? colors.surface : colors.teal} />
               <Text style={[styles.secondaryActionText, saved && styles.secondaryActionTextActive]}>
-                {saved ? 'Saved' : 'Save'}
+                {saved ? t('place.saved') : t('place.save')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryAction} activeOpacity={0.86} onPress={openMaps}>
               <Ionicons name="navigate-outline" size={17} color={colors.teal} />
-              <Text style={styles.secondaryActionText}>Open in Maps</Text>
+              <Text style={styles.secondaryActionText}>{t('place.openMaps')}</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Why it fits</Text>
-            <Text style={styles.description}>{place.description}</Text>
+            <Text style={styles.sectionTitle}>{t('place.whyFits')}</Text>
+            <Text style={styles.description}>{localizeDynamicText(place.description, language)}</Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Best fit in your plan</Text>
+            <Text style={styles.sectionTitle}>{t('place.bestFit')}</Text>
             <View style={styles.infoCard}>
               <Ionicons name="calendar-outline" size={20} color={colors.teal} />
               <View style={styles.infoCopy}>
                 <Text style={styles.infoTitle}>
-                  Day {selectedDayNumber} - {bestTimeWindow(place.category)}
+                  {t('place.dayWindow', { day: selectedDayNumber, window: bestTimeWindow(place.category, t) })}
                 </Text>
                 <Text style={styles.infoText}>
-                  Best fit: Day {selectedDayNumber} · {bestTimeWindow(place.category)}
+                  {t('place.bestFitDay', { day: selectedDayNumber, window: bestTimeWindow(place.category, t) })}
                 </Text>
                 <View style={styles.fitReasonList}>
                   {bestFitReasons.map((reason) => (
@@ -277,8 +282,8 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
 
           <TouchableOpacity style={styles.chooseDayButton} activeOpacity={0.86} onPress={() => setDayPickerOpen(true)}>
             <View>
-              <Text style={styles.chooseDayLabel}>Add location</Text>
-              <Text style={styles.chooseDayValue}>Day {selectedDayNumber}{selectedDay ? ` · ${selectedDay.title}` : ''}</Text>
+              <Text style={styles.chooseDayLabel}>{t('place.addLocation')}</Text>
+              <Text style={styles.chooseDayValue}>{t('place.dayTitle', { day: selectedDayNumber })}{selectedDay ? ` · ${localizeDynamicText(selectedDay.title, language)}` : ''}</Text>
             </View>
             <Ionicons name="chevron-down" size={18} color={colors.teal} />
           </TouchableOpacity>
@@ -290,20 +295,20 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
             onPress={addToSelectedDay}
           >
             <Text style={styles.primaryButtonText}>
-              {addingToPlan ? 'Adding to plan...' : addedToPlan ? `Added to Day ${selectedDayNumber}` : `Add to Day ${selectedDayNumber}`}
+              {addingToPlan ? t('place.adding') : addedToPlan ? t('place.addedDay', { day: selectedDayNumber }) : t('place.addDay', { day: selectedDayNumber })}
             </Text>
             <Ionicons name={addingToPlan ? 'hourglass-outline' : addedToPlan ? 'checkmark' : 'add'} size={20} color={colors.surface} />
           </TouchableOpacity>
-          {addToPlanError ? <Text style={styles.addError}>Could not add this place. Check the backend connection and try again.</Text> : null}
+          {addToPlanError ? <Text style={styles.addError}>{t('place.addError')}</Text> : null}
         </View>
       </ScrollView>
       <Modal visible={dayPickerOpen} transparent animationType="fade" onRequestClose={() => setDayPickerOpen(false)}>
         <Pressable style={styles.dayPickerOverlay} onPress={() => setDayPickerOpen(false)}>
           <Pressable style={styles.dayPickerSheet}>
             <View style={styles.dayPickerHandle} />
-            <Text style={styles.dayPickerTitle}>Choose another day</Text>
-            <Text style={styles.dayPickerSubtitle}>Add this place to the selected day.</Text>
-            {(itineraryDays.length ? itineraryDays : [{ dayNumber: 1, title: 'Current route', summary: '', walkKm: 0, stopCount: 0, stops: [] }]).map((day) => (
+            <Text style={styles.dayPickerTitle}>{t('place.chooseAnotherDay')}</Text>
+            <Text style={styles.dayPickerSubtitle}>{t('place.chooseSubtitle')}</Text>
+            {(itineraryDays.length ? itineraryDays : [{ dayNumber: 1, title: t('place.currentRoute'), summary: '', walkKm: 0, stopCount: 0, stops: [] }]).map((day) => (
               <TouchableOpacity
                 key={`day-option-${day.dayNumber}`}
                 style={[styles.dayOption, selectedDayNumber === day.dayNumber && styles.dayOptionActive]}
@@ -314,8 +319,8 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
                 }}
               >
                 <View>
-                  <Text style={styles.dayOptionTitle}>Day {day.dayNumber}</Text>
-                  <Text style={styles.dayOptionMeta}>{day.title} · {day.walkKm.toFixed(1)} km · {day.stopCount} stops</Text>
+                  <Text style={styles.dayOptionTitle}>{t('place.dayTitle', { day: day.dayNumber })}</Text>
+                  <Text style={styles.dayOptionMeta}>{t('place.dayMeta', { title: localizeDynamicText(day.title, language), km: day.walkKm.toFixed(1), stops: day.stopCount })}</Text>
                 </View>
                 {selectedDayNumber === day.dayNumber ? <Ionicons name="checkmark-circle" size={20} color={colors.teal} /> : null}
               </TouchableOpacity>
@@ -366,8 +371,16 @@ function fallbackImageForCategory(category: string, city?: string, seed = catego
   return placeImage(city, category, seed);
 }
 
-function formatCategory(category: string) {
-  return category.toLowerCase().replaceAll('_', ' ');
+type Translate = ReturnType<typeof useTranslation>;
+
+function formatCategory(category: string, t?: Translate) {
+  const value = category.toLowerCase();
+  if (!t) return value.replaceAll('_', ' ');
+  if (value.includes('coffee') || value.includes('cafe')) return t('setup.coffee');
+  if (value.includes('food') || value.includes('restaurant')) return t('setup.localFood');
+  if (value.includes('culture') || value.includes('museum')) return t('setup.museums');
+  if (value.includes('walking')) return t('setup.walking');
+  return value.replaceAll('_', ' ');
 }
 
 function iconForCategory(category: string): React.ComponentProps<typeof Ionicons>['name'] {
@@ -379,49 +392,50 @@ function iconForCategory(category: string): React.ComponentProps<typeof Ionicons
   return 'walk-outline';
 }
 
-function estimatedWalkTime(category: string) {
+function estimatedWalkTime(category: string, language: 'en' | 'tr' = 'en') {
   const value = category.toLowerCase();
-  if (value.includes('coffee')) return '6 min';
-  if (value.includes('food')) return '9 min';
-  if (value.includes('culture')) return '12 min';
-  return '8 min';
+  const suffix = language === 'tr' ? 'dk' : 'min';
+  if (value.includes('coffee')) return `6 ${suffix}`;
+  if (value.includes('food')) return `9 ${suffix}`;
+  if (value.includes('culture')) return `12 ${suffix}`;
+  return `8 ${suffix}`;
 }
 
-function roleForCategory(category: string) {
+function roleForCategory(category: string, t: Translate) {
   const value = category.toLowerCase();
   if (value.includes('coffee')) {
     return {
-      title: 'Soft break window',
-      text: 'Best used between two anchor stops so the day feels calm instead of packed.',
+      title: t('place.softBreak'),
+      text: t('place.softBreakText'),
     };
   }
   if (value.includes('food')) {
     return {
-      title: 'Local food stop',
-      text: 'Works well near lunch or dinner so the route avoids crossing the city late in the day.',
+      title: t('place.localFoodStop'),
+      text: t('place.localFoodText'),
     };
   }
   if (value.includes('culture')) {
     return {
-      title: 'Anchor experience',
-      text: 'Use it as the main stop of the day, then keep nearby cafes and walks flexible.',
+      title: t('place.anchorExperience'),
+      text: t('place.anchorText'),
     };
   }
   return {
-    title: 'Flexible route moment',
-    text: 'A low-pressure stop that keeps the plan walkable and easy to adjust.',
+    title: t('place.flexibleMoment'),
+    text: t('place.flexibleText'),
   };
 }
 
-function bestFitForPlace(place: PlaceResponse, days: ItineraryDay[]) {
+function bestFitForPlace(place: PlaceResponse, days: ItineraryDay[], t: Translate, language: 'en' | 'tr') {
   const fallbackDay = days[0] ?? null;
   if (!days.length) {
     return {
       day: fallbackDay,
       reasons: [
-        `${estimatedWalkTime(place.category)} from the current route area`,
-        `Fits your ${formatCategory(place.category)} preference`,
-        'Keeps the day flexible',
+        t('place.fromCurrentRoute', { minutes: estimatedWalkTime(place.category, language) }),
+        t('place.fitsPreference', { category: formatCategory(place.category, t) }),
+        t('place.keepsFlexible'),
       ],
     };
   }
@@ -444,19 +458,19 @@ function bestFitForPlace(place: PlaceResponse, days: ItineraryDay[]) {
   return {
     day,
     reasons: [
-      `${estimatedWalkTime(place.category)} from ${day?.stops[0]?.title ?? 'your route cluster'}`,
-      `Fits your ${formatCategory(place.category)} preference`,
-      `Keeps total walking under ${Math.max(5.5, (day?.walkKm ?? 4.8) + 0.7).toFixed(1)} km`,
+      t('place.fromRouteCluster', { minutes: estimatedWalkTime(place.category, language), stop: day?.stops[0]?.title ?? t('place.currentRoute') }),
+      t('place.fitsPreference', { category: formatCategory(place.category, t) }),
+      t('place.keepsWalking', { km: Math.max(5.5, (day?.walkKm ?? 4.8) + 0.7).toFixed(1) }),
     ],
   };
 }
 
-function bestTimeWindow(category: string) {
+function bestTimeWindow(category: string, t: Translate) {
   const value = category.toLowerCase();
-  if (value.includes('coffee')) return 'Late morning';
-  if (value.includes('food')) return 'Afternoon';
-  if (value.includes('culture')) return 'Morning';
-  return 'Afternoon';
+  if (value.includes('coffee')) return t('place.lateMorning');
+  if (value.includes('food')) return t('place.afternoon');
+  if (value.includes('culture')) return t('place.morning');
+  return t('place.afternoon');
 }
 
 function Stat({

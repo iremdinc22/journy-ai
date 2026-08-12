@@ -53,7 +53,9 @@ export type CreateTripRequest = {
 export type TripPreviewRequest = Partial<Pick<
   CreateTripRequest,
   'destination' | 'startingArea' | 'startDate' | 'endDate' | 'budget' | 'pace' | 'interests'
->>;
+>> & {
+  language?: 'en' | 'tr';
+};
 
 export type TripPreviewResponse = {
   estimatedStops: number;

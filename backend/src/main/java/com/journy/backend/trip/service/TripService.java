@@ -61,6 +61,7 @@ public class TripService {
         TripPace pace = request.pace() == null ? TripPace.BALANCED : request.pace();
         BudgetMode budget = request.budget() == null ? BudgetMode.BALANCED : request.budget();
         Set<TravelInterest> interests = request.interests() == null ? Set.of() : request.interests();
+        boolean Turkish = isTurkish(request.language());
         int days = previewDays(request);
         int stopsPerDay = stopsPerDay(pace, budget);
         int estimatedStops = days * stopsPerDay;
@@ -73,12 +74,12 @@ public class TripService {
                 ? availablePlaceCount
                 : (int) placeRepository.countByCityIgnoreCaseAndCategoryIn(destination, categoriesFor(interests));
         double dailyWalkKm = dailyWalkKm(stopsPerDay, pace, budget, availablePlaceCount);
-        String routeStyle = routeStyle(pace, budget, interests, request.startingArea(), matchedPlaceCount);
-        String confidence = confidence(destination, request.startDate() != null && request.endDate() != null, interests, availablePlaceCount);
-        String summary = summary(destination, days, routeStyle, availablePlaceCount, matchedPlaceCount);
-        String dailyWalkRange = dailyWalkRange(dailyWalkKm, pace);
-        String planningStyle = planningStyle(destination, days, pace, budget, interests, request.startingArea());
-        String startingAreaInsight = startingAreaInsight(request.startingArea(), dailyWalkKm, matchedPlaceCount);
+        String routeStyle = routeStyle(pace, budget, interests, request.startingArea(), matchedPlaceCount, Turkish);
+        String confidence = confidence(destination, request.startDate() != null && request.endDate() != null, interests, availablePlaceCount, Turkish);
+        String summary = summary(destination, days, routeStyle, availablePlaceCount, matchedPlaceCount, Turkish);
+        String dailyWalkRange = dailyWalkRange(dailyWalkKm, pace, Turkish);
+        String planningStyle = planningStyle(destination, days, pace, budget, interests, request.startingArea(), Turkish);
+        String startingAreaInsight = startingAreaInsight(request.startingArea(), dailyWalkKm, matchedPlaceCount, Turkish);
 
         return new TripPreviewResponse(
                 estimatedStops,
@@ -244,43 +245,44 @@ public class TripService {
         return categories;
     }
 
-    private String routeStyle(TripPace pace, BudgetMode budget, Set<TravelInterest> interests, String startingArea, int matchedPlaceCount) {
-        if (startingArea != null && !startingArea.isBlank()) return "Area-first route";
-        if (pace == TripPace.RELAXED) return "Easy paced flow";
-        if (budget == BudgetMode.LEAN) return "Low-cost local route";
-        if (interests.contains(TravelInterest.LOCAL_FOOD) || interests.contains(TravelInterest.COFFEE)) return "Food-led discovery";
-        if (interests.contains(TravelInterest.MUSEUMS) || interests.contains(TravelInterest.CULTURE)) return "Culture clustered route";
-        if (matchedPlaceCount >= 8) return "High-confidence city flow";
-        return "Balanced city route";
+    private String routeStyle(TripPace pace, BudgetMode budget, Set<TravelInterest> interests, String startingArea, int matchedPlaceCount, boolean Turkish) {
+        if (startingArea != null && !startingArea.isBlank()) return Turkish ? "Bölge odaklı rota" : "Area-first route";
+        if (pace == TripPace.RELAXED) return Turkish ? "Rahat tempolu akış" : "Easy paced flow";
+        if (budget == BudgetMode.LEAN) return Turkish ? "Ekonomik yerel rota" : "Low-cost local route";
+        if (interests.contains(TravelInterest.LOCAL_FOOD) || interests.contains(TravelInterest.COFFEE)) return Turkish ? "Yemek odaklı keşif" : "Food-led discovery";
+        if (interests.contains(TravelInterest.MUSEUMS) || interests.contains(TravelInterest.CULTURE)) return Turkish ? "Kültür odaklı rota" : "Culture clustered route";
+        if (matchedPlaceCount >= 8) return Turkish ? "Yüksek güvenli şehir akışı" : "High-confidence city flow";
+        return Turkish ? "Dengeli şehir rotası" : "Balanced city route";
     }
 
-    private String confidence(String destination, boolean hasDates, Set<TravelInterest> interests, int availablePlaceCount) {
+    private String confidence(String destination, boolean hasDates, Set<TravelInterest> interests, int availablePlaceCount, boolean Turkish) {
         int score = 0;
         if (!destination.isBlank()) score += 1;
         if (hasDates) score += 1;
         if (!interests.isEmpty()) score += 1;
         if (availablePlaceCount >= 6) score += 1;
-        if (score >= 4) return "High";
-        if (score >= 2) return "Medium";
-        return "Draft";
+        if (score >= 4) return Turkish ? "Yüksek" : "High";
+        if (score >= 2) return Turkish ? "Orta" : "Medium";
+        return Turkish ? "Taslak" : "Draft";
     }
 
-    private String summary(String destination, int days, String routeStyle, int availablePlaceCount, int matchedPlaceCount) {
+    private String summary(String destination, int days, String routeStyle, int availablePlaceCount, int matchedPlaceCount, boolean Turkish) {
         if (destination == null || destination.isBlank()) {
-            return "Choose a destination to start.";
+            return Turkish ? "Başlamak için şehir seç." : "Choose a destination to start.";
         }
         if (availablePlaceCount == 0) {
-            return "Looking for places in %s.".formatted(destination);
+            return Turkish ? "%s içinde yerler aranıyor.".formatted(destination) : "Looking for places in %s.".formatted(destination);
         }
-        return "%s has %d good fits for this trip."
-                .formatted(destination, matchedPlaceCount);
+        return Turkish
+                ? "%s bu seyahat için %d uygun seçenek sunuyor.".formatted(destination, matchedPlaceCount)
+                : "%s has %d good fits for this trip.".formatted(destination, matchedPlaceCount);
     }
 
-    private String dailyWalkRange(double dailyWalkKm, TripPace pace) {
+    private String dailyWalkRange(double dailyWalkKm, TripPace pace, boolean Turkish) {
         double spread = pace == TripPace.RELAXED ? 0.6 : pace == TripPace.FULL ? 1.0 : 0.8;
         double low = Math.max(1.8, Math.round((dailyWalkKm - spread) * 10.0) / 10.0);
         double high = Math.round((dailyWalkKm + spread) * 10.0) / 10.0;
-        return "%.1f-%.1f km/day".formatted(low, high);
+        return Turkish ? "%.1f-%.1f km/gün".formatted(low, high) : "%.1f-%.1f km/day".formatted(low, high);
     }
 
     private String planningStyle(
@@ -289,42 +291,53 @@ public class TripService {
             TripPace pace,
             BudgetMode budget,
             Set<TravelInterest> interests,
-            String startingArea
+            String startingArea,
+            boolean Turkish
     ) {
         String focus;
         if (interests.contains(TravelInterest.MUSEUMS) || interests.contains(TravelInterest.CULTURE)) {
-            focus = "culture-led";
+            focus = Turkish ? "kültür odaklı" : "culture-led";
         } else if (interests.contains(TravelInterest.LOCAL_FOOD) || interests.contains(TravelInterest.COFFEE)) {
-            focus = "food-led";
+            focus = Turkish ? "yemek odaklı" : "food-led";
         } else if (interests.contains(TravelInterest.WALKING)) {
-            focus = "walkable";
+            focus = Turkish ? "yürünebilir" : "walkable";
         } else {
-            focus = "city";
+            focus = Turkish ? "şehir" : "city";
         }
 
         String rhythm = switch (pace) {
-            case RELAXED -> "slow days";
-            case FULL -> "full days";
-            default -> "easy days";
+            case RELAXED -> Turkish ? "sakin günler" : "slow days";
+            case FULL -> Turkish ? "dolu günler" : "full days";
+            default -> Turkish ? "dengeli günler" : "easy days";
         };
         String spend = switch (budget) {
-            case LEAN -> "low-cost stops";
-            case COMFORT -> "comfort stops";
-            default -> "local breaks";
+            case LEAN -> Turkish ? "ekonomik duraklar" : "low-cost stops";
+            case COMFORT -> Turkish ? "konforlu duraklar" : "comfort stops";
+            default -> Turkish ? "yerel molalar" : "local breaks";
         };
+        String city = destination == null || destination.isBlank() ? (Turkish ? "şehrin" : "your city") : destination;
+        if (Turkish) {
+            String start = startingArea == null || startingArea.isBlank() ? "" : " · başlangıç: " + startingArea.trim();
+            return "%s rota · %s · %s · %s%s."
+                    .formatted(capitalize(focus), rhythm, spend, city, start);
+        }
         String start = startingArea == null || startingArea.isBlank() ? "" : " starting from " + startingArea.trim();
-        String city = destination == null || destination.isBlank() ? "your city" : destination;
         return "%s route, %s and %s in %s%s."
                 .formatted(capitalize(focus), rhythm, spend, city, start);
     }
 
-    private String startingAreaInsight(String startingArea, double dailyWalkKm, int matchedPlaceCount) {
+    private String startingAreaInsight(String startingArea, double dailyWalkKm, int matchedPlaceCount, boolean Turkish) {
         if (startingArea == null || startingArea.isBlank()) {
-            return "Add a hotel, station or neighborhood for a better first stop.";
+            return Turkish ? "Daha iyi ilk durak için otel, istasyon veya semt ekle." : "Add a hotel, station or neighborhood for a better first stop.";
         }
         double reduction = Math.max(0.5, Math.min(1.4, Math.round((dailyWalkKm * 0.22) * 10.0) / 10.0));
-        return "Starting from %s can save about %.1f km on the first leg."
-                .formatted(startingArea.trim(), reduction);
+        return Turkish
+                ? "%s başlangıcı ilk yürüyüşte yaklaşık %.1f km kazandırabilir.".formatted(startingArea.trim(), reduction)
+                : "Starting from %s can save about %.1f km on the first leg.".formatted(startingArea.trim(), reduction);
+    }
+
+    private boolean isTurkish(String language) {
+        return language != null && language.equalsIgnoreCase("tr");
     }
 
     private String capitalize(String value) {

@@ -15,6 +15,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { authApi } from '../api/journyApi';
+import { useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { isStrongEnoughPassword, isValidEmail } from '../utils/validation';
 
@@ -22,6 +23,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 
 export default function RegisterScreen({ navigation }: Props) {
   const { isDark, theme } = useAppTheme();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const [fullName, setFullName] = useState('');
@@ -32,20 +34,20 @@ export default function RegisterScreen({ navigation }: Props) {
 
   const handleRegister = async () => {
     if (!fullName.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('Missing information', 'Please fill in your name, email and password.');
+      Alert.alert(t('auth.missingInfoTitle'), t('auth.missingRegisterMessage'));
       return;
     }
     if (!isValidEmail(email)) {
-      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      Alert.alert(t('auth.invalidEmailTitle'), t('auth.invalidEmailMessage'));
       return;
     }
     if (!isStrongEnoughPassword(password)) {
-      Alert.alert('Password too short', 'Password must be at least 6 characters.');
+      Alert.alert(t('auth.passwordShortTitle'), t('auth.passwordShortMessage'));
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Passwords do not match', 'Please confirm your password again.');
+      Alert.alert(t('auth.passwordMismatchTitle'), t('auth.passwordMismatchMessage'));
       return;
     }
 
@@ -54,7 +56,7 @@ export default function RegisterScreen({ navigation }: Props) {
       await authApi.register(fullName.trim(), email.trim(), password);
       navigation.replace('TripSetup');
     } catch {
-      Alert.alert('Account could not be created', 'Please try another email or make sure the backend is running.');
+      Alert.alert(t('auth.accountCreateFailedTitle'), t('auth.accountCreateFailedMessage'));
     } finally {
       setLoading(false);
     }
@@ -72,18 +74,16 @@ export default function RegisterScreen({ navigation }: Props) {
           <Ionicons name="arrow-back" size={21} color={colors.midnight} />
         </TouchableOpacity>
 
-        <Text style={styles.title}>Create your travel profile.</Text>
-        <Text style={styles.subtitle}>
-          Journy learns your preferences to suggest better routes, places and local moments.
-        </Text>
+        <Text style={styles.title}>{t('auth.createProfile')}</Text>
+        <Text style={styles.subtitle}>{t('auth.registerSubtitle')}</Text>
 
         <View style={styles.form}>
-          <Input icon="person-outline" placeholder="Full name" value={fullName} onChangeText={setFullName} colors={colors} styles={styles} />
-          <Input icon="mail-outline" placeholder="Email" value={email} onChangeText={setEmail} colors={colors} styles={styles} />
-          <Input icon="lock-closed-outline" placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry colors={colors} styles={styles} />
+          <Input icon="person-outline" placeholder={t('auth.fullName')} value={fullName} onChangeText={setFullName} colors={colors} styles={styles} />
+          <Input icon="mail-outline" placeholder={t('auth.email')} value={email} onChangeText={setEmail} colors={colors} styles={styles} />
+          <Input icon="lock-closed-outline" placeholder={t('auth.password')} value={password} onChangeText={setPassword} secureTextEntry colors={colors} styles={styles} />
           <Input
             icon="shield-checkmark-outline"
-            placeholder="Confirm password"
+            placeholder={t('auth.confirmPassword')}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
@@ -101,7 +101,7 @@ export default function RegisterScreen({ navigation }: Props) {
               <ActivityIndicator color={colors.surface} />
             ) : (
               <>
-                <Text style={styles.primaryButtonText}>Create account</Text>
+                <Text style={styles.primaryButtonText}>{t('auth.createAccount')}</Text>
                 <Ionicons name="arrow-forward" size={19} color={colors.surface} />
               </>
             )}
@@ -110,7 +110,7 @@ export default function RegisterScreen({ navigation }: Props) {
 
         <TouchableOpacity onPress={() => navigation.navigate('Login')}>
           <Text style={styles.bottomText}>
-            Already have an account? <Text style={styles.link}>Sign in</Text>
+            {t('auth.alreadyAccount')} <Text style={styles.link}>{t('auth.signIn')}</Text>
           </Text>
         </TouchableOpacity>
       </View>

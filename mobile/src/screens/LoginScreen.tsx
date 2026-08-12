@@ -15,6 +15,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { authApi } from '../api/journyApi';
+import { useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { authErrorMessage } from '../utils/apiErrors';
 import { isStrongEnoughPassword, isValidEmail } from '../utils/validation';
@@ -23,6 +24,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
   const { isDark, theme } = useAppTheme();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const [email, setEmail] = useState('admin@journy.app');
@@ -31,15 +33,15 @@ export default function LoginScreen({ navigation }: Props) {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Missing information', 'Please enter your email and password.');
+      Alert.alert(t('auth.missingInfoTitle'), t('auth.missingLoginMessage'));
       return;
     }
     if (!isValidEmail(email)) {
-      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      Alert.alert(t('auth.invalidEmailTitle'), t('auth.invalidEmailMessage'));
       return;
     }
     if (!isStrongEnoughPassword(password)) {
-      Alert.alert('Password too short', 'Password must be at least 6 characters.');
+      Alert.alert(t('auth.passwordShortTitle'), t('auth.passwordShortMessage'));
       return;
     }
 
@@ -48,7 +50,7 @@ export default function LoginScreen({ navigation }: Props) {
       await authApi.login(email.trim(), password);
       navigation.replace('TripSetup');
     } catch (error) {
-      Alert.alert('Sign in failed', authErrorMessage(error));
+      Alert.alert(t('auth.signInFailedTitle'), authErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -60,7 +62,7 @@ export default function LoginScreen({ navigation }: Props) {
       await authApi.login('admin@journy.app', 'admin123');
       navigation.replace('TripSetup');
     } catch (error) {
-      Alert.alert('Guest mode unavailable', authErrorMessage(error));
+      Alert.alert(t('auth.guestUnavailableTitle'), authErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -82,16 +84,14 @@ export default function LoginScreen({ navigation }: Props) {
           <Ionicons name="sparkles" size={26} color={colors.surface} />
         </View>
 
-        <Text style={styles.title}>Welcome back.</Text>
-        <Text style={styles.subtitle}>
-          Sign in to keep your trips, preferences and AI recommendations in sync.
-        </Text>
+        <Text style={styles.title}>{t('auth.welcomeBack')}</Text>
+        <Text style={styles.subtitle}>{t('auth.loginSubtitle')}</Text>
 
         <View style={styles.form}>
-          <Input icon="mail-outline" placeholder="Email" value={email} onChangeText={setEmail} colors={colors} styles={styles} />
+          <Input icon="mail-outline" placeholder={t('auth.email')} value={email} onChangeText={setEmail} colors={colors} styles={styles} />
           <Input
             icon="lock-closed-outline"
-            placeholder="Password"
+            placeholder={t('auth.password')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -109,7 +109,7 @@ export default function LoginScreen({ navigation }: Props) {
               <ActivityIndicator color={colors.surface} />
             ) : (
               <>
-                <Text style={styles.primaryButtonText}>Sign in</Text>
+                <Text style={styles.primaryButtonText}>{t('auth.signIn')}</Text>
                 <Ionicons name="arrow-forward" size={19} color={colors.surface} />
               </>
             )}
@@ -117,18 +117,18 @@ export default function LoginScreen({ navigation }: Props) {
 
           <TouchableOpacity style={styles.googleButton} activeOpacity={0.85}>
             <Ionicons name="logo-google" size={18} color={colors.midnight} />
-            <Text style={styles.googleText}>Continue with Google</Text>
+            <Text style={styles.googleText}>{t('auth.continueGoogle')}</Text>
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity onPress={() => navigation.navigate('Register')}>
           <Text style={styles.bottomText}>
-            New to Journy? <Text style={styles.link}>Create account</Text>
+            {t('auth.newToJourny')} <Text style={styles.link}>{t('auth.createAccount')}</Text>
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={continueAsGuest}>
-          <Text style={styles.guestText}>Continue as guest</Text>
+          <Text style={styles.guestText}>{t('auth.continueGuest')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

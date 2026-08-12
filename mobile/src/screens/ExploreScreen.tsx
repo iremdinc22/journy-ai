@@ -4,14 +4,31 @@ import { Ionicons } from '@expo/vector-icons';
 import { exploreApi } from '../api/journyApi';
 import { session } from '../api/session';
 import type { PlaceResponse } from '../api/types';
+import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
 import { useNavigation } from '@react-navigation/native';
 import { cityImage, placeImage } from '../utils/destinationVisuals';
+import { localizeDynamicText } from '../utils/localizedDynamicText';
 
 type Category = 'For you' | 'Food' | 'Culture' | 'Coffee' | 'Free';
+type Translate = ReturnType<typeof useTranslation>;
 
 const categories: Category[] = ['For you', 'Food', 'Culture', 'Coffee', 'Free'];
+
+function categoryLabel(category: Category, t: Translate) {
+  if (category === 'For you') return t('explore.forYou');
+  if (category === 'Food') return t('explore.food');
+  if (category === 'Culture') return t('explore.culture');
+  if (category === 'Coffee') return t('explore.coffee');
+  return t('explore.free');
+}
+
+function sourceLabel(label: string | undefined, t: Translate) {
+  if (label === 'Real place') return t('explore.realPlace');
+  if (label === 'Curated seed') return t('explore.curatedSeed');
+  return t('explore.starterPick');
+}
 
 type PreviewPlace = {
   title: string;
@@ -25,6 +42,8 @@ type PreviewPlace = {
 
 export default function ExploreScreen() {
   const { isDark, theme } = useAppTheme();
+  const { language } = useLanguage();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const navigation = useNavigation<any>();
@@ -33,8 +52,8 @@ export default function ExploreScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const currentTrip = session.getCurrentTrip();
-  const destination = currentTrip?.destination ?? 'your trip';
-  const places = useMemo(() => apiPlaces ?? starterPreviewPlaces(destination, activeCategory), [activeCategory, apiPlaces, destination]);
+  const destination = currentTrip?.destination ?? t('home.yourTrip').toLowerCase();
+  const places = useMemo(() => apiPlaces ?? starterPreviewPlaces(destination, activeCategory, language), [activeCategory, apiPlaces, destination, language]);
 
   const loadPlaces = useCallback(async () => {
     setLoading(true);
@@ -60,11 +79,9 @@ export default function ExploreScreen() {
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.eyebrow}>Explore</Text>
-        <Text style={styles.title}>Local picks in {destination}.</Text>
-        <Text style={styles.subtitle}>
-          Recommendations adapt by your current trip, budget and the kind of day you want.
-        </Text>
+        <Text style={styles.eyebrow}>{t('explore.eyebrow')}</Text>
+        <Text style={styles.title}>{t('explore.title', { destination })}</Text>
+        <Text style={styles.subtitle}>{t('explore.subtitle')}</Text>
 
         <ScrollView
           horizontal
@@ -79,30 +96,30 @@ export default function ExploreScreen() {
               onPress={() => setActiveCategory(item)}
             >
               <Text style={[styles.categoryText, item === activeCategory && styles.categoryTextActive]}>
-                {item}
+                {categoryLabel(item, t)}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        {loading ? <InlineLoading label="Finding local picks..." /> : null}
+        {loading ? <InlineLoading label={t('explore.loading')} /> : null}
         {error ? (
           <InlineError
-            title="Explore is using preview picks"
-            description={`Backend places could not be loaded. Showing ${destination} starter picks for now.`}
+            title={t('explore.previewTitle')}
+            description={t('explore.previewDescription', { destination })}
             onRetry={loadPlaces}
           />
         ) : null}
 
         {places.map((place, index) => {
-          const normalized = normalizePlace(place, activeCategory);
-          const reasons = whyPicked(normalized, currentTrip);
+          const normalized = normalizePlace(place, activeCategory, language);
+          const reasons = whyPicked(normalized, currentTrip, language);
           return (
           <TouchableOpacity
             key={`${normalized.city}-${normalized.title}-${index}`}
             style={styles.card}
             activeOpacity={0.88}
-            onPress={() => navigation.navigate('PlaceDetail', { place: toPlaceDetail(place, activeCategory) })}
+            onPress={() => navigation.navigate('PlaceDetail', { place: toPlaceDetail(place, activeCategory, language) })}
           >
             <Image source={{ uri: normalized.image }} style={styles.image} />
             <View style={styles.body}>
@@ -116,15 +133,15 @@ export default function ExploreScreen() {
               <Text style={styles.placeTitle}>{normalized.title}</Text>
               <View style={styles.sourcePill}>
                 <Ionicons name={normalized.sourceLabel === 'Real place' ? 'checkmark-circle' : 'sparkles-outline'} size={12} color={colors.teal} />
-                <Text style={styles.sourcePillText}>{normalized.sourceLabel ?? 'Starter pick'}</Text>
+                <Text style={styles.sourcePillText}>{sourceLabel(normalized.sourceLabel, t)}</Text>
               </View>
-              <Text style={styles.description}>{normalized.reason}</Text>
+              <Text style={styles.description}>{localizeDynamicText(normalized.reason, language)}</Text>
               <View style={styles.whyBlock}>
                 <View style={styles.whyHeader}>
                   <Ionicons name="sparkles-outline" size={13} color={colors.teal} />
-                  <Text style={styles.whyTitle}>Good fit</Text>
+                  <Text style={styles.whyTitle}>{t('explore.goodFit')}</Text>
                 </View>
-                <Text style={styles.whyText}>{reasonSentence(reasons, currentTrip)}</Text>
+                <Text style={styles.whyText}>{reasonSentence(reasons, currentTrip, language)}</Text>
                 <View style={styles.reasonChips}>
                   {reasons.slice(0, 2).map((reason) => (
                     <View key={reason} style={styles.reasonChip}>
@@ -141,15 +158,12 @@ export default function ExploreScreen() {
   );
 }
 
-function normalizePlace(
-  place: PlaceResponse | PreviewPlace,
-  activeCategory: Category,
-) {
+function normalizePlace(place: PlaceResponse | PreviewPlace, activeCategory: Category, language: 'en' | 'tr') {
   if ('name' in place) {
     return {
-      title: place.name,
+      title: localizeDynamicText(place.name, language),
       city: place.city,
-      type: formatCategory(place.category),
+      type: formatCategory(place.category, language),
       rating: place.rating.toFixed(1),
       reason: place.description,
       image: place.imageUrl || fallbackImage(place.city, place.category || activeCategory, place.name),
@@ -160,64 +174,70 @@ function normalizePlace(
   return place;
 }
 
-function whyPicked(place: ReturnType<typeof normalizePlace>, trip?: ReturnType<typeof session.getCurrentTrip>) {
+function whyPicked(place: ReturnType<typeof normalizePlace>, trip: ReturnType<typeof session.getCurrentTrip> | undefined, language: 'en' | 'tr') {
   const type = place.type.toUpperCase();
   const interests = trip?.interests.map((item) => item.toUpperCase()) ?? [];
   const chips: string[] = [];
 
   if ((type.includes('CULTURE') || type.includes('MUSEUM')) && (interests.includes('MUSEUMS') || interests.includes('CULTURE'))) {
-    chips.push('Matches culture');
+    chips.push(language === 'tr' ? 'Kültür tercihine uyuyor' : 'Matches culture');
   } else if (type.includes('COFFEE') && interests.includes('COFFEE')) {
-    chips.push('Matches coffee');
+    chips.push(language === 'tr' ? 'Kahve tercihine uyuyor' : 'Matches coffee');
   } else if (type.includes('FOOD') && interests.includes('LOCAL_FOOD')) {
-    chips.push('Matches food');
+    chips.push(language === 'tr' ? 'Yemek tercihine uyuyor' : 'Matches food');
   } else if (type.includes('FREE') && interests.includes('FREE_ACTIVITIES')) {
-    chips.push('Low-cost fit');
+    chips.push(language === 'tr' ? 'Bütçeye uygun' : 'Low-cost fit');
   } else if (interests.includes('WALKING')) {
-    chips.push('Walkable route');
+    chips.push(language === 'tr' ? 'Yürünebilir rota' : 'Walkable route');
   } else {
-    chips.push('Trip fit');
+    chips.push(language === 'tr' ? 'Seyahate uygun' : 'Trip fit');
   }
 
-  const detour = type.includes('FOOD') || type.includes('COFFEE') ? '+0.4 km detour' : '+0.6 km detour';
+  const detour = type.includes('FOOD') || type.includes('COFFEE')
+    ? (language === 'tr' ? '+0.4 km sapma' : '+0.4 km detour')
+    : (language === 'tr' ? '+0.6 km sapma' : '+0.6 km detour');
   chips.push(detour);
 
   if (trip?.budget) {
-    chips.push(`${formatCategory(trip.budget)} budget`);
+    chips.push(language === 'tr' ? `${formatCategory(trip.budget, language)} bütçe` : `${formatCategory(trip.budget)} budget`);
   } else {
-    chips.push('Flexible budget');
+    chips.push(language === 'tr' ? 'Esnek bütçe' : 'Flexible budget');
   }
 
   return chips.slice(0, 3);
 }
 
-function reasonSentence(reasons: string[], trip?: ReturnType<typeof session.getCurrentTrip>) {
+function reasonSentence(reasons: string[], trip: ReturnType<typeof session.getCurrentTrip> | undefined, language: 'en' | 'tr') {
   if (!trip) {
-    return 'This starter pick is shaped around the current city and can be added into a flexible route.';
+    return language === 'tr'
+      ? 'Bu başlangıç önerisi seçili şehre göre hazırlandı ve esnek bir rotaya eklenebilir.'
+      : 'This starter pick is shaped around the current city and can be added into a flexible route.';
   }
-  return `You selected ${friendlyInterests(trip.interests)}. This pick keeps the route compact and fits your ${formatCategory(trip.budget)} budget.`;
+  return language === 'tr'
+    ? `${friendlyInterests(trip.interests, language)} seçtin. Bu öneri rotayı kompakt tutar ve ${formatCategory(trip.budget, language)} bütçene uyar.`
+    : `You selected ${friendlyInterests(trip.interests)}. This pick keeps the route compact and fits your ${formatCategory(trip.budget)} budget.`;
 }
 
-function friendlyInterests(interests: string[]) {
-  const labels = interests.slice(0, 2).map((interest) => formatCategory(interest));
-  if (!labels.length) return 'balanced travel';
+function friendlyInterests(interests: string[], language: 'en' | 'tr' = 'en') {
+  const labels = interests.slice(0, 2).map((interest) => formatCategory(interest, language));
+  if (!labels.length) return language === 'tr' ? 'dengeli seyahat' : 'balanced travel';
   if (labels.length === 1) return labels[0];
-  return `${labels[0]} and ${labels[1]}`;
+  return language === 'tr' ? `${labels[0]} ve ${labels[1]}` : `${labels[0]} and ${labels[1]}`;
 }
 
-function starterPreviewPlaces(city: string, category: Category): PreviewPlace[] {
+function starterPreviewPlaces(city: string, category: Category, language: 'en' | 'tr'): PreviewPlace[] {
   const categoriesForPreview: Category[] = category === 'For you' ? ['Free', 'Coffee', 'Food', 'Culture'] : [category];
   return categoriesForPreview.flatMap((item) => {
     const count = category === 'For you' ? 1 : 4;
-    return Array.from({ length: count }, (_, index) => starterPreviewPlace(city, item, index + 1));
+    return Array.from({ length: count }, (_, index) => starterPreviewPlace(city, item, index + 1, language));
   });
 }
 
-function starterPreviewPlace(city: string, category: Category, index: number): PreviewPlace {
-  const type = category === 'For you' ? 'Local' : category;
+function starterPreviewPlace(city: string, category: Category, index: number, language: 'en' | 'tr'): PreviewPlace {
+  const type = category === 'For you' ? (language === 'tr' ? 'Yerel' : 'Local') : formatCategory(category, language);
   const title = `${city} ${starterTitle(category, index)}`;
   return {
-    title,
+    title: localizeDynamicText(title, language),
     city,
     type,
     rating: (4.6 + (index % 3) * 0.1).toFixed(1),
@@ -247,10 +267,12 @@ function categoryImage(city: string, category: Category, seed: string) {
   return placeImage(city, category, seed);
 }
 
-function toPlaceDetail(place: PlaceResponse | PreviewPlace, activeCategory: Category): PlaceResponse {
+function toPlaceDetail(place: PlaceResponse | PreviewPlace, activeCategory: Category, language: 'en' | 'tr'): PlaceResponse {
   if ('name' in place) {
     return {
       ...place,
+      name: localizeDynamicText(place.name, language),
+      description: localizeDynamicText(place.description, language),
       imageUrl: place.imageUrl || fallbackImage(place.city, place.category || activeCategory, place.name),
     };
   }
@@ -260,20 +282,30 @@ function toPlaceDetail(place: PlaceResponse | PreviewPlace, activeCategory: Cate
     name: place.title,
     city: place.city,
     category: place.type.toUpperCase(),
-    description: place.reason,
-    priceLevel: activeCategory === 'Free' ? 'Free' : 'Mid',
+    description: localizeDynamicText(place.reason, language),
+    priceLevel: activeCategory === 'Free' ? (language === 'tr' ? 'Ücretsiz' : 'Free') : (language === 'tr' ? 'Orta' : 'Mid'),
     rating: Number(place.rating),
     imageUrl: place.image,
-    address: `${place.city} city center`,
+    address: language === 'tr' ? `${place.city} şehir merkezi` : `${place.city} city center`,
     openingHours: activeCategory === 'Food' ? '12:00 - 22:30' : activeCategory === 'Coffee' ? '08:00 - 18:00' : 'Flexible route window',
     estimatedVisitMinutes: activeCategory === 'Food' ? 90 : activeCategory === 'Culture' ? 120 : 60,
-    tags: `${place.type.toLowerCase()},walkable,local`,
+    tags: language === 'tr' ? `${place.type.toLowerCase()},yürünebilir,yerel` : `${place.type.toLowerCase()},walkable,local`,
     provider: 'starter',
   };
 }
 
-function formatCategory(category: string) {
-  return category.toLowerCase().replaceAll('_', ' ');
+function formatCategory(category: string, language: 'en' | 'tr' = 'en') {
+  const value = category.toLowerCase().replaceAll('_', ' ');
+  if (language !== 'tr') return value;
+  if (value.includes('local food') || value.includes('food')) return 'yemek';
+  if (value.includes('coffee')) return 'kahve';
+  if (value.includes('museum') || value.includes('culture')) return 'kültür';
+  if (value.includes('walking')) return 'yürüyüş';
+  if (value.includes('free')) return 'ücretsiz';
+  if (value.includes('lean')) return 'ekonomik';
+  if (value.includes('comfort')) return 'konfor';
+  if (value.includes('balanced')) return 'dengeli';
+  return value;
 }
 
 function fallbackImage(city: string | undefined, category: string, seed: string) {

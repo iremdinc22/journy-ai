@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 public record AgentMessageRequest(
         String tripId,
         Integer dayNumber,
-        @NotBlank String message
+        @NotBlank String message,
+        String language
 ) {
 }

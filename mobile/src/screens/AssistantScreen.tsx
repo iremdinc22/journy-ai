@@ -15,7 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { agentApi, tripApi } from '../api/journyApi';
 import { session } from '../api/session';
 import type { AgentActionPreview, AgentIntent, ItineraryDay, ItineraryResponse, TripResponse } from '../api/types';
+import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
+import { localizeDynamicText } from '../utils/localizedDynamicText';
 
 type Message = {
   id: string;
@@ -80,9 +82,14 @@ const initialMessages: Message[] = [
 
 export default function AssistantScreen() {
   const { isDark, theme } = useAppTheme();
+  const { language } = useLanguage();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>(() => initialMessages.map((message) => ({
+    ...message,
+    text: message.id === 'm1' ? t('assistant.initial') : message.text,
+  })));
   const [input, setInput] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [sending, setSending] = useState(false);
@@ -95,7 +102,7 @@ export default function AssistantScreen() {
     () => itinerary?.days.find((day) => day.dayNumber === activeDayNumber) ?? itinerary?.days[0],
     [activeDayNumber, itinerary?.days],
   );
-  const quickPrompts = useMemo(() => buildQuickPrompts(currentTrip ?? undefined, currentDay), [currentDay, currentTrip]);
+  const quickPrompts = useMemo(() => buildQuickPrompts(currentTrip ?? undefined, currentDay, t), [currentDay, currentTrip, t]);
   const hasWeatherRisk = useMemo(() => currentDay?.stops.some(isWeatherSensitiveStop) ?? false, [currentDay]);
 
   useEffect(() => {
@@ -154,7 +161,7 @@ export default function AssistantScreen() {
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
 
     try {
-      const response = await agentApi.message(cleanPrompt, session.getCurrentTrip()?.id, currentDay?.dayNumber ?? activeDayNumber);
+      const response = await agentApi.message(cleanPrompt, session.getCurrentTrip()?.id, currentDay?.dayNumber ?? activeDayNumber, language);
       setMessages((current) => [
         ...current,
         {
@@ -194,7 +201,7 @@ export default function AssistantScreen() {
 
     setApplyingMessageId(message.id);
     try {
-      const updatedDay = await agentApi.apply(trip.id, currentDay?.dayNumber ?? activeDayNumber, intent);
+      const updatedDay = await agentApi.apply(trip.id, currentDay?.dayNumber ?? activeDayNumber, intent, language);
       setItinerary((current) => current
         ? { ...current, days: current.days.map((day) => day.dayNumber === updatedDay.dayNumber ? updatedDay : day) }
         : current);
@@ -238,8 +245,8 @@ export default function AssistantScreen() {
               <Ionicons name="sparkles" size={17} color={colors.surface} />
             </View>
             <View>
-              <Text style={styles.title}>Journy AI</Text>
-              <Text style={styles.status}>Ready to adjust your trip</Text>
+              <Text style={styles.title}>{t('assistant.title')}</Text>
+              <Text style={styles.status}>{t('assistant.status')}</Text>
             </View>
           </View>
         </View>
@@ -255,25 +262,25 @@ export default function AssistantScreen() {
             <View style={styles.contextCard}>
               <View style={styles.contextTop}>
                 <View style={styles.contextTitleWrap}>
-                  <Text style={styles.contextKicker}>Today - Day {currentDay.dayNumber}</Text>
-                  <Text style={styles.contextTitle}>{currentDay.title}</Text>
+                  <Text style={styles.contextKicker}>{t('assistant.today', { day: currentDay.dayNumber })}</Text>
+                  <Text style={styles.contextTitle}>{localizeDynamicText(currentDay.title, language)}</Text>
                 </View>
                 <View style={styles.contextBadge}>
                   <Ionicons name="sparkles-outline" size={13} color={colors.teal} />
-                  <Text style={styles.contextBadgeText}>AI ready</Text>
+                  <Text style={styles.contextBadgeText}>{t('assistant.aiReady')}</Text>
                 </View>
               </View>
               <Text style={styles.contextSummary}>
-                You have {currentDay.stopCount} stops and {currentDay.walkKm.toFixed(1)} km of walking today in {currentTrip.destination}.
+                {currentDay.stopCount} {t('itinerary.stops').toLowerCase()} · {currentDay.walkKm.toFixed(1)} km · {currentTrip.destination}
               </Text>
               <View style={styles.contextStats}>
-                <ContextStat label="Stops" value={`${currentDay.stopCount}`} icon="location-outline" styles={styles} />
-                <ContextStat label="Walk" value={`${currentDay.walkKm.toFixed(1)} km`} icon="walk-outline" styles={styles} />
-                <ContextStat label="Pace" value={formatEnum(currentTrip.pace)} icon="speedometer-outline" styles={styles} />
+                <ContextStat label={t('itinerary.stops')} value={`${currentDay.stopCount}`} icon="location-outline" styles={styles} />
+                <ContextStat label={t('itinerary.walk')} value={`${currentDay.walkKm.toFixed(1)} km`} icon="walk-outline" styles={styles} />
+                <ContextStat label={t('home.pace')} value={formatEnum(currentTrip.pace)} icon="speedometer-outline" styles={styles} />
               </View>
               <View style={styles.contextHint}>
                 <Ionicons name="bulb-outline" size={14} color={colors.teal} />
-                <Text style={styles.contextHintText}>Ask naturally, or choose a quick action below.</Text>
+                <Text style={styles.contextHintText}>{t('assistant.initial')}</Text>
               </View>
               {hasWeatherRisk ? (
                 <TouchableOpacity
@@ -285,8 +292,8 @@ export default function AssistantScreen() {
                     <Ionicons name="rainy-outline" size={17} color={colors.teal} />
                   </View>
                   <View style={styles.weatherAgentCopy}>
-                    <Text style={styles.weatherAgentKicker}>Weather Agent</Text>
-                    <Text style={styles.weatherAgentText}>Rain-ready preview available for this route.</Text>
+                    <Text style={styles.weatherAgentKicker}>{t('assistant.weatherAgent')}</Text>
+                    <Text style={styles.weatherAgentText}>{t('assistant.weatherPreview')}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={17} color={colors.teal} />
                 </TouchableOpacity>
@@ -307,51 +314,51 @@ export default function AssistantScreen() {
               ) : null}
 
               <View style={message.role === 'ai' ? styles.aiBubble : styles.userBubble}>
-                <Text style={message.role === 'ai' ? styles.aiText : styles.userText}>{message.text}</Text>
+                <Text style={message.role === 'ai' ? styles.aiText : styles.userText}>{message.role === 'ai' ? localizeDynamicText(message.text, language) : message.text}</Text>
                 {message.role === 'ai' && message.time ? <Text style={styles.messageTime}>{message.time}</Text> : null}
                 {message.role === 'ai' && message.preview ? (
                   <View style={styles.previewCard}>
                     <View style={styles.previewHeader}>
                       <View style={styles.intentBadge}>
                         <Ionicons name={previewVisual?.icon ?? 'sparkles-outline'} size={12} color={colors.teal} />
-                        <Text style={styles.intentBadgeText}>{previewVisual?.label ?? 'Agent preview'}</Text>
+                        <Text style={styles.intentBadgeText}>{localizeDynamicText(previewVisual?.label ?? 'Agent preview', language)}</Text>
                       </View>
-                      <Text style={styles.previewConfidence}>Preview</Text>
+                      <Text style={styles.previewConfidence}>{t('assistant.preview')}</Text>
                     </View>
-                    <Text style={styles.previewTitle}>{message.preview.title}</Text>
-                    <Text style={styles.previewText}>{message.preview.message}</Text>
+                    <Text style={styles.previewTitle}>{localizeDynamicText(message.preview.title, language)}</Text>
+                    <Text style={styles.previewText}>{localizeDynamicText(message.preview.message, language)}</Text>
                     <View style={styles.previewMetaRow}>
                       <View style={styles.previewMeta}>
-                        <Text style={styles.previewMetaLabel}>Plan change</Text>
-                        <Text style={styles.previewMetaValue}>{message.preview.suggestedAction}</Text>
+                        <Text style={styles.previewMetaLabel}>{t('assistant.planChange')}</Text>
+                        <Text style={styles.previewMetaValue}>{localizeDynamicText(message.preview.suggestedAction, language)}</Text>
                       </View>
                       <View style={styles.previewMeta}>
-                        <Text style={styles.previewMetaLabel}>Route impact</Text>
-                        <Text style={styles.previewMetaValue}>{previewImpactLabel(message.preview)}</Text>
+                        <Text style={styles.previewMetaLabel}>{t('assistant.routeImpact')}</Text>
+                        <Text style={styles.previewMetaValue}>{localizeDynamicText(previewImpactLabel(message.preview), language)}</Text>
                       </View>
                     </View>
                     {currentDay ? (
                       <View style={styles.beforeAfterCard}>
                         <View style={styles.beforeAfterColumn}>
-                          <Text style={styles.beforeAfterLabel}>Before</Text>
-                          <Text style={styles.beforeAfterValue}>{currentDay.stopCount} stops</Text>
-                          <Text style={styles.beforeAfterDetail}>{currentDay.walkKm.toFixed(1)} km walk</Text>
+                          <Text style={styles.beforeAfterLabel}>{t('itinerary.before')}</Text>
+                          <Text style={styles.beforeAfterValue}>{currentDay.stopCount} {t('itinerary.stops').toLowerCase()}</Text>
+                          <Text style={styles.beforeAfterDetail}>{currentDay.walkKm.toFixed(1)} km {t('home.walk')}</Text>
                         </View>
                         <Ionicons name="arrow-forward" size={16} color={colors.teal} />
                         <View style={styles.beforeAfterColumn}>
-                          <Text style={styles.beforeAfterLabel}>After</Text>
-                          <Text style={styles.beforeAfterValue}>{afterStopCount(currentDay, message.preview)} stops</Text>
-                          <Text style={styles.beforeAfterDetail}>{afterWalkKm(currentDay, message.preview).toFixed(1)} km walk</Text>
+                          <Text style={styles.beforeAfterLabel}>{t('itinerary.after')}</Text>
+                          <Text style={styles.beforeAfterValue}>{afterStopCount(currentDay, message.preview)} {t('itinerary.stops').toLowerCase()}</Text>
+                          <Text style={styles.beforeAfterDetail}>{afterWalkKm(currentDay, message.preview).toFixed(1)} km {t('home.walk')}</Text>
                         </View>
                       </View>
                     ) : null}
                     {message.preview.affectedStops.length ? (
                       <View style={styles.affectedBlock}>
-                        <Text style={styles.blockLabel}>Route window</Text>
+                        <Text style={styles.blockLabel}>{t('assistant.routeWindow')}</Text>
                         <View style={styles.stopChipRow}>
                           {message.preview.affectedStops.slice(0, 3).map((stop) => (
                             <View key={stop} style={styles.stopChip}>
-                              <Text style={styles.stopChipText}>{stop}</Text>
+                              <Text style={styles.stopChipText}>{localizeDynamicText(stop, language)}</Text>
                             </View>
                           ))}
                         </View>
@@ -359,14 +366,14 @@ export default function AssistantScreen() {
                     ) : null}
                     <View style={styles.summaryStrip}>
                       <Ionicons name="map-outline" size={13} color={colors.teal} />
-                      <Text style={styles.previewRoute}>{message.preview.routeSummary}</Text>
+                      <Text style={styles.previewRoute}>{localizeDynamicText(message.preview.routeSummary, language)}</Text>
                     </View>
                     <View style={styles.reasonList}>
-                      <Text style={styles.blockLabel}>Signals</Text>
+                      <Text style={styles.blockLabel}>{t('assistant.signals')}</Text>
                       {message.preview.reasons.slice(0, 2).map((reason) => (
                         <View key={reason} style={styles.reasonRow}>
                           <Ionicons name="checkmark-circle" size={13} color={colors.teal} />
-                          <Text style={styles.reasonText}>{reason}</Text>
+                          <Text style={styles.reasonText}>{localizeDynamicText(reason, language)}</Text>
                         </View>
                       ))}
                     </View>
@@ -379,22 +386,22 @@ export default function AssistantScreen() {
                         <Ionicons name={resultVisual?.icon ?? 'checkmark'} size={15} color={colors.surface} />
                       </View>
                       <View style={styles.resultTitleWrap}>
-                        <Text style={styles.resultEyebrow}>Updated route</Text>
-                        <Text style={styles.resultTitle}>{message.result.title}</Text>
+                        <Text style={styles.resultEyebrow}>{t('assistant.updatedRoute')}</Text>
+                        <Text style={styles.resultTitle}>{localizeDynamicText(message.result.title, language)}</Text>
                       </View>
                     </View>
                     <View style={styles.resultStats}>
                       <View style={styles.resultStat}>
                         <Text style={styles.resultStatValue}>{message.result.stopCount}</Text>
-                        <Text style={styles.resultStatLabel}>Stops</Text>
+                        <Text style={styles.resultStatLabel}>{t('itinerary.stops')}</Text>
                       </View>
                       <View style={styles.resultStat}>
                         <Text style={styles.resultStatValue}>{message.result.walkKm.toFixed(1)} km</Text>
-                        <Text style={styles.resultStatLabel}>Walking</Text>
+                        <Text style={styles.resultStatLabel}>{t('assistant.walking')}</Text>
                       </View>
                       <View style={styles.resultStat}>
                         <Text style={styles.resultStatValue}>{resultVisual?.short ?? 'Done'}</Text>
-                        <Text style={styles.resultStatLabel}>Change</Text>
+                        <Text style={styles.resultStatLabel}>{t('assistant.change')}</Text>
                       </View>
                     </View>
                   </View>
@@ -413,7 +420,7 @@ export default function AssistantScreen() {
                         color={message.applied ? colors.surface : colors.teal}
                       />
                       <Text style={[styles.applyButtonText, message.applied && styles.applyButtonTextDone]}>
-                        {message.applied ? 'Applied' : applyingMessageId === message.id ? 'Updating...' : 'Apply to plan'}
+                        {message.applied ? t('assistant.applied') : applyingMessageId === message.id ? t('assistant.updating') : t('assistant.apply')}
                       </Text>
                     </TouchableOpacity>
                     {!message.applied ? (
@@ -422,7 +429,7 @@ export default function AssistantScreen() {
                         activeOpacity={0.86}
                         onPress={() => setMessages((current) => current.filter((item) => item.id !== message.id))}
                       >
-                        <Text style={styles.dismissButtonText}>Dismiss</Text>
+                        <Text style={styles.dismissButtonText}>{t('assistant.dismiss')}</Text>
                       </TouchableOpacity>
                     ) : null}
                   </View>
@@ -455,7 +462,7 @@ export default function AssistantScreen() {
 
           <View style={styles.composer}>
             <TextInput
-              placeholder="Message Journy..."
+              placeholder={t('assistant.input')}
               placeholderTextColor={colors.softMuted}
               style={styles.input}
               value={input}
@@ -505,9 +512,11 @@ function formatEnum(value: string) {
     .replace(/^\w/, (letter) => letter.toUpperCase());
 }
 
-function buildQuickPrompts(trip?: TripResponse, day?: ItineraryDay): QuickPrompt[] {
+type Translate = ReturnType<typeof useTranslation>;
+
+function buildQuickPrompts(trip?: TripResponse, day?: ItineraryDay, t?: Translate): QuickPrompt[] {
   if (!trip) {
-    return defaultQuickPrompts;
+    return t ? defaultQuickPrompts.map((prompt) => ({ ...prompt, label: quickLabel(prompt.label, t) })) : defaultQuickPrompts;
   }
 
   const prompts: QuickPrompt[] = [];
@@ -522,7 +531,7 @@ function buildQuickPrompts(trip?: TripResponse, day?: ItineraryDay): QuickPrompt
 
   if (isWalkHeavy) {
     addPrompt({
-      label: 'Make today lighter',
+      label: t ? t('assistant.quickLighter') : 'Make today lighter',
       icon: 'walk-outline',
       prompt: 'I am tired. Can you make today lighter?',
       answer: 'I would compare today against the rest of your trip, keep the anchor stops, and reduce the most flexible route pressure.',
@@ -531,7 +540,7 @@ function buildQuickPrompts(trip?: TripResponse, day?: ItineraryDay): QuickPrompt
 
   if (isFoodFocused || trip.stats.foodPicks < Math.max(1, trip.days)) {
     addPrompt({
-      label: 'Find lunch nearby',
+      label: t ? t('assistant.quickLunch') : 'Find lunch nearby',
       icon: 'restaurant-outline',
       prompt: 'Find lunch nearby without stretching the route.',
       answer: 'I would place a food or coffee break near your existing route cluster so the day feels better paced without extra travel.',
@@ -555,27 +564,34 @@ function buildQuickPrompts(trip?: TripResponse, day?: ItineraryDay): QuickPrompt
   }
 
   addPrompt({
-    label: 'Indoor plan',
+    label: t ? t('assistant.quickIndoor') : 'Indoor plan',
     icon: 'rainy-outline',
     prompt: 'Make an indoor plan for today.',
     answer: 'I would look for outdoor-heavy parts of the day and swap them into indoor culture, cafe, or covered local stops.',
   });
 
   addPrompt({
-    label: 'Finish earlier',
+    label: t ? t('assistant.quickEarlier') : 'Finish earlier',
     icon: 'time-outline',
     prompt: 'Can we finish today earlier?',
     answer: 'I would pull the strongest stops earlier and remove or move the final flexible stop so the evening opens up.',
   });
 
   addPrompt({
-    label: 'More local places',
+    label: t ? t('assistant.quickLocal') : 'More local places',
     icon: 'map-outline',
     prompt: 'Show me more local places near today’s route.',
     answer: 'I would look near today’s route cluster and suggest places that match your interests without adding much walking.',
   });
 
   return prompts.slice(0, 6);
+}
+
+function quickLabel(label: string, t: Translate) {
+  if (label === 'Make today lighter') return t('assistant.quickLighter');
+  if (label === 'Coffee nearby') return t('explore.coffee');
+  if (label === 'Rain backup') return t('assistant.quickIndoor');
+  return label;
 }
 
 function intentFromSuggestion(value: string): AgentIntent {

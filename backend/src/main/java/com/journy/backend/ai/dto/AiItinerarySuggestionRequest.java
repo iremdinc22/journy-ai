@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 public record AiItinerarySuggestionRequest(
         @NotBlank String tripId,
         @NotNull Integer dayNumber,
-        @NotBlank String action
+        @NotBlank String action,
+        String language
 ) {
 }

@@ -5,17 +5,13 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useAppTheme } from '../theme/ThemeContext';
+import { useLanguage, type LanguageCode } from '../i18n/LanguageContext';
 import type { colors as lightColors } from '../theme/colors';
 import { authApi, profileApi } from '../api/journyApi';
 import type { UserPreferences } from '../api/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
-
-const privacyRows: Array<{ label: string; value: string; icon: IconName }> = [
-  { label: 'Location usage', value: 'While traveling', icon: 'location-outline' },
-  { label: 'Saved taste profile', value: 'Enabled', icon: 'person-circle-outline' },
-];
 
 const defaultPreferences: UserPreferences = {
   defaultPace: 'BALANCED',
@@ -27,6 +23,7 @@ const defaultPreferences: UserPreferences = {
 
 export default function SettingsScreen({ navigation }: Props) {
   const { isDark, setDarkMode, theme } = useAppTheme();
+  const { language, setLanguage, t } = useLanguage();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
@@ -77,10 +74,19 @@ export default function SettingsScreen({ navigation }: Props) {
     savePreferences({ ...preferences, [key]: value });
   };
 
+  const cycleLanguage = () => {
+    setLanguage(language === 'tr' ? 'en' : 'tr');
+  };
+
   const preferenceRows: Array<{ label: string; value: string; icon: IconName; onPress: () => void }> = [
-    { label: 'Default pace', value: paceLabel(preferences.defaultPace), icon: 'speedometer-outline', onPress: () => cyclePreference('defaultPace') },
-    { label: 'Budget mode', value: budgetLabel(preferences.defaultBudget), icon: 'wallet-outline', onPress: () => cyclePreference('defaultBudget') },
-    { label: 'Food discovery', value: foodLabel(preferences.foodDiscovery), icon: 'restaurant-outline', onPress: () => cyclePreference('foodDiscovery') },
+    { label: t('settings.defaultPace'), value: paceLabel(preferences.defaultPace, t), icon: 'speedometer-outline', onPress: () => cyclePreference('defaultPace') },
+    { label: t('settings.budgetMode'), value: budgetLabel(preferences.defaultBudget, t), icon: 'wallet-outline', onPress: () => cyclePreference('defaultBudget') },
+    { label: t('settings.foodDiscovery'), value: foodLabel(preferences.foodDiscovery, t), icon: 'restaurant-outline', onPress: () => cyclePreference('foodDiscovery') },
+  ];
+
+  const privacyRows: Array<{ label: string; value: string; icon: IconName }> = [
+    { label: t('settings.locationUsage'), value: t('settings.locationUsageValue'), icon: 'location-outline' },
+    { label: t('settings.savedTasteProfile'), value: t('settings.enabled'), icon: 'person-circle-outline' },
   ];
 
   const signOut = async () => {
@@ -105,45 +111,53 @@ export default function SettingsScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.eyebrow}>Settings</Text>
-        <Text style={styles.title}>App preferences</Text>
-        <Text style={styles.subtitle}>
-          Keep the assistant useful, quiet and aligned with how you like to move through a city.
-        </Text>
+        <Text style={styles.eyebrow}>{t('settings.eyebrow')}</Text>
+        <Text style={styles.title}>{t('settings.title')}</Text>
+        <Text style={styles.subtitle}>{t('settings.subtitle')}</Text>
 
-        <Section title="Trip defaults" styles={styles} />
+        <Section title={t('settings.tripDefaults')} styles={styles} />
         <View style={styles.list}>
           {preferenceRows.map((item) => (
             <SettingRow key={item.label} item={item} colors={colors} styles={styles} disabled={saving} />
           ))}
         </View>
 
-        <Section title="Notifications" styles={styles} />
+        <Section title={t('settings.notifications')} styles={styles} />
         <View style={styles.list}>
           <ToggleRow
-            label="Plan changes"
-            description="Route updates, closures and weather shifts."
+            label={t('settings.planChanges')}
+            description={t('settings.planChangesDescription')}
             value={preferences.planChangeNotifications}
             onValueChange={(value) => updateToggle('planChangeNotifications', value)}
             colors={colors}
             styles={styles}
           />
           <ToggleRow
-            label="Food windows"
-            description="Timely lunch, coffee and dinner suggestions."
+            label={t('settings.foodWindows')}
+            description={t('settings.foodWindowsDescription')}
             value={preferences.foodWindowNotifications}
             onValueChange={(value) => updateToggle('foodWindowNotifications', value)}
             colors={colors}
             styles={styles}
           />
-          <ToggleRow label="Marketing updates" description="Product news and occasional city guides." colors={colors} styles={styles} />
+          <ToggleRow label={t('settings.marketingUpdates')} description={t('settings.marketingUpdatesDescription')} colors={colors} styles={styles} />
         </View>
 
-        <Section title="Appearance" styles={styles} />
+        <Section title={t('settings.appearance')} styles={styles} />
         <View style={styles.list}>
+          <SettingRow
+            item={{
+              label: t('common.language'),
+              value: languageLabel(language, t),
+              icon: 'language-outline',
+              onPress: cycleLanguage,
+            }}
+            colors={colors}
+            styles={styles}
+          />
           <ToggleRow
-            label="Dark mode"
-            description="Use a calmer dark interface at night."
+            label={t('settings.darkMode')}
+            description={t('settings.darkModeDescription')}
             value={isDark}
             onValueChange={setDarkMode}
             colors={colors}
@@ -151,7 +165,7 @@ export default function SettingsScreen({ navigation }: Props) {
           />
         </View>
 
-        <Section title="Privacy" styles={styles} />
+        <Section title={t('settings.privacy')} styles={styles} />
         <View style={styles.list}>
           {privacyRows.map((item) => (
             <SettingRow key={item.label} item={item} colors={colors} styles={styles} />
@@ -160,7 +174,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
         <TouchableOpacity style={styles.signOutButton} activeOpacity={0.86} onPress={signOut}>
           <Ionicons name="log-out-outline" size={18} color={colors.teal} />
-          <Text style={styles.signOutText}>Sign out</Text>
+          <Text style={styles.signOutText}>{t('common.signOut')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -170,6 +184,7 @@ export default function SettingsScreen({ navigation }: Props) {
 type Theme = ReturnType<typeof useAppTheme>['theme'];
 type AppColors = typeof lightColors;
 type SettingsStyles = ReturnType<typeof createStyles>;
+type Translate = ReturnType<typeof useLanguage>['t'];
 
 function Section({ title, styles }: { title: string; styles: SettingsStyles }) {
   return <Text style={styles.sectionTitle}>{title}</Text>;
@@ -198,18 +213,22 @@ function SettingRow({
   );
 }
 
-function paceLabel(value: UserPreferences['defaultPace']) {
-  return value === 'RELAXED' ? 'Relaxed' : value === 'FULL' ? 'Full day' : 'Balanced';
+function paceLabel(value: UserPreferences['defaultPace'], t: Translate) {
+  return value === 'RELAXED' ? t('settings.relaxed') : value === 'FULL' ? t('settings.fullDay') : t('settings.balanced');
 }
 
-function budgetLabel(value: UserPreferences['defaultBudget']) {
-  return value === 'LEAN' ? 'Lean' : value === 'COMFORT' ? 'Comfort' : 'Balanced';
+function budgetLabel(value: UserPreferences['defaultBudget'], t: Translate) {
+  return value === 'LEAN' ? t('settings.lean') : value === 'COMFORT' ? t('settings.comfort') : t('settings.balanced');
 }
 
-function foodLabel(value: UserPreferences['foodDiscovery']) {
-  if (value === 'BEST_RATED') return 'Best-rated';
-  if (value === 'BUDGET_FRIENDLY') return 'Budget-friendly';
-  return 'Local-first';
+function foodLabel(value: UserPreferences['foodDiscovery'], t: Translate) {
+  if (value === 'BEST_RATED') return t('settings.bestRated');
+  if (value === 'BUDGET_FRIENDLY') return t('settings.budgetFriendly');
+  return t('settings.localFirst');
+}
+
+function languageLabel(value: LanguageCode, t: Translate) {
+  return value === 'tr' ? t('common.turkish') : t('common.english');
 }
 
 function ToggleRow({

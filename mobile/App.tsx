@@ -3,14 +3,17 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 
 import { session } from "./src/api/session";
+import { LanguageProvider } from "./src/i18n/LanguageContext";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { ThemeProvider, useAppTheme } from "./src/theme/ThemeContext";
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <JournyApp />
-    </ThemeProvider>
+    <LanguageProvider>
+      <ThemeProvider>
+        <JournyApp />
+      </ThemeProvider>
+    </LanguageProvider>
   );
 }
 

@@ -7,6 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { tripApi } from '../api/journyApi';
 import type { TripResponse } from '../api/types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { useTranslation } from '../i18n/LanguageContext';
 import { InlineEmpty, InlineError, InlineLoading } from '../components/StateViews';
 import { useAppTheme } from '../theme/ThemeContext';
 
@@ -14,6 +15,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SavedPlans'>;
 
 export default function SavedPlansScreen({ navigation }: Props) {
   const { isDark, theme } = useAppTheme();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const [plans, setPlans] = useState<TripResponse[]>([]);
@@ -44,7 +46,7 @@ export default function SavedPlansScreen({ navigation }: Props) {
       await tripApi.makeCurrent(plan.id);
       navigation.navigate('MainTabs', { screen: 'Itinerary' });
     } catch {
-      Alert.alert('Could not open plan', 'Please check the backend connection and try again.');
+      Alert.alert(t('savedPlans.openErrorTitle'), t('savedPlans.openErrorMessage'));
     } finally {
       setBusyPlanId(null);
     }
@@ -52,11 +54,11 @@ export default function SavedPlansScreen({ navigation }: Props) {
 
   const confirmDelete = (plan: TripResponse) => {
     Alert.alert(
-      'Delete saved plan?',
-      `${plan.destination} will be removed from your saved plans.`,
+      t('savedPlans.deleteTitle'),
+      t('savedPlans.deleteMessage', { destination: plan.destination }),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deletePlan(plan) },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('savedPlans.delete'), style: 'destructive', onPress: () => deletePlan(plan) },
       ],
     );
   };
@@ -67,7 +69,7 @@ export default function SavedPlansScreen({ navigation }: Props) {
       await tripApi.delete(plan.id);
       setPlans((current) => current.filter((item) => item.id !== plan.id));
     } catch {
-      Alert.alert('Could not delete plan', 'Please try again in a moment.');
+      Alert.alert(t('savedPlans.deleteErrorTitle'), t('savedPlans.deleteErrorMessage'));
     } finally {
       setBusyPlanId(null);
     }
@@ -87,28 +89,28 @@ export default function SavedPlansScreen({ navigation }: Props) {
           </TouchableOpacity>
           <TouchableOpacity style={styles.newButton} activeOpacity={0.86} onPress={() => navigation.navigate('TripSetup')}>
             <Ionicons name="add" size={18} color={colors.surface} />
-            <Text style={styles.newButtonText}>New plan</Text>
+            <Text style={styles.newButtonText}>{t('savedPlans.newPlan')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>Saved plans</Text>
-          <Text style={styles.title}>Keep every city plan ready.</Text>
-          <Text style={styles.subtitle}>Open a previous itinerary, make it current, or clear plans you no longer need.</Text>
+          <Text style={styles.eyebrow}>{t('savedPlans.eyebrow')}</Text>
+          <Text style={styles.title}>{t('savedPlans.title')}</Text>
+          <Text style={styles.subtitle}>{t('savedPlans.subtitle')}</Text>
         </View>
 
-        {loading ? <InlineLoading label="Loading saved plans..." /> : null}
+        {loading ? <InlineLoading label={t('savedPlans.loading')} /> : null}
         {error ? (
           <InlineError
-            title="Saved plans could not load"
-            description="Retry after the API connection is available."
+            title={t('savedPlans.errorTitle')}
+            description={t('savedPlans.errorDescription')}
             onRetry={loadPlans}
           />
         ) : null}
         {!loading && !error && !plans.length ? (
           <InlineEmpty
-            title="No saved plans yet"
-            description="Create a trip plan and Journy will keep it here for later."
+            title={t('savedPlans.emptyTitle')}
+            description={t('savedPlans.emptyDescription')}
           />
         ) : null}
 
@@ -123,19 +125,19 @@ export default function SavedPlansScreen({ navigation }: Props) {
                   </View>
                   <View style={styles.planCopy}>
                     <Text style={styles.planCity}>{plan.destination}</Text>
-                    <Text style={styles.planMeta}>{plan.days} days - {formatPace(plan.pace)} pace - {formatBudget(plan.budget)}</Text>
+                    <Text style={styles.planMeta}>{t('savedPlans.days', { count: plan.days })} - {formatPace(plan.pace, t)} {t('savedPlans.pace')} - {formatBudget(plan.budget, t)}</Text>
                   </View>
                 </View>
 
                 <View style={styles.statsRow}>
-                  <PlanStat icon="location-outline" value={`${plan.stats.stops}`} label="Stops" styles={styles} />
-                  <PlanStat icon="restaurant-outline" value={`${plan.stats.foodPicks}`} label="Food" styles={styles} />
-                  <PlanStat icon="walk-outline" value={`${plan.stats.averageWalkKm.toFixed(1)} km`} label="Avg walk" styles={styles} />
+                  <PlanStat icon="location-outline" value={`${plan.stats.stops}`} label={t('savedPlans.stops')} styles={styles} />
+                  <PlanStat icon="restaurant-outline" value={`${plan.stats.foodPicks}`} label={t('savedPlans.food')} styles={styles} />
+                  <PlanStat icon="walk-outline" value={`${plan.stats.averageWalkKm.toFixed(1)} km`} label={t('savedPlans.avgWalk')} styles={styles} />
                 </View>
 
                 <View style={styles.actionRow}>
                   <TouchableOpacity style={[styles.openButton, busy && styles.disabledButton]} activeOpacity={0.86} onPress={() => openPlan(plan)}>
-                    <Text style={styles.openButtonText}>{busy ? 'Opening...' : 'Open itinerary'}</Text>
+                    <Text style={styles.openButtonText}>{busy ? t('savedPlans.opening') : t('savedPlans.openItinerary')}</Text>
                     <Ionicons name="chevron-forward" size={16} color={colors.surface} />
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.deleteButton} activeOpacity={0.86} onPress={() => confirmDelete(plan)} disabled={busy}>
@@ -174,14 +176,19 @@ function PlanStat({
   );
 }
 
-function formatPace(value: string) {
-  return value.toLowerCase().replace(/^\w/, (letter) => letter.toUpperCase());
+type Translate = ReturnType<typeof useTranslation>;
+
+function formatPace(value: string, t: Translate) {
+  const normalized = value.toLowerCase();
+  if (normalized.includes('relaxed')) return t('setup.relaxed');
+  if (normalized.includes('full')) return t('setup.full');
+  return t('setup.balanced');
 }
 
-function formatBudget(value: string) {
-  if (value === 'LEAN') return 'Lean';
-  if (value === 'COMFORT') return 'Comfort';
-  return 'Balanced';
+function formatBudget(value: string, t: Translate) {
+  if (value === 'LEAN') return t('setup.lean');
+  if (value === 'COMFORT') return t('setup.comfort');
+  return t('setup.balanced');
 }
 
 function createStyles({ colors, radius, spacing, typography }: Theme) {

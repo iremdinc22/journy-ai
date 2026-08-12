@@ -122,12 +122,13 @@ class UserAgentContext(BaseModel):
 
 class AgentMessageRequest(BaseModel):
     message: str = ""
+    language: str = "en"
     trip: AgentTripContext = Field(default_factory=AgentTripContext)
     day: AgentDayContext = Field(default_factory=AgentDayContext)
     itineraryDays: list[AgentDayContext] = Field(default_factory=list)
     userProfile: UserAgentContext | None = None
 
-    @field_validator("message", mode="before")
+    @field_validator("message", "language", mode="before")
     @classmethod
     def default_message(cls, value: str | None) -> str:
         return value or ""

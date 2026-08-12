@@ -17,14 +17,18 @@ import { useNavigation } from '@react-navigation/native';
 import { tripApi } from '../api/journyApi';
 import { session } from '../api/session';
 import type { ItineraryResponse, TripResponse } from '../api/types';
+import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
 import { cityImage, placeImage } from '../utils/destinationVisuals';
+import { localizeDynamicText } from '../utils/localizedDynamicText';
 
 const journyLogo = require('../../assets/images/journy-logo.png');
 
 export default function HomeScreen() {
   const { isDark, theme } = useAppTheme();
+  const { language } = useLanguage();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const navigation = useNavigation<any>();
@@ -83,9 +87,9 @@ export default function HomeScreen() {
   const todayDay = itinerary?.days.find((day) => day.dayNumber === lifecycle.dayNumber) ?? itinerary?.days[0];
   const firstDay = lifecycle.status === 'ACTIVE' ? todayDay : itinerary?.days[0];
   const firstStops = firstDay?.stops.slice(0, 3);
-  const destination = trip?.destination ?? session.getCurrentTrip()?.destination ?? 'Your trip';
+  const destination = trip?.destination ?? session.getCurrentTrip()?.destination ?? t('home.yourTrip');
   const heroImage = cityImage(destination);
-  const dayTitle = firstDay?.title ?? `${destination} day route`;
+  const dayTitle = localizeDynamicText(firstDay?.title ?? `${destination} day route`, language);
   const walkKm = firstDay?.walkKm ?? trip?.stats.averageWalkKm ?? 6.4;
   const stopCount = firstDay?.stopCount ?? trip?.stats.stops ?? 4;
   const nextStop = firstDay?.stops[0];
@@ -98,7 +102,7 @@ export default function HomeScreen() {
           <View style={styles.brandBlock}>
             <Image source={journyLogo} style={styles.logo} resizeMode="contain" />
             <View style={styles.headerCopy}>
-              <Text style={styles.headerLabel}>Current trip</Text>
+              <Text style={styles.headerLabel}>{t('home.currentTrip')}</Text>
               <Text style={styles.location}>{destination}</Text>
             </View>
           </View>
@@ -122,13 +126,13 @@ export default function HomeScreen() {
             <View style={styles.heroTop}>
               <View style={styles.pill}>
                 <Ionicons name="partly-sunny-outline" size={14} color={colors.surface} />
-                <Text style={styles.pillText}>Mild weather</Text>
+                <Text style={styles.pillText}>{t('home.mildWeather')}</Text>
               </View>
             </View>
             <View>
-              <Text style={styles.heroKicker}>{heroKicker(lifecycle, destination)}</Text>
-              <Text style={styles.heroTitle}>{heroTitle(lifecycle, destination, dayTitle)}</Text>
-              <Text style={styles.heroMeta}>{stopCount} stops - {walkKm.toFixed(1)} km - {formatEnum(trip?.pace ?? 'easy')} pace</Text>
+              <Text style={styles.heroKicker}>{heroKicker(lifecycle, destination, t)}</Text>
+              <Text style={styles.heroTitle}>{heroTitle(lifecycle, destination, dayTitle, t)}</Text>
+              <Text style={styles.heroMeta}>{stopCount} {t('home.stops')} - {walkKm.toFixed(1)} km - {formatEnum(trip?.pace ?? 'easy', language)} {t('home.pace')}</Text>
             </View>
           </LinearGradient>
         </ImageBackground>
@@ -137,20 +141,20 @@ export default function HomeScreen() {
           <View style={styles.todayCard}>
             <View style={styles.todayTop}>
               <View>
-                <Text style={styles.todayKicker}>Today mode</Text>
-                <Text style={styles.todayTitle}>Today in {destination}</Text>
+                <Text style={styles.todayKicker}>{t('home.todayMode')}</Text>
+                <Text style={styles.todayTitle}>{t('home.todayIn', { destination })}</Text>
               </View>
               <View style={styles.nextPill}>
                 <Ionicons name="time-outline" size={14} color={colors.teal} />
-                <Text style={styles.nextPillText}>Next stop</Text>
+                <Text style={styles.nextPillText}>{t('home.nextStop')}</Text>
               </View>
             </View>
             {nextStop ? (
               <View style={styles.nextStopRow}>
                 <Text style={styles.nextStopTime}>{nextStop.timeWindow}</Text>
                 <View style={styles.nextStopCopy}>
-                  <Text style={styles.nextStopTitle}>{nextStop.title}</Text>
-                  <Text style={styles.nextStopMeta}>{nextStop.category.toLowerCase()} - {nextStop.optional ? 'optional' : 'main route'}</Text>
+                  <Text style={styles.nextStopTitle}>{localizeDynamicText(nextStop.title, language)}</Text>
+                  <Text style={styles.nextStopMeta}>{localizeDynamicText(nextStop.category.toLowerCase(), language)} - {nextStop.optional ? t('home.optional') : t('home.mainRoute')}</Text>
                 </View>
                 <TouchableOpacity style={styles.directionsButton} activeOpacity={0.86}>
                   <Ionicons name="navigate-outline" size={17} color={colors.surface} />
@@ -161,41 +165,41 @@ export default function HomeScreen() {
               {firstDay.stops.slice(0, 4).map((stop) => (
                 <View key={stop.id} style={styles.todayTimelineRow}>
                   <Text style={styles.todayTime}>{stop.timeWindow}</Text>
-                  <Text style={styles.todayStop} numberOfLines={1}>{stop.title}</Text>
+                  <Text style={styles.todayStop} numberOfLines={1}>{localizeDynamicText(stop.title, language)}</Text>
                 </View>
               ))}
             </View>
             <TouchableOpacity style={styles.rebuildButton} activeOpacity={0.86} onPress={() => navigation.navigate('Assistant')}>
               <Ionicons name="sparkles-outline" size={15} color={colors.teal} />
-              <Text style={styles.rebuildText}>Optimize today with AI</Text>
+              <Text style={styles.rebuildText}>{t('home.optimizeToday')}</Text>
             </TouchableOpacity>
           </View>
         ) : null}
 
         <View style={styles.routeSummary}>
-          <SummaryItem icon="walk-outline" value={`${walkKm.toFixed(1)} km`} label="walk" colors={colors} styles={styles} />
-          <SummaryItem icon="location-outline" value={`${stopCount}`} label="stops" colors={colors} styles={styles} />
-          <SummaryItem icon="time-outline" value={formatEnum(trip?.pace ?? 'Easy')} label="pace" colors={colors} styles={styles} />
+          <SummaryItem icon="walk-outline" value={`${walkKm.toFixed(1)} km`} label={t('home.walk')} colors={colors} styles={styles} />
+          <SummaryItem icon="location-outline" value={`${stopCount}`} label={t('home.stops')} colors={colors} styles={styles} />
+          <SummaryItem icon="time-outline" value={formatEnum(trip?.pace ?? 'Easy', language)} label={t('home.pace')} colors={colors} styles={styles} />
         </View>
 
-        {loading ? <InlineLoading label="Loading your current trip..." /> : null}
+        {loading ? <InlineLoading label={t('home.loading')} /> : null}
         {error ? (
           <InlineError
-            title="Backend connection needs a retry"
-            description="Showing the local preview for now. Retry when the API is running."
+            title={t('home.errorTitle')}
+            description={t('home.errorDescription')}
             onRetry={loadHome}
           />
         ) : null}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Next in your route</Text>
-          <Text style={styles.sectionAction}>Edit</Text>
+          <Text style={styles.sectionTitle}>{t('home.nextRoute')}</Text>
+          <Text style={styles.sectionAction}>{t('home.edit')}</Text>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.visualList}>
           {(firstStops?.length ? firstStops.map((stop, index) => ({
-            title: stop.title,
-            meta: `${stop.category} - ${stop.timeWindow}`,
+            title: localizeDynamicText(stop.title, language),
+            meta: `${localizeDynamicText(stop.category, language)} - ${localizeDynamicText(stop.timeWindow, language)}`,
             image: imageForStop(destination, stop.category, stop.title, index),
           })) : fallbackVisualPicks(destination)).map((item) => (
             <TouchableOpacity key={item.title} style={styles.visualCard} activeOpacity={0.88}>
@@ -210,18 +214,19 @@ export default function HomeScreen() {
 
         <TouchableOpacity style={styles.primaryAction} activeOpacity={0.9}>
           <Ionicons name="navigate" size={17} color={colors.surface} />
-          <Text style={styles.primaryActionText}>{lifecycle.status === 'ACTIVE' ? 'Start today route' : 'Open trip plan'}</Text>
+          <Text style={styles.primaryActionText}>{lifecycle.status === 'ACTIVE' ? t('home.startTodayRoute') : t('home.openTripPlan')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function formatEnum(value: string) {
-  return value
+function formatEnum(value: string, language: 'en' | 'tr' = 'en') {
+  const formatted = value
     .toLowerCase()
     .replaceAll('_', ' ')
     .replace(/^\w/, (letter) => letter.toUpperCase());
+  return localizeDynamicText(formatted, language);
 }
 
 function tripLifecycle(trip?: TripResponse) {
@@ -246,15 +251,17 @@ function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function heroKicker(lifecycle: ReturnType<typeof tripLifecycle>, destination: string) {
-  if (lifecycle.status === 'ACTIVE') return `Day ${lifecycle.dayNumber}`;
-  if (lifecycle.status === 'COMPLETED') return 'Trip complete';
-  return lifecycle.daysUntil > 0 ? `${destination} in ${lifecycle.daysUntil} days` : 'Upcoming trip';
+type Translate = ReturnType<typeof useTranslation>;
+
+function heroKicker(lifecycle: ReturnType<typeof tripLifecycle>, destination: string, t: Translate) {
+  if (lifecycle.status === 'ACTIVE') return t('itinerary.day', { day: lifecycle.dayNumber });
+  if (lifecycle.status === 'COMPLETED') return t('home.tripComplete');
+  return lifecycle.daysUntil > 0 ? t('home.inDays', { destination, count: lifecycle.daysUntil }) : t('home.upcomingTrip');
 }
 
-function heroTitle(lifecycle: ReturnType<typeof tripLifecycle>, destination: string, dayTitle: string) {
-  if (lifecycle.status === 'ACTIVE') return `Good morning, ${destination}.`;
-  if (lifecycle.status === 'COMPLETED') return `Your ${destination} trip is complete.`;
+function heroTitle(lifecycle: ReturnType<typeof tripLifecycle>, destination: string, dayTitle: string, t: Translate) {
+  if (lifecycle.status === 'ACTIVE') return t('home.goodMorning', { destination });
+  if (lifecycle.status === 'COMPLETED') return t('home.completeTitle', { destination });
   return dayTitle;
 }
 

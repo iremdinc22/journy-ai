@@ -6,6 +6,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { notificationApi } from '../api/journyApi';
 import type { NotificationResponse } from '../api/types';
+import { useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
 
@@ -15,41 +16,44 @@ type Filter = 'All' | 'Route' | 'Food' | 'Weather';
 
 const filters: Filter[] = ['All', 'Route', 'Food', 'Weather'];
 
-const notifications: Array<{
+function fallbackNotifications(t: Translate): Array<{
   title: string;
   body: string;
   time: string;
   icon: IconName;
   type: Exclude<Filter, 'All'>;
   unread?: boolean;
-}> = [
-  {
-    title: 'Rain-aware plan update',
-    body: 'A museum-first route is ready if the afternoon forecast changes.',
-    time: '12 min ago',
-    icon: 'rainy-outline',
-    type: 'Weather',
-    unread: true,
-  },
-  {
-    title: 'Dinner window found',
-    body: 'A local table near your evening area has a better timing fit.',
-    time: '1h ago',
-    icon: 'restaurant-outline',
-    type: 'Food',
-    unread: true,
-  },
-  {
-    title: 'Walk time reduced',
-    body: 'Journy grouped two nearby stops to save about 18 minutes.',
-    time: 'Yesterday',
-    icon: 'walk-outline',
-    type: 'Route',
-  },
-];
+}> {
+  return [
+    {
+      title: t('notifications.rainTitle'),
+      body: t('notifications.rainBody'),
+      time: t('notifications.minAgo', { count: 12 }),
+      icon: 'rainy-outline',
+      type: 'Weather',
+      unread: true,
+    },
+    {
+      title: t('notifications.dinnerTitle'),
+      body: t('notifications.dinnerBody'),
+      time: t('notifications.hourAgo', { count: 1 }),
+      icon: 'restaurant-outline',
+      type: 'Food',
+      unread: true,
+    },
+    {
+      title: t('notifications.walkTitle'),
+      body: t('notifications.walkBody'),
+      time: t('notifications.yesterday'),
+      icon: 'walk-outline',
+      type: 'Route',
+    },
+  ];
+}
 
 export default function NotificationsScreen({ navigation }: Props) {
   const { isDark, theme } = useAppTheme();
+  const t = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const [activeFilter, setActiveFilter] = useState<Filter>('All');
@@ -57,8 +61,8 @@ export default function NotificationsScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const displayNotifications = useMemo(
-    () => apiNotifications?.map(normalizeNotification) ?? notifications,
-    [apiNotifications],
+    () => apiNotifications?.map((item) => normalizeNotification(item, t)) ?? fallbackNotifications(t),
+    [apiNotifications, t],
   );
   const visibleNotifications =
     activeFilter === 'All' ? displayNotifications : displayNotifications.filter((item) => item.type === activeFilter);
@@ -107,7 +111,7 @@ export default function NotificationsScreen({ navigation }: Props) {
           </TouchableOpacity>
           <TouchableOpacity style={styles.markButton} activeOpacity={0.86}>
             <Ionicons name="checkmark-done-outline" size={16} color={colors.teal} />
-            <Text style={styles.markText}>Mark read</Text>
+            <Text style={styles.markText}>{t('notifications.markRead')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -115,16 +119,16 @@ export default function NotificationsScreen({ navigation }: Props) {
           <View style={styles.headerIcon}>
             <Ionicons name="notifications-outline" size={22} color={colors.surface} />
           </View>
-          <Text style={styles.eyebrow}>Notifications</Text>
-          <Text style={styles.title}>Helpful trip updates.</Text>
-          <Text style={styles.subtitle}>Only route changes, timing shifts and useful local suggestions.</Text>
+          <Text style={styles.eyebrow}>{t('notifications.eyebrow')}</Text>
+          <Text style={styles.title}>{t('notifications.title')}</Text>
+          <Text style={styles.subtitle}>{t('notifications.subtitle')}</Text>
 
           <View style={styles.summaryRow}>
-            <SummaryItem value={`${unreadCount}`} label="new" styles={styles} />
+            <SummaryItem value={`${unreadCount}`} label={t('notifications.new')} styles={styles} />
             <View style={styles.summaryDivider} />
-            <SummaryItem value="0" label="urgent" styles={styles} />
+            <SummaryItem value="0" label={t('notifications.urgent')} styles={styles} />
             <View style={styles.summaryDivider} />
-            <SummaryItem value={`${displayNotifications.length}`} label="today" styles={styles} />
+            <SummaryItem value={`${displayNotifications.length}`} label={t('notifications.today')} styles={styles} />
           </View>
         </View>
 
@@ -136,16 +140,16 @@ export default function NotificationsScreen({ navigation }: Props) {
               activeOpacity={0.86}
               onPress={() => setActiveFilter(item)}
             >
-              <Text style={[styles.filterText, item === activeFilter && styles.filterTextActive]}>{item}</Text>
+              <Text style={[styles.filterText, item === activeFilter && styles.filterTextActive]}>{filterLabel(item, t)}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        {loading ? <InlineLoading label="Loading notifications..." /> : null}
+        {loading ? <InlineLoading label={t('notifications.loading')} /> : null}
         {error ? (
           <InlineError
-            title="Notifications are using preview data"
-            description="Retry to load fresh route and food updates."
+            title={t('notifications.previewTitle')}
+            description={t('notifications.previewDescription')}
             onRetry={() => {
               setApiNotifications(null);
               setLoading(true);
@@ -167,7 +171,7 @@ export default function NotificationsScreen({ navigation }: Props) {
 
               <View style={styles.itemCopy}>
                 <View style={styles.itemTop}>
-                  <Text style={styles.itemType}>{item.type}</Text>
+                  <Text style={styles.itemType}>{filterLabel(item.type, t)}</Text>
                   <Text style={styles.itemTime}>{item.time}</Text>
                 </View>
                 <Text style={styles.itemTitle}>{item.title}</Text>
@@ -183,12 +187,14 @@ export default function NotificationsScreen({ navigation }: Props) {
   );
 }
 
-function normalizeNotification(item: NotificationResponse) {
+type Translate = ReturnType<typeof useTranslation>;
+
+function normalizeNotification(item: NotificationResponse, t: Translate) {
   const type = normalizeType(item.type);
   return {
     title: item.title,
     body: item.message,
-    time: formatTime(item.createdAt),
+    time: formatTime(item.createdAt, t),
     icon: iconForType(type),
     type,
     unread: item.unread,
@@ -208,17 +214,24 @@ function iconForType(type: Exclude<Filter, 'All'>): IconName {
   return 'walk-outline';
 }
 
-function formatTime(value: string) {
+function filterLabel(value: Filter, t: Translate) {
+  if (value === 'Food') return t('notifications.food');
+  if (value === 'Weather') return t('notifications.weather');
+  if (value === 'Route') return t('notifications.route');
+  return t('notifications.all');
+}
+
+function formatTime(value: string, t: Translate) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return 'Now';
+    return t('notifications.now');
   }
 
   const minutes = Math.max(1, Math.round((Date.now() - date.getTime()) / 60000));
-  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 60) return t('notifications.minAgo', { count: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
+  if (hours < 24) return t('notifications.hourAgo', { count: hours });
+  return t('notifications.dayAgo', { count: Math.round(hours / 24) });
 }
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];

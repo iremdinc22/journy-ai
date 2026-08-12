@@ -63,17 +63,18 @@ public class AgentService {
         ItineraryDay day = resolveDay(itineraryDays, request.dayNumber(), request.message());
         AgentContext context = agentContextBuilder.build(user, trip, day, itineraryDays);
         AgentIntent intent = detectIntent(request.message());
+        boolean Turkish = isTurkish(request.language());
         if (intent != AgentIntent.GENERAL_GUIDANCE) {
-            AgentActionPreview preview = buildPreview(intent, trip, day, itineraryDays, context);
+            AgentActionPreview preview = buildPreview(intent, trip, day, itineraryDays, context, request.language());
             return new AgentMessageResponse(
                     "agent_" + trip.getId(),
-                    buildAgentMessage(intent, trip, day, preview, itineraryDays, context),
+                    buildAgentMessage(intent, trip, day, preview, itineraryDays, context, Turkish),
                     intent,
                     preview
             );
         }
 
-        AgentMessageResponse pythonResponse = pythonAgentClient.message(request.message(), context).orElse(null);
+        AgentMessageResponse pythonResponse = pythonAgentClient.message(request.message(), context, request.language()).orElse(null);
         if (pythonResponse != null) {
             return new AgentMessageResponse(
                     "agent_" + trip.getId(),
@@ -83,11 +84,11 @@ public class AgentService {
             );
         }
 
-        AgentActionPreview preview = buildPreview(intent, trip, day, itineraryDays, context);
+        AgentActionPreview preview = buildPreview(intent, trip, day, itineraryDays, context, request.language());
 
         return new AgentMessageResponse(
                 "agent_" + trip.getId(),
-                buildAgentMessage(intent, trip, day, preview, itineraryDays, context),
+                buildAgentMessage(intent, trip, day, preview, itineraryDays, context, Turkish),
                 intent,
                 preview
         );
@@ -105,14 +106,15 @@ public class AgentService {
                 .filter(foundDay -> foundDay.getDayNumber() == request.dayNumber())
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Itinerary day was not found"));
+        boolean Turkish = isTurkish(request.language());
 
         switch (intent) {
-            case MAKE_DAY_LIGHTER -> applyMakeDayLighter(day);
-            case ADD_FOOD_STOP -> applyAddFoodStop(trip, day);
-            case REPLACE_STOP -> applyReplaceStop(trip, day);
-            case BUDGET_OPTIMIZE -> applyBudgetOptimize(trip, day);
-            case RAIN_REPLAN -> applyRainReplan(trip, day);
-            case GENERAL_GUIDANCE -> applyMakeDayLighter(day);
+            case MAKE_DAY_LIGHTER -> applyMakeDayLighter(day, Turkish);
+            case ADD_FOOD_STOP -> applyAddFoodStop(trip, day, Turkish);
+            case REPLACE_STOP -> applyReplaceStop(trip, day, Turkish);
+            case BUDGET_OPTIMIZE -> applyBudgetOptimize(trip, day, Turkish);
+            case RAIN_REPLAN -> applyRainReplan(trip, day, Turkish);
+            case GENERAL_GUIDANCE -> applyMakeDayLighter(day, Turkish);
         }
 
         normalizeStopOrder(day);
@@ -121,21 +123,23 @@ public class AgentService {
         return itineraryMapper.toDayResponse(savedDay);
     }
 
-    private AgentActionPreview buildPreview(AgentIntent intent, Trip trip, ItineraryDay day, List<ItineraryDay> itineraryDays, AgentContext context) {
+    private AgentActionPreview buildPreview(AgentIntent intent, Trip trip, ItineraryDay day, List<ItineraryDay> itineraryDays, AgentContext context, String language) {
+        boolean Turkish = isTurkish(language);
         if (intent == AgentIntent.BUDGET_OPTIMIZE) {
-            return budgetPreview(trip, day, context);
+            return budgetPreview(trip, day, context, Turkish);
         }
         if (intent == AgentIntent.RAIN_REPLAN) {
-            return rainPreview(trip, day, context);
+            return rainPreview(trip, day, context, Turkish);
         }
         if (intent == AgentIntent.GENERAL_GUIDANCE) {
-            return guidancePreview(trip, day, context);
+            return guidancePreview(trip, day, context, Turkish);
         }
 
         AiItinerarySuggestionResponse suggestion = aiService.itinerarySuggestion(new AiItinerarySuggestionRequest(
                 trip.getId(),
                 day.getDayNumber(),
-                actionFor(intent)
+                actionFor(intent),
+                language
         ));
 
         return new AgentActionPreview(
@@ -146,12 +150,12 @@ public class AgentService {
                 suggestion.minutesSaved(),
                 suggestion.stopsAffected(),
                 suggestion.routeSummary(),
-                explain(intent, trip, day, suggestion.stopsAffected(), itineraryDays, context),
+                explain(intent, trip, day, suggestion.stopsAffected(), itineraryDays, context, Turkish),
                 true
         );
     }
 
-    private AgentActionPreview budgetPreview(Trip trip, ItineraryDay day, AgentContext context) {
+    private AgentActionPreview budgetPreview(Trip trip, ItineraryDay day, AgentContext context, boolean Turkish) {
         List<String> affectedStops = day.getStops().stream()
                 .filter(stop -> stop.getCategory().equalsIgnoreCase("FOOD") || stop.getCategory().equalsIgnoreCase("COFFEE"))
                 .map(ItineraryStop::getTitle)
@@ -159,22 +163,22 @@ public class AgentService {
                 .toList();
         return new AgentActionPreview(
                 AgentIntent.BUDGET_OPTIMIZE,
-                "Optimize Day " + day.getDayNumber() + " for budget",
-                "Keep the main stops. Swap one flexible pick for a lower-cost option.",
-                "Use a budget-friendly alternative",
+                Turkish ? day.getDayNumber() + ". günü bütçeye göre düzenle" : "Optimize Day " + day.getDayNumber() + " for budget",
+                Turkish ? "Ana durakları koruyup esnek bir seçimi daha ekonomik bir alternatifle değiştiririm." : "Keep the main stops. Swap one flexible pick for a lower-cost option.",
+                Turkish ? "Bütçe dostu alternatif kullan" : "Use a budget-friendly alternative",
                 8,
                 affectedStops,
-                "Day " + day.getDayNumber() + " stays close to the same route.",
+                Turkish ? day.getDayNumber() + ". gün aynı rota alanında kalır." : "Day " + day.getDayNumber() + " stays close to the same route.",
                 List.of(
-                        trip.getBudget().name().toLowerCase().replace('_', ' ') + " budget",
-                        personalizationReason(context),
-                        "Same area"
+                        Turkish ? "Bütçe modun dikkate alındı" : trip.getBudget().name().toLowerCase().replace('_', ' ') + " budget",
+                        personalizationReason(context, Turkish),
+                        Turkish ? "Aynı bölge" : "Same area"
                 ).stream().distinct().limit(2).toList(),
                 true
         );
     }
 
-    private AgentActionPreview rainPreview(Trip trip, ItineraryDay day, AgentContext context) {
+    private AgentActionPreview rainPreview(Trip trip, ItineraryDay day, AgentContext context, boolean Turkish) {
         List<String> outdoorStops = day.getStops().stream()
                 .filter(stop -> stop.getCategory().equalsIgnoreCase("WALKING") || stop.getCategory().equalsIgnoreCase("FREE"))
                 .map(ItineraryStop::getTitle)
@@ -182,34 +186,36 @@ public class AgentService {
                 .toList();
         return new AgentActionPreview(
                 AgentIntent.RAIN_REPLAN,
-                "Rebuild Day " + day.getDayNumber() + " around rain",
-                "Move the risky outdoor stop to an indoor-friendly window.",
-                "Use an indoor-friendly stop",
+                Turkish ? day.getDayNumber() + ". günü yağmura göre düzenle" : "Rebuild Day " + day.getDayNumber() + " around rain",
+                Turkish ? "Riskli açık hava durağını kapalı mekana uygun bir zaman aralığına taşırım." : "Move the risky outdoor stop to an indoor-friendly window.",
+                Turkish ? "Kapalı mekana uygun durak kullan" : "Use an indoor-friendly stop",
                 12,
                 outdoorStops,
-                "Day " + day.getDayNumber() + " becomes rain-ready.",
+                Turkish ? day.getDayNumber() + ". gün yağmura daha hazır hale gelir." : "Day " + day.getDayNumber() + " becomes rain-ready.",
                 List.of(
-                        "Outdoor stop found",
-                        personalizationReason(context),
-                        "Same area"
+                        Turkish ? "Açık hava durağı bulundu" : "Outdoor stop found",
+                        personalizationReason(context, Turkish),
+                        Turkish ? "Aynı bölge" : "Same area"
                 ).stream().distinct().limit(2).toList(),
                 true
         );
     }
 
-    private AgentActionPreview guidancePreview(Trip trip, ItineraryDay day, AgentContext context) {
+    private AgentActionPreview guidancePreview(Trip trip, ItineraryDay day, AgentContext context, boolean Turkish) {
         return new AgentActionPreview(
                 AgentIntent.GENERAL_GUIDANCE,
-                "I can adjust this day",
-                "Ask for a lighter, cheaper, food-focused or rain-ready day.",
-                "Adjust this day",
+                Turkish ? "Bu günü düzenleyebilirim" : "I can adjust this day",
+                Turkish ? "Daha hafif, ekonomik, yemek odaklı veya yağmura hazır bir gün isteyebilirsin." : "Ask for a lighter, cheaper, food-focused or rain-ready day.",
+                Turkish ? "Bu günü düzenle" : "Adjust this day",
                 null,
                 List.of(),
-                "Day " + day.getDayNumber() + ": " + day.getStops().size() + " stops, " + day.getWalkKm() + " km.",
+                Turkish
+                        ? day.getDayNumber() + ". gün: " + day.getStops().size() + " durak, " + day.getWalkKm() + " km."
+                        : "Day " + day.getDayNumber() + ": " + day.getStops().size() + " stops, " + day.getWalkKm() + " km.",
                 List.of(
-                        "Current itinerary",
-                        personalizationReason(context),
-                        "Preview first"
+                        Turkish ? "Mevcut gezi planı" : "Current itinerary",
+                        personalizationReason(context, Turkish),
+                        Turkish ? "Önce önizleme" : "Preview first"
                 ).stream().distinct().limit(2).toList(),
                 false
         );
@@ -221,12 +227,25 @@ public class AgentService {
             ItineraryDay day,
             AgentActionPreview preview,
             List<ItineraryDay> itineraryDays,
-            AgentContext context
+            AgentContext context,
+            boolean Turkish
     ) {
         if (!preview.requiresConfirmation()) {
             return preview.message();
         }
         ItineraryDay busiestDay = findBusiestDay(itineraryDays);
+        if (Turkish) {
+            return switch (intent) {
+                case MAKE_DAY_LIGHTER -> busiestDay.getDayNumber() == day.getDayNumber() && itineraryDays.size() > 1
+                        ? day.getDayNumber() + ". gün en yoğun gün. Esnek bir durağı çıkarabilirim."
+                        : day.getDayNumber() + ". günü hafifletebilirim.";
+                case ADD_FOOD_STOP -> "Rotanın yakınına yerel bir mola ekleyebilirim.";
+                case REPLACE_STOP -> "Aynı bölgede zayıf uyumlu bir durağı değiştirebilirim.";
+                case BUDGET_OPTIMIZE -> "Bu günü bütçe açısından daha rahat hale getirebilirim.";
+                case RAIN_REPLAN -> "Günü kapalı mekana daha uygun hale getirebilirim.";
+                case GENERAL_GUIDANCE -> preview.message();
+            };
+        }
         return switch (intent) {
             case MAKE_DAY_LIGHTER -> busiestDay.getDayNumber() == day.getDayNumber() && itineraryDays.size() > 1
                     ? "Day " + day.getDayNumber() + " is the busiest. I can remove one flexible stop."
@@ -245,27 +264,55 @@ public class AgentService {
             ItineraryDay day,
             List<String> affectedStops,
             List<ItineraryDay> itineraryDays,
-            AgentContext context
+            AgentContext context,
+            boolean Turkish
     ) {
         String affected = affectedStops.isEmpty() ? "the flexible route window" : affectedStops.getFirst();
         ItineraryDay busiestDay = findBusiestDay(itineraryDays);
+        if (Turkish) {
+            String affectedTr = affectedStops.isEmpty() ? "esnek rota aralığı" : affectedStops.getFirst();
+            return switch (intent) {
+                case MAKE_DAY_LIGHTER -> List.of(
+                        affectedTr + " esnek",
+                        "Bugün " + day.getWalkKm() + " km yürüyüş var",
+                        personalizationReason(context, true),
+                        busiestDay.getDayNumber() == day.getDayNumber() && itineraryDays.size() > 1
+                                ? "En yoğun gün"
+                                : "Ana duraklar korunur"
+                ).stream().distinct().limit(2).toList();
+                case ADD_FOOD_STOP -> List.of(
+                        "Yerel mola",
+                        personalizationReason(context, true),
+                        "Rotaya yakın"
+                ).stream().distinct().limit(2).toList();
+                case REPLACE_STOP -> List.of(
+                        affectedTr + " değişebilir",
+                        savedPlaceReason(context, true),
+                        "Aynı zaman aralığı"
+                ).stream().distinct().limit(2).toList();
+                default -> List.of(
+                        "Mevcut gezi planı",
+                        "Önce önizleme"
+                );
+            };
+        }
         return switch (intent) {
             case MAKE_DAY_LIGHTER -> List.of(
                     affected + " is flexible",
                     day.getWalkKm() + " km today",
-                    personalizationReason(context),
+                    personalizationReason(context, false),
                     busiestDay.getDayNumber() == day.getDayNumber() && itineraryDays.size() > 1
                             ? "Busiest day"
                             : "Main stops stay"
             ).stream().distinct().limit(2).toList();
             case ADD_FOOD_STOP -> List.of(
                     "Local break",
-                    personalizationReason(context),
+                    personalizationReason(context, false),
                     "Near route"
             ).stream().distinct().limit(2).toList();
             case REPLACE_STOP -> List.of(
                     affected + " can move",
-                    savedPlaceReason(context),
+                    savedPlaceReason(context, false),
                     "Same time window"
             ).stream().distinct().limit(2).toList();
             default -> List.of(
@@ -275,16 +322,16 @@ public class AgentService {
         };
     }
 
-    private String personalizationReason(AgentContext context) {
-        return "Matches " + primaryTaste(context);
+    private String personalizationReason(AgentContext context, boolean Turkish) {
+        return Turkish ? primaryTaste(context) + " tercihine uyuyor" : "Matches " + primaryTaste(context);
     }
 
-    private String savedPlaceReason(AgentContext context) {
+    private String savedPlaceReason(AgentContext context, boolean Turkish) {
         List<String> savedSignals = context.userProfile().savedCategorySignals();
         if (savedSignals == null || savedSignals.isEmpty()) {
-            return "Matches setup";
+            return Turkish ? "Kurulum tercihlerine uyuyor" : "Matches setup";
         }
-        return "Saved places: " + savedSignals.getFirst().replace(" x", "x");
+        return Turkish ? "Kayıtlı yerler: " + savedSignals.getFirst().replace(" x", "x") : "Saved places: " + savedSignals.getFirst().replace(" x", "x");
     }
 
     private String primaryTaste(AgentContext context) {
@@ -334,11 +381,17 @@ public class AgentService {
         };
     }
 
-    private void applyMakeDayLighter(ItineraryDay day) {
+    private boolean isTurkish(String language) {
+        return language != null && language.equalsIgnoreCase("tr");
+    }
+
+    private void applyMakeDayLighter(ItineraryDay day, boolean Turkish) {
         if (day.getStops().size() <= 2) {
             day.getStops().forEach(stop -> stop.setOptionalStop(true));
             day.setWalkKm(Math.max(1.2, round(day.getWalkKm() - 0.7)));
-            day.setSummary("Journy marked this compact day as optional-friendly so you can slow down without losing the route shape.");
+            day.setSummary(Turkish
+                    ? "Journy bu kompakt günü opsiyonel kullanıma uygun hale getirdi; rota bozulmadan yavaşlayabilirsin."
+                    : "Journy marked this compact day as optional-friendly so you can slow down without losing the route shape.");
             return;
         }
 
@@ -351,10 +404,12 @@ public class AgentService {
                         .orElse(day.getStops().getLast()));
         day.getStops().remove(removable);
         day.setWalkKm(Math.max(1.2, round(day.getWalkKm() - walkReductionFor(removable))));
-        day.setSummary("Journy removed " + removable.getTitle() + " to make the day lighter while keeping the strongest route anchors.");
+        day.setSummary(Turkish
+                ? "Journy " + removable.getTitle() + " durağını çıkardı; ana duraklar korunurken gün hafifledi."
+                : "Journy removed " + removable.getTitle() + " to make the day lighter while keeping the strongest route anchors.");
     }
 
-    private void applyAddFoodStop(Trip trip, ItineraryDay day) {
+    private void applyAddFoodStop(Trip trip, ItineraryDay day, boolean Turkish) {
         int insertOrder = Math.min(day.getStops().size() + 1, 3);
         shiftStopsFrom(day, insertOrder);
         ItineraryStop anchor = day.getStops().stream()
@@ -366,39 +421,51 @@ public class AgentService {
                 foodBreakTitle(trip),
                 "FOOD",
                 "13:00",
-                "Added by Journy AI as a local food break inside the existing route window.",
+                Turkish
+                        ? "Journy AI mevcut rota aralığına yerel bir yemek molası ekledi."
+                        : "Added by Journy AI as a local food break inside the existing route window.",
                 anchor == null ? 0 : anchor.getLatitude() + 0.002,
                 anchor == null ? 0 : anchor.getLongitude() + 0.002
         );
         day.addStop(stop);
         day.setWalkKm(round(day.getWalkKm() + 0.4));
-        day.setSummary("Journy added a food break near the current route so the day feels more local without becoming much heavier.");
+        day.setSummary(Turkish
+                ? "Mevcut rotaya yakın yemek molası eklendi; gün belirgin ağırlaşmadan daha yerel hissettirir."
+                : "Journy added a food break near the current route so the day feels more local without becoming much heavier.");
     }
 
-    private void applyReplaceStop(Trip trip, ItineraryDay day) {
+    private void applyReplaceStop(Trip trip, ItineraryDay day, boolean Turkish) {
         ItineraryStop target = weakestFlexibleStop(day);
         target.setTitle(replacementTitle(trip, target));
         target.setCategory(replacementCategory(target));
-        target.setNote("Replaced by Journy AI to better match your route, pace and taste profile.");
+        target.setNote(Turkish
+                ? "Journy AI rotana, tempoya ve zevk profiline daha iyi uyması için değiştirdi."
+                : "Replaced by Journy AI to better match your route, pace and taste profile.");
         target.setTimeWindow(replacementTimeWindow(target));
         target.setOptionalStop(false);
         day.setWalkKm(Math.max(1.2, round(day.getWalkKm() - 0.2)));
-        day.setSummary("Journy replaced the weakest-fit stop while preserving the same route window.");
+        day.setSummary(Turkish
+                ? "En zayıf uyumlu durak aynı rota aralığı korunarak değiştirildi."
+                : "Journy replaced the weakest-fit stop while preserving the same route window.");
     }
 
-    private void applyBudgetOptimize(Trip trip, ItineraryDay day) {
+    private void applyBudgetOptimize(Trip trip, ItineraryDay day, boolean Turkish) {
         ItineraryStop target = day.getStops().stream()
                 .filter(this::isFoodOrCoffee)
                 .max(Comparator.comparingInt(ItineraryStop::getStopOrder))
                 .orElseGet(() -> weakestFlexibleStop(day));
         target.setTitle(budgetTitle(trip, target));
         target.setCategory(target.getCategory().equalsIgnoreCase("COFFEE") ? "COFFEE" : "FOOD");
-        target.setNote("Adjusted by Journy AI toward a lower-cost local option near the existing route.");
+        target.setNote(Turkish
+                ? "Journy AI mevcut rotaya yakın daha ekonomik yerel bir seçenekle düzenledi."
+                : "Adjusted by Journy AI toward a lower-cost local option near the existing route.");
         day.setWalkKm(Math.max(1.2, round(day.getWalkKm() - 0.1)));
-        day.setSummary("Journy kept the main anchors and made the flexible food window more budget-friendly.");
+        day.setSummary(Turkish
+                ? "Ana duraklar korundu; esnek yemek aralığı bütçeye daha uygun hale getirildi."
+                : "Journy kept the main anchors and made the flexible food window more budget-friendly.");
     }
 
-    private void applyRainReplan(Trip trip, ItineraryDay day) {
+    private void applyRainReplan(Trip trip, ItineraryDay day, boolean Turkish) {
         ItineraryStop target = day.getStops().stream()
                 .filter(this::isOutdoor)
                 .max(Comparator.comparingInt(ItineraryStop::getStopOrder))
@@ -406,10 +473,14 @@ public class AgentService {
         target.setTitle(indoorTitle(trip));
         target.setCategory("CULTURE");
         target.setTimeWindow("14:00");
-        target.setNote("Rain-aware adjustment from Journy AI: protected the afternoon with an indoor-friendly stop.");
+        target.setNote(Turkish
+                ? "Journy AI yağmura göre düzenledi: öğleden sonrayı kapalı mekana uygun durakla korudu."
+                : "Rain-aware adjustment from Journy AI: protected the afternoon with an indoor-friendly stop.");
         target.setOptionalStop(false);
         day.setWalkKm(Math.max(1.2, round(day.getWalkKm() - 0.5)));
-        day.setSummary("Journy moved the day toward an indoor culture window so rainy hours do not break the route.");
+        day.setSummary(Turkish
+                ? "Yağmurlu saatler rotayı bozmasın diye gün kapalı kültür aralığına kaydırıldı."
+                : "Journy moved the day toward an indoor culture window so rainy hours do not break the route.");
     }
 
     private ItineraryStop weakestFlexibleStop(ItineraryDay day) {

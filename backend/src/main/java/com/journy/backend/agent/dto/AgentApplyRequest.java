@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 public record AgentApplyRequest(
         @NotBlank String tripId,
         @NotNull Integer dayNumber,
-        @NotNull AgentIntent intent
+        @NotNull AgentIntent intent,
+        String language
 ) {
 }
