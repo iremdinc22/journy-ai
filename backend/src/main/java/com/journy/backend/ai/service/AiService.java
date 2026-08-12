@@ -322,7 +322,7 @@ public class AiService {
         day.getStops().add(index, replacement);
         replacement.setDay(day);
         day.setTitle(rainTitle(day.getTitle()));
-        day.setSummary("Rain-ready version of the day with the most weather-sensitive stop moved indoors while preserving route rhythm.");
+        day.setSummary("Outdoor stop moved indoors for rain.");
         day.setWalkKm(Math.max(2.2, Math.round((day.getWalkKm() - 0.3) * 10.0) / 10.0));
     }
 

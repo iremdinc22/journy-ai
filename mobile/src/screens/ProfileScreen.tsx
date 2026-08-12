@@ -283,7 +283,7 @@ export default function ProfileScreen() {
                 <Ionicons name="sparkles-outline" size={18} color={colors.teal} />
               </View>
               <View style={styles.strategyCopy}>
-                <Text style={styles.strategyKicker}>Planning strategy</Text>
+                <Text style={styles.strategyKicker}>Trip style</Text>
                 <Text style={styles.strategyTitle}>{currentTrip.planningStrategy.title}</Text>
               </View>
             </View>
@@ -656,8 +656,8 @@ function buildTravelIdentity(profile: ProfileResponse | null) {
     value: Math.min(96, Math.max(28, value)),
   })).sort((first, second) => second.value - first.value);
   const strongest = levels[0];
-  const headline = `${strongest.label} is becoming a signature preference`;
-  const insight = `${strongest.label} is one of your strongest travel signals, so Journy will keep using it when shaping route rhythm and recommendations.`;
+  const headline = `${strongest.label} stands out`;
+  const insight = `Your saved places point toward ${strongest.label.toLowerCase()}.`;
   const savedCount = profile?.savedPlaces.length ?? 0;
   const interestCount = profile?.currentTrip?.interests.length ?? 0;
   const learningSource = savedCount

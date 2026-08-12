@@ -122,11 +122,11 @@ export default function ExploreScreen() {
               <View style={styles.whyBlock}>
                 <View style={styles.whyHeader}>
                   <Ionicons name="sparkles-outline" size={13} color={colors.teal} />
-                  <Text style={styles.whyTitle}>Why Journy picked this</Text>
+                  <Text style={styles.whyTitle}>Good fit</Text>
                 </View>
                 <Text style={styles.whyText}>{reasonSentence(reasons, currentTrip)}</Text>
                 <View style={styles.reasonChips}>
-                  {reasons.map((reason) => (
+                  {reasons.slice(0, 2).map((reason) => (
                     <View key={reason} style={styles.reasonChip}>
                       <Text style={styles.reasonChipText}>{reason}</Text>
                     </View>

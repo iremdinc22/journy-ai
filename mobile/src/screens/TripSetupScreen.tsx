@@ -358,11 +358,11 @@ export default function TripSetupScreen({ navigation, route }: Props) {
   const resolvedMatchedPlaceCount = backendPreview?.matchedPlaceCount ?? Math.min(resolvedPlaceCount, selectedInterests.length ? selectedInterests.length * 4 : resolvedPlaceCount);
   const placeInsightText = city.trim()
     ? resolvedPlaceCount
-      ? `Based on ${resolvedMatchedPlaceCount || resolvedPlaceCount} matching places in ${city}`
+      ? `${resolvedMatchedPlaceCount || resolvedPlaceCount} good fits in ${city}`
       : previewLoading
-        ? `Searching live place providers for ${city}`
-        : `Live provider search will find places in ${city}`
-    : 'Select a destination to estimate local picks';
+        ? `Looking for places in ${city}`
+        : `Places will load for ${city}`
+    : 'Select a destination';
   const previewConfidence = backendPreview?.confidence ?? (city ? 'Draft' : 'Waiting');
   const previewSummary = backendPreview?.summary;
   const planningStyle = backendPreview?.planningStyle ?? localPlanningStyle(city, resolvedTripDays || 1, pace, budget, selectedInterests, startArea);
@@ -986,11 +986,11 @@ function localPlanningStyle(city: string, days: number, pace: string, budget: st
       ? 'Food-led'
       : selectedInterests.includes('Walking')
         ? 'Walkable'
-        : 'Balanced';
-  const rhythm = pace === 'Relaxed' ? 'slow exploration' : pace === 'Full' ? 'full-day discovery' : 'balanced daily rhythm';
-  const spend = budget === 'Lean' ? 'low-cost picks' : budget === 'Comfort' ? 'comfort-friendly stops' : 'local breaks';
+        : 'City';
+  const rhythm = pace === 'Relaxed' ? 'slow days' : pace === 'Full' ? 'full days' : 'easy days';
+  const spend = budget === 'Lean' ? 'low-cost stops' : budget === 'Comfort' ? 'comfort stops' : 'local breaks';
   const area = startArea.trim() ? ` starting from ${startArea.trim()}` : '';
-  return `${focus} ${rhythm} with ${spend} across ${days} days${city ? ` in ${city}` : ''}${area}.`;
+  return `${focus} route, ${rhythm} and ${spend}${city ? ` in ${city}` : ''}${area}.`;
 }
 
 function dynamicCityDetail(city: string): CityDetail {

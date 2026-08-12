@@ -362,8 +362,8 @@ export default function AssistantScreen() {
                       <Text style={styles.previewRoute}>{message.preview.routeSummary}</Text>
                     </View>
                     <View style={styles.reasonList}>
-                      <Text style={styles.blockLabel}>Why this fits</Text>
-                      {message.preview.reasons.slice(0, 3).map((reason) => (
+                      <Text style={styles.blockLabel}>Signals</Text>
+                      {message.preview.reasons.slice(0, 2).map((reason) => (
                         <View key={reason} style={styles.reasonRow}>
                           <Ionicons name="checkmark-circle" size={13} color={colors.teal} />
                           <Text style={styles.reasonText}>{reason}</Text>
@@ -614,12 +614,11 @@ function offlinePreview(intent: AgentIntent, prompt: string): AgentActionPreview
     minutesSaved: intent === 'MAKE_DAY_LIGHTER' ? 22 : intent === 'RAIN_REPLAN' ? 12 : null,
     affectedStops: [],
     routeSummary: requiresConfirmation
-      ? 'Connect to the backend to apply this preview to your current itinerary.'
-      : 'Ask Journy to make the day lighter, cheaper, food-focused or weather-ready.',
+      ? 'Backend needed to apply this preview.'
+      : 'Ask for lighter, cheaper, food-focused or rain-ready.',
     reasons: [
-      'Uses your current trip context when the backend is available',
-      'Shows preview before changing the plan',
-      'Applies only after confirmation',
+      'Current trip',
+      'Preview first',
     ],
     requiresConfirmation,
   };

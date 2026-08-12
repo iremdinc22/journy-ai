@@ -434,14 +434,23 @@ public class ItineraryGenerationService {
     }
 
     private String summaryFor(DayTheme theme, List<Place> places, Trip trip) {
-        int stopCount = places.size();
-        String paceLabel = trip.getPace().name().toLowerCase().replace('_', ' ');
-        String startContext = trip.getStartingArea() == null || trip.getStartingArea().isBlank()
-                ? "your starting point"
-                : trip.getStartingArea();
-        String budgetLabel = trip.getBudget().name().toLowerCase();
-        String themeSummary = theme == null ? "the route balances local anchors, breaks and flexible walking" : theme.summary();
-        return "A " + paceLabel + ", " + budgetLabel + " day from " + startContext + " where " + themeSummary + ". Planned with " + stopCount + " stops and enough room to adjust the pace.";
+        if (places.isEmpty()) {
+            return theme == null
+                    ? "An easy local route with room to slow down."
+                    : theme.title() + " with easy stops.";
+        }
+        List<String> stopNames = places.stream()
+                .map(Place::getName)
+                .filter(name -> name != null && !name.isBlank())
+                .limit(3)
+                .toList();
+        if (stopNames.size() == 1) {
+            return stopNames.getFirst() + ".";
+        }
+        if (stopNames.size() == 2) {
+            return stopNames.get(0) + " and " + stopNames.get(1) + ".";
+        }
+        return stopNames.get(0) + ", " + stopNames.get(1) + " and " + stopNames.get(2) + ".";
     }
 
     private String timeWindowFor(int order) {
@@ -668,22 +677,21 @@ public class ItineraryGenerationService {
     }
 
     private String summaryPhrase(PlaceCategory lead, PlaceCategory support, Trip trip) {
-        String pace = trip.getPace().name().toLowerCase();
         String leadText = switch (lead) {
-            case CULTURE -> "culture anchors shape the first half of the day";
-            case WALKING -> "walkable connectors define the route";
-            case FREE -> "low-cost local windows keep the day flexible";
-            case COFFEE -> "coffee breaks create softer transitions";
-            case FOOD -> "food stops give the day a local rhythm";
+            case CULTURE -> "culture first";
+            case WALKING -> "easy walking";
+            case FREE -> "low-cost local stops";
+            case COFFEE -> "coffee break";
+            case FOOD -> "local food stop";
         };
-        String supportText = support == null ? "the remaining stops keep the plan balanced" : switch (support) {
-            case CULTURE -> "culture stays close enough to avoid route sprawl";
-            case WALKING -> "short walking links connect the main stops";
-            case FREE -> "free moments reduce budget pressure";
-            case COFFEE -> "breaks are placed before the day gets too dense";
-            case FOOD -> "food is timed as a practical route anchor";
+        String supportText = support == null ? "easy city time" : switch (support) {
+            case CULTURE -> "culture stop";
+            case WALKING -> "short walk";
+            case FREE -> "free moment";
+            case COFFEE -> "coffee pause";
+            case FOOD -> "food break";
         };
-        return leadText + " and " + supportText + " for a " + pace + " pace";
+        return leadText + " with " + supportText;
     }
 
     private List<PlaceCategory> themeRhythm(Trip trip, int dayNumber) {

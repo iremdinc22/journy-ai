@@ -267,14 +267,13 @@ public class TripService {
 
     private String summary(String destination, int days, String routeStyle, int availablePlaceCount, int matchedPlaceCount) {
         if (destination == null || destination.isBlank()) {
-            return "Choose a destination to estimate route quality and available local picks.";
+            return "Choose a destination to start.";
         }
         if (availablePlaceCount == 0) {
-            return "Journy will search live place providers for %s and shape a %d-day %s once matching places respond."
-                    .formatted(destination, days, routeStyle.toLowerCase());
+            return "Looking for places in %s.".formatted(destination);
         }
-        return "%s has %d curated picks available. Journy can shape a %d-day %s with %d strong matches for your taste."
-                .formatted(destination, availablePlaceCount, days, routeStyle.toLowerCase(), matchedPlaceCount);
+        return "%s has %d good fits for this trip."
+                .formatted(destination, matchedPlaceCount);
     }
 
     private String dailyWalkRange(double dailyWalkKm, TripPace pace) {
@@ -300,33 +299,32 @@ public class TripService {
         } else if (interests.contains(TravelInterest.WALKING)) {
             focus = "walkable";
         } else {
-            focus = "balanced";
+            focus = "city";
         }
 
         String rhythm = switch (pace) {
-            case RELAXED -> "slow exploration";
-            case FULL -> "full-day discovery";
-            default -> "balanced daily rhythm";
+            case RELAXED -> "slow days";
+            case FULL -> "full days";
+            default -> "easy days";
         };
         String spend = switch (budget) {
-            case LEAN -> "low-cost picks";
-            case COMFORT -> "comfort-friendly stops";
+            case LEAN -> "low-cost stops";
+            case COMFORT -> "comfort stops";
             default -> "local breaks";
         };
         String start = startingArea == null || startingArea.isBlank() ? "" : " starting from " + startingArea.trim();
         String city = destination == null || destination.isBlank() ? "your city" : destination;
-        return "%s %s with %s across %d days in %s%s."
-                .formatted(capitalize(focus), rhythm, spend, days, city, start);
+        return "%s route, %s and %s in %s%s."
+                .formatted(capitalize(focus), rhythm, spend, city, start);
     }
 
     private String startingAreaInsight(String startingArea, double dailyWalkKm, int matchedPlaceCount) {
         if (startingArea == null || startingArea.isBlank()) {
-            return "Add a hotel, station or neighborhood to make the first route leg more realistic.";
+            return "Add a hotel, station or neighborhood for a better first stop.";
         }
         double reduction = Math.max(0.5, Math.min(1.4, Math.round((dailyWalkKm * 0.22) * 10.0) / 10.0));
-        String dataNote = matchedPlaceCount > 0 ? "using your matching places" : "using route pacing";
-        return "Starting from %s can reduce the first-leg guess by ~%.1f km %s."
-                .formatted(startingArea.trim(), reduction, dataNote);
+        return "Starting from %s can save about %.1f km on the first leg."
+                .formatted(startingArea.trim(), reduction);
     }
 
     private String capitalize(String value) {

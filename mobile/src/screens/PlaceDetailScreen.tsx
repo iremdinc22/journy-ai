@@ -302,7 +302,7 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
           <Pressable style={styles.dayPickerSheet}>
             <View style={styles.dayPickerHandle} />
             <Text style={styles.dayPickerTitle}>Choose another day</Text>
-            <Text style={styles.dayPickerSubtitle}>Journy will add this place into the selected day and refresh its route rhythm.</Text>
+            <Text style={styles.dayPickerSubtitle}>Add this place to the selected day.</Text>
             {(itineraryDays.length ? itineraryDays : [{ dayNumber: 1, title: 'Current route', summary: '', walkKm: 0, stopCount: 0, stops: [] }]).map((day) => (
               <TouchableOpacity
                 key={`day-option-${day.dayNumber}`}

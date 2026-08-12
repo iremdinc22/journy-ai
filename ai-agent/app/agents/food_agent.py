@@ -18,29 +18,23 @@ class FoodAgent:
         route_window = self._route_window(after_stop.title if after_stop else None, before_stop.title if before_stop else None)
 
         if analysis.route_pressure == "high":
-            message = (
-                f"I would add a short {break_type} pause inside the existing route window, "
-                "without turning the day into a heavier route."
-            )
+            message = f"Add a short {break_type} pause inside the current route."
             action = f"Add compact {break_type} break"
             minutes = 6
         else:
-            message = (
-                f"I found a clean {break_type} window that improves the rhythm of the day "
-                "and keeps the route walkable."
-            )
+            message = f"Add a {break_type} stop around {route_window}."
             action = f"Add local {break_type} stop"
             minutes = 8
 
         reasons = [
-            f"Best break window: {route_window}",
-            f"Food or coffee breaks currently scheduled: {analysis.food_break_count}",
-            f"Matches interests: {', '.join(trip.interests[:3]) if trip.interests else 'local discovery'}",
+            f"Best window: {route_window}",
+            f"Current breaks: {analysis.food_break_count}",
+            f"Matches: {', '.join(trip.interests[:2]) if trip.interests else 'local discovery'}",
         ]
         if trip.budget.upper() in {"LEAN", "LOW", "BUDGET"}:
-            reasons.append("Keep it casual and budget-aware")
+            reasons.append("Budget-aware")
         else:
-            reasons.append("Choose a local pick close to the existing route")
+            reasons.append("Near route")
 
         return AgentActionPreview(
             intent=AgentIntent.ADD_FOOD_STOP,
@@ -49,8 +43,8 @@ class FoodAgent:
             suggestedAction=action,
             minutesSaved=None,
             affectedStops=[label for label in [after_stop.title if after_stop else None, before_stop.title if before_stop else None] if label],
-            routeSummary=f"{trip.destination} Day {day.dayNumber} gains a better break window around {route_window}.",
-            reasons=[*reasons, f"Expected walking impact: about +{minutes} min"],
+            routeSummary=f"Day {day.dayNumber} gains a better break.",
+            reasons=[*reasons[:2], f"+{minutes} min walk"],
             requiresConfirmation=True,
         )
 

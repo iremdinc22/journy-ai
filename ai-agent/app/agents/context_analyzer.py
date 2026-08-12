@@ -85,9 +85,8 @@ class TripContextAnalyzer:
             food_gap_day_numbers=food_gap_days,
             outdoor_heavy_day_numbers=outdoor_heavy_days,
             balance_summary=(
-                f"{trip.destination} has {len(days)} days, {total_stops} stops and "
-                f"{average_walk_km} km average walking per day. "
-                f"Day {busiest.dayNumber} carries the most pressure; Day {lightest.dayNumber} is the lightest."
+                f"{len(days)} days, {total_stops} stops, {average_walk_km} km avg walk. "
+                f"Busiest: Day {busiest.dayNumber}."
             ),
             signals=signals,
         )
@@ -230,16 +229,7 @@ class TripContextAnalyzer:
         anchor_count: int,
         food_count: int,
     ) -> str:
-        pressure = {
-            "high": "busy",
-            "medium": "balanced but adjustable",
-            "low": "already light",
-        }[route_pressure]
-        return (
-            f"{trip.destination} Day {day.dayNumber} is {pressure}: "
-            f"{day.stopCount} stops, {day.walkKm} km walking, "
-            f"{anchor_count} anchor stops and {food_count} food or coffee breaks."
-        )
+        return f"Day {day.dayNumber}: {day.stopCount} stops, {day.walkKm} km."
 
     def _signals(
         self,
@@ -250,14 +240,13 @@ class TripContextAnalyzer:
         outdoor_count: int,
     ) -> list[str]:
         signals = [
-            f"Trip pace is {trip.pace.lower()}",
-            f"Day has {day.stopCount} stops and {day.walkKm} km walking",
-            f"Route pressure is {route_pressure}",
+            f"{day.stopCount} stops",
+            f"{day.walkKm} km walk",
         ]
         if trip.startingArea:
-            signals.append(f"Starts around {trip.startingArea}")
+            signals.append(f"Starts near {trip.startingArea}")
         if food_count == 0:
-            signals.append("No food or coffee break is currently scheduled")
+            signals.append("No food break yet")
         if outdoor_count >= 2:
-            signals.append("Several stops are weather-sensitive")
+            signals.append("Outdoor-heavy")
         return signals

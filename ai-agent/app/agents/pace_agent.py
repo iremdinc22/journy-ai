@@ -14,26 +14,20 @@ class PaceAgent:
         affected = [flexible_stop.title] if flexible_stop else []
         if analysis.route_pressure == "low":
             title = f"Keep Day {request.day.dayNumber} relaxed"
-            message = (
-                "This day is already light for your selected pace. "
-                "I would keep the core route and only mark the last stop as optional."
-            )
+            message = "This day is already light. Keep the route and mark the last stop optional."
             action = "Mark final stop as optional"
         else:
             title = f"Lighten Day {request.day.dayNumber}"
             stop_name = flexible_stop.title if flexible_stop else "the most flexible stop"
-            message = (
-                f"I would soften the day by adjusting {stop_name}, "
-                "while keeping the main anchor stops in place."
-            )
-            action = "Remove or make the flexible stop optional"
+            message = f"Remove or soften {stop_name}. Keep the main stops."
+            action = "Remove flexible stop"
 
         reasons = [
-            *analysis.signals[:3],
-            "Core anchor stops stay in the plan",
+            *analysis.signals[:1],
+            "Main stops stay",
         ]
         if flexible_stop:
-            reasons.append(f"{flexible_stop.title} is the safest flexible stop to adjust")
+            reasons.append(f"{flexible_stop.title} is flexible")
 
         return AgentActionPreview(
             intent=AgentIntent.MAKE_DAY_LIGHTER,
@@ -43,6 +37,6 @@ class PaceAgent:
             minutesSaved=analysis.estimated_minutes_saved,
             affectedStops=affected,
             routeSummary=analysis.route_summary,
-            reasons=reasons,
+            reasons=reasons[:2],
             requiresConfirmation=True,
         )
