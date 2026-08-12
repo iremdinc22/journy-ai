@@ -8,18 +8,11 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { aiApi } from '../api/journyApi';
 import type { AiItinerarySuggestionResponse, ItineraryDay, ItineraryStop, PlaceResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
+import { placeImage } from '../utils/destinationVisuals';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DayRouteDetail'>;
 type ActionKey = 'lighter' | 'food' | 'replace';
 type MapMode = 'Route' | 'Places';
-
-const categoryImages: Record<string, string> = {
-  FOOD: 'https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?auto=format&fit=crop&w=900&q=85',
-  COFFEE: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?auto=format&fit=crop&w=900&q=85',
-  CULTURE: 'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=900&q=85',
-  WALKING: 'https://images.unsplash.com/photo-1584003564911-a7a321c84e1c?auto=format&fit=crop&w=900&q=85',
-  FREE: 'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=900&q=85',
-};
 
 export default function DayRouteDetailScreen({ navigation, route }: Props) {
   const { isDark, theme } = useAppTheme();
@@ -430,7 +423,7 @@ function toPlaceDetail(stop: ItineraryStop, destination: string): PlaceResponse 
     description: stop.note,
     priceLevel: 'Mid',
     rating: 4.7,
-    imageUrl: categoryImages[category] ?? categoryImages.WALKING,
+    imageUrl: placeImage(destination, category, stop.title),
     address: `${destination} city center`,
     latitude: stop.latitude,
     longitude: stop.longitude,

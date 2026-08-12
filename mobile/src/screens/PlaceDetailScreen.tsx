@@ -22,6 +22,7 @@ import { savedPlaceApi, tripApi } from '../api/journyApi';
 import { session } from '../api/session';
 import type { AddPlaceToPlanRequest, ItineraryDay, PlaceResponse, SavedPlaceRequest } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
+import { placeImage } from '../utils/destinationVisuals';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PlaceDetail'>;
 
@@ -49,6 +50,7 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
   const bestFit = useMemo(() => bestFitForPlace(place, itineraryDays), [itineraryDays, place]);
   const selectedDay = itineraryDays.find((day) => day.dayNumber === selectedDayNumber) ?? bestFit.day;
   const bestFitReasons = bestFit.reasons;
+  const heroImage = place.imageUrl || fallbackImageForCategory(place.category, place.city, place.name);
 
   useEffect(() => {
     let mounted = true;
@@ -164,7 +166,7 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <ImageBackground
           source={{
-            uri: place.imageUrl,
+            uri: heroImage,
           }}
           style={styles.hero}
           imageStyle={styles.heroImage}
@@ -352,7 +354,7 @@ function toSavedPlaceRequest(place: PlaceResponse): SavedPlaceRequest {
     description: place.description || 'Saved from your Journy route.',
     priceLevel: place.priceLevel || 'Mid',
     rating: place.rating || 4.6,
-    imageUrl: place.imageUrl || fallbackImageForCategory(place.category),
+    imageUrl: place.imageUrl || fallbackImageForCategory(place.category, place.city, place.name),
     address: place.address,
     openingHours: place.openingHours,
     estimatedVisitMinutes: place.estimatedVisitMinutes,
@@ -360,12 +362,8 @@ function toSavedPlaceRequest(place: PlaceResponse): SavedPlaceRequest {
   };
 }
 
-function fallbackImageForCategory(category: string) {
-  const value = (category ?? '').toLowerCase();
-  if (value.includes('coffee')) return 'https://images.unsplash.com/photo-1511920170033-f8396924c348?auto=format&fit=crop&w=900&q=85';
-  if (value.includes('food')) return 'https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?auto=format&fit=crop&w=900&q=85';
-  if (value.includes('culture')) return 'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=900&q=85';
-  return 'https://images.unsplash.com/photo-1584003564911-a7a321c84e1c?auto=format&fit=crop&w=900&q=85';
+function fallbackImageForCategory(category: string, city?: string, seed = category) {
+  return placeImage(city, category, seed);
 }
 
 function formatCategory(category: string) {

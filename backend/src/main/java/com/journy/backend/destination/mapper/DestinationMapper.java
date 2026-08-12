@@ -18,7 +18,11 @@ public class DestinationMapper {
                 destination.getPlaceCount(),
                 destination.getAverageDailyWalkKm(),
                 destination.isAvailable(),
-                destination.isPopular()
+                destination.isPopular(),
+                null,
+                null,
+                "seed",
+                null
         );
     }
 }

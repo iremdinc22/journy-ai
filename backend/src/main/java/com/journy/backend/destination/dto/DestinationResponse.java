@@ -11,6 +11,10 @@ public record DestinationResponse(
         int placeCount,
         double averageDailyWalkKm,
         boolean available,
-        boolean popular
+        boolean popular,
+        Double latitude,
+        Double longitude,
+        String provider,
+        String providerPlaceId
 ) {
 }

@@ -1,9 +1,12 @@
 package com.journy.backend.explore.service;
 
+import com.journy.backend.destination.provider.DestinationImageResolver;
+import com.journy.backend.destination.provider.DestinationCoordinateResolver;
 import com.journy.backend.explore.dto.DestinationResponse;
 import com.journy.backend.explore.dto.PlaceResponse;
 import com.journy.backend.explore.mapper.PlaceMapper;
 import com.journy.backend.explore.model.Place;
+import com.journy.backend.explore.provider.PlaceProviderService;
 import com.journy.backend.explore.repository.PlaceRepository;
 import com.journy.backend.place.enums.PlaceCategory;
 import org.springframework.stereotype.Service;
@@ -19,13 +22,25 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 public class ExploreService {
     private final PlaceRepository placeRepository;
     private final PlaceMapper placeMapper;
+    private final PlaceProviderService placeProviderService;
+    private final DestinationImageResolver destinationImageResolver;
+    private final DestinationCoordinateResolver destinationCoordinateResolver;
 
-    public ExploreService(PlaceRepository placeRepository, PlaceMapper placeMapper) {
+    public ExploreService(
+            PlaceRepository placeRepository,
+            PlaceMapper placeMapper,
+            PlaceProviderService placeProviderService,
+            DestinationImageResolver destinationImageResolver,
+            DestinationCoordinateResolver destinationCoordinateResolver
+    ) {
         this.placeRepository = placeRepository;
         this.placeMapper = placeMapper;
+        this.placeProviderService = placeProviderService;
+        this.destinationImageResolver = destinationImageResolver;
+        this.destinationCoordinateResolver = destinationCoordinateResolver;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<PlaceResponse> places(String category, String city) {
         String normalizedCity = city == null ? "" : city.trim();
         boolean hasCity = !normalizedCity.isBlank();
@@ -33,10 +48,8 @@ public class ExploreService {
         PlaceCategory parsedCategory = forYou ? null : parseCategory(category);
 
         List<Place> places;
-        if (hasCity && forYou) {
-            places = placeRepository.findByCityIgnoreCaseOrderByRatingDesc(normalizedCity);
-        } else if (hasCity) {
-            places = placeRepository.findByCityIgnoreCaseAndCategoryOrderByRatingDesc(normalizedCity, parsedCategory);
+        if (hasCity) {
+            places = loadCityPlaces(normalizedCity, parsedCategory, forYou);
         } else if (forYou) {
             places = placeRepository.findTop12ByOrderByRatingDesc();
         } else {
@@ -48,6 +61,20 @@ public class ExploreService {
             return starterPicks(normalizedCity, parsedCategory, responses);
         }
         return responses;
+    }
+
+    private List<Place> loadCityPlaces(String city, PlaceCategory category, boolean forYou) {
+        List<Place> cached = forYou
+                ? placeRepository.findByCityIgnoreCaseOrderByRatingDesc(city)
+                : placeRepository.findByCityIgnoreCaseAndCategoryOrderByRatingDesc(city, category);
+        int minimum = forYou ? 10 : 4;
+        if (cached.size() >= minimum) {
+            return cached;
+        }
+        placeProviderService.enrichCity(city, category, 18);
+        return forYou
+                ? placeRepository.findByCityIgnoreCaseOrderByRatingDesc(city)
+                : placeRepository.findByCityIgnoreCaseAndCategoryOrderByRatingDesc(city, category);
     }
 
     @Transactional(readOnly = true)
@@ -80,6 +107,12 @@ public class ExploreService {
             case "lisbon" -> "Views - cafes - seafood";
             case "prague" -> "Old Town - river - cafes";
             case "vienna" -> "Museums - cafes - markets";
+            case "milan", "milano" -> "Design - aperitivo - cathedral walks";
+            case "munich", "münchen" -> "Museums - gardens - beer halls";
+            case "brussels", "bruxelles", "brussel" -> "Chocolate - galleries - grand squares";
+            case "budapest" -> "Thermal baths - river walks - cafes";
+            case "edirne" -> "Ottoman heritage - river walks - local food";
+            case "edinburgh", "edinburg" -> "Castle views - old town - pubs";
             default -> "Local picks - culture - food";
         };
     }
@@ -94,7 +127,13 @@ public class ExploreService {
             case "lisbon" -> "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=900&q=88";
             case "prague" -> "https://images.unsplash.com/photo-1519677100203-a0e668c92439?auto=format&fit=crop&w=900&q=88";
             case "vienna" -> "https://images.unsplash.com/photo-1516550893923-42d28e5677af?auto=format&fit=crop&w=900&q=88";
-            default -> "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=88";
+            case "milan", "milano" -> "https://images.unsplash.com/photo-1567760855784-589f09ed5dc6?auto=format&fit=crop&w=900&q=88";
+            case "munich", "münchen" -> "https://images.unsplash.com/photo-1595867818082-083862f3d630?auto=format&fit=crop&w=900&q=88";
+            case "brussels", "bruxelles", "brussel" -> "https://images.unsplash.com/photo-1491557345352-5929e343eb89?auto=format&fit=crop&w=900&q=88";
+            case "budapest" -> "https://images.unsplash.com/photo-1549877452-9c387954fbc2?auto=format&fit=crop&w=900&q=88";
+            case "edirne" -> "https://commons.wikimedia.org/wiki/Special:FilePath/Selimiye_Mosque_Edirne.jpg?width=900";
+            case "edinburgh", "edinburg" -> "https://commons.wikimedia.org/wiki/Special:FilePath/Edinburgh_Castle_31_July_2011.jpg?width=900";
+            default -> destinationImageResolver.imageFor(city, "Provider-backed");
         };
     }
 
@@ -127,6 +166,9 @@ public class ExploreService {
                 Math.round((4.55 + (index % 4) * 0.07) * 10.0) / 10.0,
                 starterImage(city, category),
                 city + " city center",
+                "starter",
+                null,
+                null,
                 fallbackLatitude(city, index),
                 fallbackLongitude(city, index),
                 starterHours(category),
@@ -185,29 +227,11 @@ public class ExploreService {
     }
 
     private double fallbackLatitude(String city, int index) {
-        double base = switch (city.toLowerCase(Locale.ROOT)) {
-            case "copenhagen" -> 55.6761;
-            case "berlin" -> 52.5200;
-            case "istanbul" -> 41.0082;
-            case "new york" -> 40.7128;
-            case "kyoto" -> 35.0116;
-            case "madrid" -> 40.4168;
-            default -> 52.3676;
-        };
-        return base + index * 0.002;
+        return destinationCoordinateResolver.latitudeFor(city, index);
     }
 
     private double fallbackLongitude(String city, int index) {
-        double base = switch (city.toLowerCase(Locale.ROOT)) {
-            case "copenhagen" -> 12.5683;
-            case "berlin" -> 13.4050;
-            case "istanbul" -> 28.9784;
-            case "new york" -> -74.0060;
-            case "kyoto" -> 135.7681;
-            case "madrid" -> -3.7038;
-            default -> 4.9041;
-        };
-        return base + index * 0.002;
+        return destinationCoordinateResolver.longitudeFor(city, index);
     }
 
     private String slug(String value) {

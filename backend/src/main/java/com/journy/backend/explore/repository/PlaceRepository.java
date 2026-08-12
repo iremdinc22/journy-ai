@@ -26,4 +26,6 @@ public interface PlaceRepository extends JpaRepository<Place, String> {
     long countByCityIgnoreCaseAndCategoryIn(String city, Collection<PlaceCategory> categories);
 
     Optional<Place> findByNameIgnoreCaseAndCityIgnoreCase(String name, String city);
+
+    Optional<Place> findByProviderIgnoreCaseAndProviderPlaceId(String provider, String providerPlaceId);
 }

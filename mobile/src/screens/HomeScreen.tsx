@@ -19,42 +19,9 @@ import { session } from '../api/session';
 import type { ItineraryResponse, TripResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
+import { cityImage, placeImage } from '../utils/destinationVisuals';
 
 const journyLogo = require('../../assets/images/journy-logo.png');
-
-const visualPicks = [
-  {
-    title: 'Ten Belles',
-    meta: 'Coffee - 9 min walk',
-    image:
-      'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=700&q=85',
-  },
-  {
-    title: 'Museumplein',
-    meta: 'Culture - low crowd',
-    image:
-      'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=700&q=85',
-  },
-  {
-    title: 'Canal loop',
-    meta: 'Walk - golden hour',
-    image:
-      'https://images.unsplash.com/photo-1584003564911-a7a321c84e1c?auto=format&fit=crop&w=700&q=85',
-  },
-];
-
-const cityHeroImages: Record<string, string> = {
-  Amsterdam: 'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=900&q=90',
-  Copenhagen: 'https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?auto=format&fit=crop&w=900&q=90',
-  Berlin: 'https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=900&q=90',
-  Paris: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=900&q=90',
-  Rome: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=900&q=90',
-  Barcelona: 'https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=900&q=90',
-  Istanbul: 'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=900&q=90',
-  London: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=900&q=90',
-  Lisbon: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=900&q=90',
-  Tokyo: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=900&q=90',
-};
 
 export default function HomeScreen() {
   const { isDark, theme } = useAppTheme();
@@ -116,9 +83,9 @@ export default function HomeScreen() {
   const todayDay = itinerary?.days.find((day) => day.dayNumber === lifecycle.dayNumber) ?? itinerary?.days[0];
   const firstDay = lifecycle.status === 'ACTIVE' ? todayDay : itinerary?.days[0];
   const firstStops = firstDay?.stops.slice(0, 3);
-  const destination = trip?.destination ?? 'Amsterdam';
-  const heroImage = cityHeroImages[destination] ?? cityHeroImages.Amsterdam;
-  const dayTitle = firstDay?.title ?? 'Canals & Museums';
+  const destination = trip?.destination ?? session.getCurrentTrip()?.destination ?? 'Your trip';
+  const heroImage = cityImage(destination);
+  const dayTitle = firstDay?.title ?? `${destination} day route`;
   const walkKm = firstDay?.walkKm ?? trip?.stats.averageWalkKm ?? 6.4;
   const stopCount = firstDay?.stopCount ?? trip?.stats.stops ?? 4;
   const nextStop = firstDay?.stops[0];
@@ -230,7 +197,7 @@ export default function HomeScreen() {
             title: stop.title,
             meta: `${stop.category} - ${stop.timeWindow}`,
             image: imageForStop(destination, stop.category, stop.title, index),
-          })) : visualPicks).map((item) => (
+          })) : fallbackVisualPicks(destination)).map((item) => (
             <TouchableOpacity key={item.title} style={styles.visualCard} activeOpacity={0.88}>
               <Image source={{ uri: item.image }} style={styles.visualImage} />
               <View style={styles.visualBody}>
@@ -292,37 +259,27 @@ function heroTitle(lifecycle: ReturnType<typeof tripLifecycle>, destination: str
 }
 
 function imageForStop(destination: string, category: string, title: string, index: number) {
-  const normalized = category.toUpperCase();
-  if (normalized.includes('COFFEE')) {
-    return pickImage([
-      'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=700&q=85',
-      'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=700&q=85',
-    ], title);
-  }
-  if (normalized.includes('FOOD')) {
-    return pickImage([
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=700&q=85',
-      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=700&q=85',
-    ], title);
-  }
-  if (normalized.includes('CULTURE')) {
-    return pickImage([
-      cityHeroImages[destination] ?? cityHeroImages.Amsterdam,
-      'https://images.unsplash.com/photo-1545987796-200677ee1011?auto=format&fit=crop&w=700&q=85',
-    ], title);
-  }
-  return pickImage([
-    cityHeroImages[destination] ?? cityHeroImages.Amsterdam,
-    visualPicks[index % visualPicks.length].image,
-  ], title);
+  return placeImage(destination, category, `${title}-${index}`);
 }
 
-function pickImage(images: string[], seed: string) {
-  let hash = 0;
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
-  }
-  return images[hash % images.length];
+function fallbackVisualPicks(destination: string) {
+  return [
+    {
+      title: `${destination} coffee break`,
+      meta: 'Coffee - route friendly',
+      image: placeImage(destination, 'COFFEE', `${destination}-coffee`),
+    },
+    {
+      title: `${destination} culture window`,
+      meta: 'Culture - flexible stop',
+      image: placeImage(destination, 'CULTURE', `${destination}-culture`),
+    },
+    {
+      title: `${destination} city walk`,
+      meta: 'Walk - local area',
+      image: placeImage(destination, 'WALKING', `${destination}-walk`),
+    },
+  ];
 }
 
 function SummaryItem({

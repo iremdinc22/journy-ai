@@ -7,6 +7,7 @@ import type { PlaceResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
 import { useNavigation } from '@react-navigation/native';
+import { cityImage, placeImage } from '../utils/destinationVisuals';
 
 type Category = 'For you' | 'Food' | 'Culture' | 'Coffee' | 'Free';
 
@@ -19,6 +20,7 @@ type PreviewPlace = {
   rating: string;
   reason: string;
   image: string;
+  sourceLabel?: string;
 };
 
 export default function ExploreScreen() {
@@ -112,6 +114,10 @@ export default function ExploreScreen() {
                 </View>
               </View>
               <Text style={styles.placeTitle}>{normalized.title}</Text>
+              <View style={styles.sourcePill}>
+                <Ionicons name={normalized.sourceLabel === 'Real place' ? 'checkmark-circle' : 'sparkles-outline'} size={12} color={colors.teal} />
+                <Text style={styles.sourcePillText}>{normalized.sourceLabel ?? 'Starter pick'}</Text>
+              </View>
               <Text style={styles.description}>{normalized.reason}</Text>
               <View style={styles.whyBlock}>
                 <View style={styles.whyHeader}>
@@ -146,7 +152,8 @@ function normalizePlace(
       type: formatCategory(place.category),
       rating: place.rating.toFixed(1),
       reason: place.description,
-      image: place.imageUrl || fallbackImage(place.category || activeCategory, place.name),
+      image: place.imageUrl || fallbackImage(place.city, place.category || activeCategory, place.name),
+      sourceLabel: place.provider && place.provider !== 'seed' && place.provider !== 'starter' ? 'Real place' : 'Curated seed',
     };
   }
 
@@ -215,7 +222,8 @@ function starterPreviewPlace(city: string, category: Category, index: number): P
     type,
     rating: (4.6 + (index % 3) * 0.1).toFixed(1),
     reason: starterReason(city, category),
-    image: categoryImage(category, title),
+    image: categoryImage(city, category, title),
+    sourceLabel: 'Starter pick',
   };
 }
 
@@ -235,18 +243,15 @@ function starterReason(city: string, category: Category) {
   return `A starter recommendation shaped around your current ${city} trip.`;
 }
 
-function categoryImage(category: Category, seed: string) {
-  if (category === 'Food') return fallbackImage('FOOD', seed);
-  if (category === 'Coffee') return fallbackImage('COFFEE', seed);
-  if (category === 'Culture') return fallbackImage('CULTURE', seed);
-  return fallbackImage('FREE', seed);
+function categoryImage(city: string, category: Category, seed: string) {
+  return placeImage(city, category, seed);
 }
 
 function toPlaceDetail(place: PlaceResponse | PreviewPlace, activeCategory: Category): PlaceResponse {
   if ('name' in place) {
     return {
       ...place,
-      imageUrl: place.imageUrl || fallbackImage(place.category || activeCategory, place.name),
+      imageUrl: place.imageUrl || fallbackImage(place.city, place.category || activeCategory, place.name),
     };
   }
 
@@ -263,6 +268,7 @@ function toPlaceDetail(place: PlaceResponse | PreviewPlace, activeCategory: Cate
     openingHours: activeCategory === 'Food' ? '12:00 - 22:30' : activeCategory === 'Coffee' ? '08:00 - 18:00' : 'Flexible route window',
     estimatedVisitMinutes: activeCategory === 'Food' ? 90 : activeCategory === 'Culture' ? 120 : 60,
     tags: `${place.type.toLowerCase()},walkable,local`,
+    provider: 'starter',
   };
 }
 
@@ -270,57 +276,8 @@ function formatCategory(category: string) {
   return category.toLowerCase().replaceAll('_', ' ');
 }
 
-const categoryFallbackImages: Record<'FOOD' | 'COFFEE' | 'CULTURE' | 'FREE', string[]> = {
-  FOOD: [
-    'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=700&q=85',
-    'https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?auto=format&fit=crop&w=700&q=85',
-    'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=700&q=85',
-    'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=700&q=85',
-  ],
-  COFFEE: [
-    'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=700&q=85',
-    'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=700&q=85',
-    'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=700&q=85',
-    'https://images.unsplash.com/photo-1511920170033-f8396924c348?auto=format&fit=crop&w=700&q=85',
-  ],
-  CULTURE: [
-    'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=700&q=85',
-    'https://images.unsplash.com/photo-1564399579883-451a5d44ec08?auto=format&fit=crop&w=700&q=85',
-    'https://images.unsplash.com/photo-1545987796-200677ee1011?auto=format&fit=crop&w=700&q=85',
-    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=700&q=85',
-  ],
-  FREE: [
-    'https://images.unsplash.com/photo-1584003564911-a7a321c84e1c?auto=format&fit=crop&w=700&q=85',
-    'https://images.unsplash.com/photo-1525968902-070804c45d6b?auto=format&fit=crop&w=700&q=85',
-    'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=700&q=85',
-    'https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&w=700&q=85',
-  ],
-};
-
-function fallbackImage(category: string, seed: string) {
-  const normalized = category.toUpperCase();
-  if (normalized.includes('FOOD')) {
-    return pickImage(categoryFallbackImages.FOOD, seed);
-  }
-  if (normalized.includes('COFFEE')) {
-    return pickImage(categoryFallbackImages.COFFEE, seed);
-  }
-  if (normalized.includes('CULTURE')) {
-    return pickImage(categoryFallbackImages.CULTURE, seed);
-  }
-  return pickImage(categoryFallbackImages.FREE, seed);
-}
-
-function pickImage(images: string[], seed: string) {
-  return images[hashSeed(seed) % images.length];
-}
-
-function hashSeed(value: string) {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-  return hash;
+function fallbackImage(city: string | undefined, category: string, seed: string) {
+  return placeImage(city, category, seed) || cityImage(city);
 }
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];
@@ -394,6 +351,18 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     fontWeight: '900',
     marginTop: spacing.xs,
   },
+  sourcePill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.fog,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+  },
+  sourcePillText: { color: colors.teal, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   description: {
     color: colors.slate,
     fontSize: typography.small,

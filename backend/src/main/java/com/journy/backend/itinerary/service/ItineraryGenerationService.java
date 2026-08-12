@@ -1,5 +1,6 @@
 package com.journy.backend.itinerary.service;
 
+import com.journy.backend.destination.provider.DestinationCoordinateResolver;
 import com.journy.backend.explore.model.Place;
 import com.journy.backend.explore.repository.PlaceRepository;
 import com.journy.backend.itinerary.model.ItineraryDay;
@@ -24,10 +25,16 @@ import java.util.Set;
 public class ItineraryGenerationService {
     private final ItineraryDayRepository itineraryDayRepository;
     private final PlaceRepository placeRepository;
+    private final DestinationCoordinateResolver destinationCoordinateResolver;
 
-    public ItineraryGenerationService(ItineraryDayRepository itineraryDayRepository, PlaceRepository placeRepository) {
+    public ItineraryGenerationService(
+            ItineraryDayRepository itineraryDayRepository,
+            PlaceRepository placeRepository,
+            DestinationCoordinateResolver destinationCoordinateResolver
+    ) {
         this.itineraryDayRepository = itineraryDayRepository;
         this.placeRepository = placeRepository;
+        this.destinationCoordinateResolver = destinationCoordinateResolver;
     }
 
     public void generateIfMissing(Trip trip) {
@@ -367,7 +374,7 @@ public class ItineraryGenerationService {
             case WALKING -> "A walkable connector that gives the day texture without adding reservation pressure.";
             case FREE -> "A low-cost local window that keeps the route useful and flexible.";
         };
-        return new Place(
+        Place place = new Place(
                 label,
                 city,
                 category,
@@ -376,6 +383,9 @@ public class ItineraryGenerationService {
                 4.5,
                 ""
         );
+        place.setLatitude(destinationCoordinateResolver.latitudeFor(city, dayNumber + order));
+        place.setLongitude(destinationCoordinateResolver.longitudeFor(city, dayNumber + order));
+        return place;
     }
 
     private String priceLevelFor(PlaceCategory category, BudgetMode budget) {
@@ -453,7 +463,11 @@ public class ItineraryGenerationService {
 
     private double coordinateFor(Place place, int dayNumber, int order, boolean latitude) {
         Double coordinate = latitude ? place.getLatitude() : place.getLongitude();
-        double base = coordinate != null ? coordinate : latitude ? 52.3676 : 4.9041;
+        double base = coordinate != null
+                ? coordinate
+                : latitude
+                    ? destinationCoordinateResolver.latitudeFor(place.getCity(), dayNumber + order)
+                    : destinationCoordinateResolver.longitudeFor(place.getCity(), dayNumber + order);
         double delta = (dayNumber * 0.004) + (order * 0.002);
         if (coordinate != null) {
             return latitude ? base - delta : base + delta;

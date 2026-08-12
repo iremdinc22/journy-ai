@@ -1,6 +1,7 @@
 package com.journy.backend.itinerary.service;
 
 import com.journy.backend.common.exception.ResourceNotFoundException;
+import com.journy.backend.destination.provider.DestinationCoordinateResolver;
 import com.journy.backend.itinerary.dto.AddPlaceToPlanRequest;
 import com.journy.backend.itinerary.dto.ItineraryResponse;
 import com.journy.backend.itinerary.dto.MoveStopRequest;
@@ -24,17 +25,20 @@ public class ItineraryService {
     private final ItineraryDayRepository itineraryDayRepository;
     private final ItineraryMapper itineraryMapper;
     private final CurrentUserService currentUserService;
+    private final DestinationCoordinateResolver destinationCoordinateResolver;
 
     public ItineraryService(
             TripRepository tripRepository,
             ItineraryDayRepository itineraryDayRepository,
             ItineraryMapper itineraryMapper,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            DestinationCoordinateResolver destinationCoordinateResolver
     ) {
         this.tripRepository = tripRepository;
         this.itineraryDayRepository = itineraryDayRepository;
         this.itineraryMapper = itineraryMapper;
         this.currentUserService = currentUserService;
+        this.destinationCoordinateResolver = destinationCoordinateResolver;
     }
 
     @Transactional(readOnly = true)
@@ -221,30 +225,10 @@ public class ItineraryService {
     }
 
     private double fallbackLatitude(String city, int order) {
-        double base = switch (city.toLowerCase()) {
-            case "paris" -> 48.8566;
-            case "rome" -> 41.9028;
-            case "barcelona" -> 41.3874;
-            case "london" -> 51.5072;
-            case "lisbon" -> 38.7223;
-            case "prague" -> 50.0755;
-            case "vienna" -> 48.2082;
-            default -> 52.3676;
-        };
-        return base + order * 0.0012;
+        return destinationCoordinateResolver.latitudeFor(city, order);
     }
 
     private double fallbackLongitude(String city, int order) {
-        double base = switch (city.toLowerCase()) {
-            case "paris" -> 2.3522;
-            case "rome" -> 12.4964;
-            case "barcelona" -> 2.1686;
-            case "london" -> -0.1276;
-            case "lisbon" -> -9.1393;
-            case "prague" -> 14.4378;
-            case "vienna" -> 16.3738;
-            default -> 4.9041;
-        };
-        return base + order * 0.0012;
+        return destinationCoordinateResolver.longitudeFor(city, order);
     }
 }

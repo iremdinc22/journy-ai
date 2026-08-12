@@ -10,6 +10,7 @@ import type { SavedPlaceResponse } from '../api/types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { InlineEmpty, InlineError, InlineLoading } from '../components/StateViews';
 import { useAppTheme } from '../theme/ThemeContext';
+import { placeImage } from '../utils/destinationVisuals';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SavedPlaces'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -220,7 +221,7 @@ export default function SavedPlacesScreen({ navigation }: Props) {
             const busy = busyPlaceId === place.placeId;
             return (
               <View key={place.id} style={styles.placeCard}>
-                <Image source={{ uri: place.imageUrl }} style={styles.placeImage} />
+                <Image source={{ uri: place.imageUrl || placeImage(place.city, place.category, place.name) }} style={styles.placeImage} />
                 <View style={styles.placeBody}>
                   <View style={styles.placeTop}>
                     <View style={styles.placeCopy}>

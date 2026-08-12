@@ -7,48 +7,7 @@ import { session } from '../api/session';
 import type { ItineraryDay, ItineraryResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
-
-const days: ItineraryDay[] = [
-  {
-    dayNumber: 1,
-    title: 'Canals & Museums',
-    summary: 'A calm first day with a museum window, canal walk and a low-effort dinner area.',
-    walkKm: 6.4,
-    stopCount: 4,
-    stops: [
-      { id: 'preview-1-1', order: 1, title: 'Museumplein', category: 'CULTURE', timeWindow: 'Morning', note: 'Start with the strongest culture anchor.', optional: false, latitude: 52.3584, longitude: 4.8811 },
-      { id: 'preview-1-2', order: 2, title: 'Morning coffee', category: 'COFFEE', timeWindow: 'Late morning', note: 'A soft break before the canal loop.', optional: false, latitude: 52.3631, longitude: 4.8858 },
-      { id: 'preview-1-3', order: 3, title: 'Canal loop', category: 'WALKING', timeWindow: 'Afternoon', note: 'Walkable streets with flexible photo stops.', optional: false, latitude: 52.3702, longitude: 4.8952 },
-      { id: 'preview-1-4', order: 4, title: 'De Pijp dinner', category: 'FOOD', timeWindow: 'Evening', note: 'End near a lively local dinner area.', optional: false, latitude: 52.3542, longitude: 4.8907 },
-    ],
-  },
-  {
-    dayNumber: 2,
-    title: 'Historic center',
-    summary: 'Culture and food grouped tightly so the day feels rich without becoming exhausting.',
-    walkKm: 4.8,
-    stopCount: 4,
-    stops: [
-      { id: 'preview-2-1', order: 1, title: 'Morning piazza', category: 'WALKING', timeWindow: 'Morning', note: 'Ease into the center with a short walk.', optional: false, latitude: 41.8986, longitude: 12.4769 },
-      { id: 'preview-2-2', order: 2, title: 'Small gallery', category: 'CULTURE', timeWindow: 'Late morning', note: 'A compact culture stop.', optional: false, latitude: 41.9007, longitude: 12.4781 },
-      { id: 'preview-2-3', order: 3, title: 'Trattoria lunch', category: 'FOOD', timeWindow: 'Lunch', note: 'Food-first stop without crossing town.', optional: false, latitude: 41.8951, longitude: 12.4722 },
-      { id: 'preview-2-4', order: 4, title: 'Aperitivo street', category: 'FOOD', timeWindow: 'Evening', note: 'A flexible final area for dinner or drinks.', optional: false, latitude: 41.8916, longitude: 12.4679 },
-    ],
-  },
-  {
-    dayNumber: 3,
-    title: 'Design & coast',
-    summary: 'A reusable city-day format for future destinations, not a single-city flow.',
-    walkKm: 5.2,
-    stopCount: 4,
-    stops: [
-      { id: 'preview-3-1', order: 1, title: 'Design district', category: 'CULTURE', timeWindow: 'Morning', note: 'Start with galleries and small shops.', optional: false, latitude: 41.3851, longitude: 2.1734 },
-      { id: 'preview-3-2', order: 2, title: 'Market lunch', category: 'FOOD', timeWindow: 'Lunch', note: 'Local food break near the route.', optional: false, latitude: 41.3818, longitude: 2.1716 },
-      { id: 'preview-3-3', order: 3, title: 'Beach walk', category: 'WALKING', timeWindow: 'Afternoon', note: 'Open-air pacing after lunch.', optional: false, latitude: 41.3762, longitude: 2.1894 },
-      { id: 'preview-3-4', order: 4, title: 'Tapas bar', category: 'FOOD', timeWindow: 'Evening', note: 'End with a low-effort dinner zone.', optional: false, latitude: 41.3837, longitude: 2.1819 },
-    ],
-  },
-];
+import { cityCoordinates } from '../utils/destinationVisuals';
 
 export default function ItineraryScreen() {
   const { isDark, theme } = useAppTheme();
@@ -107,8 +66,9 @@ export default function ItineraryScreen() {
     };
   }, []);
 
-  const visibleDays = itinerary?.days ?? days;
-  const destination = itinerary?.destination ?? 'Amsterdam';
+  const fallbackDestination = session.getCurrentTrip()?.destination ?? 'Your trip';
+  const destination = itinerary?.destination ?? fallbackDestination;
+  const visibleDays = itinerary?.days ?? previewDays(destination, session.getCurrentTrip()?.days ?? 1);
   const tripId = itinerary?.tripId ?? session.getCurrentTrip()?.id ?? 'preview-trip';
   const totalWalk = visibleDays.reduce((sum, day) => sum + day.walkKm, 0);
   const totalStops = visibleDays.reduce((sum, day) => sum + day.stopCount, 0);
@@ -448,6 +408,50 @@ export default function ItineraryScreen() {
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];
 type ItineraryStyles = ReturnType<typeof createStyles>;
+
+function previewDays(destination: string, dayCount: number): ItineraryDay[] {
+  const base = cityCoordinates(destination);
+  const count = Math.max(1, Math.min(dayCount || 1, 5));
+  const themes = [
+    { title: 'City Core & Coffee Loop', categories: ['WALKING', 'COFFEE', 'CULTURE', 'FOOD'] },
+    { title: 'Culture Morning, Local Dinner', categories: ['CULTURE', 'WALKING', 'COFFEE', 'FOOD'] },
+    { title: 'Food Streets & Local Corners', categories: ['FOOD', 'WALKING', 'CULTURE', 'COFFEE'] },
+    { title: 'Neighborhood Walk & Dinner', categories: ['WALKING', 'CULTURE', 'COFFEE', 'FOOD'] },
+    { title: 'Slow Design & Market Route', categories: ['CULTURE', 'COFFEE', 'WALKING', 'FOOD'] },
+  ];
+
+  return Array.from({ length: count }, (_, index) => {
+    const dayNumber = index + 1;
+    const theme = themes[index % themes.length];
+    const stops = theme.categories.map((category, stopIndex) => ({
+      id: `preview-${destination}-${dayNumber}-${stopIndex + 1}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      order: stopIndex + 1,
+      title: previewStopTitle(destination, category, stopIndex),
+      category,
+      timeWindow: ['Morning', 'Late morning', 'Afternoon', 'Evening'][stopIndex] ?? 'Flexible',
+      note: `${destination} preview stop shaped around your selected city until the live itinerary loads.`,
+      optional: false,
+      latitude: base.latitude + (dayNumber * 0.004) + (stopIndex * 0.003),
+      longitude: base.longitude + (dayNumber * 0.004) - (stopIndex * 0.003),
+    }));
+
+    return {
+      dayNumber,
+      title: theme.title,
+      summary: `A city-aware preview for ${destination} with local breaks and compact walking until Journy loads the live plan.`,
+      walkKm: 4.4 + (index % 3) * 0.6,
+      stopCount: stops.length,
+      stops,
+    };
+  });
+}
+
+function previewStopTitle(destination: string, category: string, index: number) {
+  if (category === 'COFFEE') return `${destination} coffee pause`;
+  if (category === 'FOOD') return `${destination} local food stop`;
+  if (category === 'CULTURE') return `${destination} culture window`;
+  return index === 0 ? `${destination} first walk` : `${destination} neighborhood walk`;
+}
 
 function OverviewStat({ label, value, styles }: { label: string; value: string; styles: ItineraryStyles }) {
   return (

@@ -105,6 +105,9 @@ export type PlaceResponse = {
   rating: number;
   imageUrl: string;
   address?: string;
+  provider?: string;
+  providerPlaceId?: string;
+  website?: string;
   latitude?: number;
   longitude?: number;
   openingHours?: string;
@@ -124,6 +127,10 @@ export type DestinationResponse = {
   averageDailyWalkKm: number;
   available: boolean;
   popular: boolean;
+  latitude?: number;
+  longitude?: number;
+  provider?: string;
+  providerPlaceId?: string;
 };
 
 export type AiChatResponse = {

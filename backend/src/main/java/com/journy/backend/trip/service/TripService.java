@@ -1,6 +1,7 @@
 package com.journy.backend.trip.service;
 
 import com.journy.backend.common.exception.ResourceNotFoundException;
+import com.journy.backend.explore.provider.PlaceProviderService;
 import com.journy.backend.explore.repository.PlaceRepository;
 import com.journy.backend.itinerary.repository.ItineraryDayRepository;
 import com.journy.backend.itinerary.service.ItineraryGenerationService;
@@ -34,6 +35,7 @@ public class TripService {
     private final ItineraryGenerationService itineraryGenerationService;
     private final TripMapper tripMapper;
     private final CurrentUserService currentUserService;
+    private final PlaceProviderService placeProviderService;
 
     public TripService(
             TripRepository tripRepository,
@@ -41,7 +43,8 @@ public class TripService {
             PlaceRepository placeRepository,
             ItineraryGenerationService itineraryGenerationService,
             TripMapper tripMapper,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            PlaceProviderService placeProviderService
     ) {
         this.tripRepository = tripRepository;
         this.itineraryDayRepository = itineraryDayRepository;
@@ -49,9 +52,10 @@ public class TripService {
         this.itineraryGenerationService = itineraryGenerationService;
         this.tripMapper = tripMapper;
         this.currentUserService = currentUserService;
+        this.placeProviderService = placeProviderService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TripPreviewResponse preview(TripPreviewRequest request) {
         String destination = request.destination() == null ? "" : request.destination().trim();
         TripPace pace = request.pace() == null ? TripPace.BALANCED : request.pace();
@@ -61,6 +65,10 @@ public class TripService {
         int stopsPerDay = stopsPerDay(pace, budget);
         int estimatedStops = days * stopsPerDay;
         int availablePlaceCount = destination.isBlank() ? 0 : (int) placeRepository.countByCityIgnoreCase(destination);
+        if (!destination.isBlank() && availablePlaceCount < 4) {
+            placeProviderService.enrichCity(destination, null, 16);
+            availablePlaceCount = (int) placeRepository.countByCityIgnoreCase(destination);
+        }
         int matchedPlaceCount = destination.isBlank() || interests.isEmpty()
                 ? availablePlaceCount
                 : (int) placeRepository.countByCityIgnoreCaseAndCategoryIn(destination, categoriesFor(interests));
@@ -260,6 +268,10 @@ public class TripService {
     private String summary(String destination, int days, String routeStyle, int availablePlaceCount, int matchedPlaceCount) {
         if (destination == null || destination.isBlank()) {
             return "Choose a destination to estimate route quality and available local picks.";
+        }
+        if (availablePlaceCount == 0) {
+            return "Journy will search live place providers for %s and shape a %d-day %s once matching places respond."
+                    .formatted(destination, days, routeStyle.toLowerCase());
         }
         return "%s has %d curated picks available. Journy can shape a %d-day %s with %d strong matches for your taste."
                 .formatted(destination, availablePlaceCount, days, routeStyle.toLowerCase(), matchedPlaceCount);

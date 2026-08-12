@@ -45,6 +45,12 @@ public class Place {
 
     private String address;
 
+    private String provider;
+
+    private String providerPlaceId;
+
+    private String website;
+
     private Double latitude;
 
     private Double longitude;
@@ -65,6 +71,9 @@ public class Place {
         this.rating = rating;
         this.imageUrl = imageUrl;
         this.address = city + " city center";
+        this.provider = "seed";
+        this.providerPlaceId = null;
+        this.website = null;
         this.latitude = defaultLatitude(city);
         this.longitude = defaultLongitude(city);
         this.openingHours = defaultOpeningHours(category);

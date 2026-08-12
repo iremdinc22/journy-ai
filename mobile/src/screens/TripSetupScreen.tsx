@@ -5,9 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import { destinationApi, tripApi } from '../api/journyApi';
+import { destinationApi, exploreApi, tripApi } from '../api/journyApi';
 import type { CreateTripRequest, DestinationResponse, TripPreviewResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
+import { cityCoordinates, cityImage, cityMeta } from '../utils/destinationVisuals';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TripSetup'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -123,6 +124,9 @@ const cityStartSuggestions: Record<string, string[]> = {
   Berlin: ['Mitte', 'Kreuzberg', 'Prenzlauer Berg', 'Friedrichshain'],
   Copenhagen: ['Indre By', 'Norrebro', 'Vesterbro', 'Nyhavn'],
   Istanbul: ['Sultanahmet', 'Karakoy', 'Kadikoy', 'Galata'],
+  Bursa: ['Osmangazi', 'Nilufer', 'Heykel', 'Mudanya'],
+  Eskişehir: ['Odunpazari', 'Porsuk River', 'Train Station', 'Doktorlar Caddesi'],
+  Eskisehir: ['Odunpazari', 'Porsuk River', 'Train Station', 'Doktorlar Caddesi'],
   'New York': ['West Village', 'SoHo', 'Upper East Side', 'Chelsea'],
   Kyoto: ['Gion', 'Higashiyama', 'Arashiyama', 'Kyoto Station'],
   Madrid: ['Centro', 'Malasana', 'Retiro', 'La Latina'],
@@ -181,6 +185,8 @@ export default function TripSetupScreen({ navigation, route }: Props) {
   const [backendPreview, setBackendPreview] = useState<TripPreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewLive, setPreviewLive] = useState(false);
+  const [startSuggestionPlaces, setStartSuggestionPlaces] = useState<string[]>([]);
+  const [startSuggestionLoading, setStartSuggestionLoading] = useState(false);
   const destinationDetails = useMemo<Record<string, CityDetail>>(() => {
     const mapped = destinations.reduce<Record<string, { image: string; meta: string }>>((acc, destination) => {
       acc[destination.name] = {
@@ -191,10 +197,21 @@ export default function TripSetupScreen({ navigation, route }: Props) {
     }, {});
     return { ...cityDetails, ...mapped };
   }, [destinations]);
-  const selectedCity = city ? destinationDetails[city] ?? destinationDetails.Discover : destinationDetails.Discover;
-  const destinationOptions = destinations.length ? destinations : fallbackDestinations.filter((item) => item.name.toLowerCase().includes(citySearch.trim().toLowerCase()));
+  const selectedCity = city ? destinationDetails[city] ?? dynamicCityDetail(city) : destinationDetails.Discover;
+  const destinationOptions = useMemo(() => {
+    const search = citySearch.trim();
+    const baseOptions = destinations.length
+      ? destinations
+      : fallbackDestinations.filter((item) => item.name.toLowerCase().includes(search.toLowerCase()));
+
+    if (search.length <= 1 || baseOptions.some((item) => normalizeCityKey(item.name) === normalizeCityKey(search))) {
+      return baseOptions;
+    }
+
+    return [draftDestination(search), ...baseOptions];
+  }, [citySearch, destinations]);
   const popularOptions = popularDestinations.length ? popularDestinations : fallbackDestinations.slice(0, 4);
-  const canCreateDraftDestination = citySearch.trim().length > 1 && !destinationOptions.some((item) => item.name.toLowerCase() === citySearch.trim().toLowerCase());
+  const canCreateDraftDestination = false;
   const initialTrip = route.params?.initialTrip;
 
   useEffect(() => {
@@ -274,6 +291,44 @@ export default function TripSetupScreen({ navigation, route }: Props) {
     };
   }, [citySearch]);
 
+  useEffect(() => {
+    const selected = city.trim();
+    if (!selected) {
+      setStartSuggestionPlaces([]);
+      setStartSuggestionLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    setStartSuggestionLoading(true);
+    exploreApi.places('For you', selected)
+      .then((places) => {
+        if (!mounted) {
+          return;
+        }
+        const suggestions = places
+          .filter((place) => place.city.toLowerCase() === selected.toLowerCase())
+          .filter((place) => place.provider !== 'starter')
+          .map((place) => place.name)
+          .filter((name) => isUsefulStartSuggestion(name, selected));
+        setStartSuggestionPlaces(uniqueValues(suggestions).slice(0, 5));
+      })
+      .catch(() => {
+        if (mounted) {
+          setStartSuggestionPlaces([]);
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setStartSuggestionLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [city]);
+
   const daysInMonth = useMemo(() => new Date(year, monthIndex + 1, 0).getDate(), [monthIndex, year]);
   const firstOffset = useMemo(() => (new Date(year, monthIndex, 1).getDay() + 6) % 7, [monthIndex, year]);
   const calendarCells = useMemo(
@@ -291,18 +346,26 @@ export default function TripSetupScreen({ navigation, route }: Props) {
   const tripDays = startDate && endDate ? Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000)) : 0;
   const previewStops = tripDays ? tripDays * stopsForPace(pace) : 0;
   const previewFocus = selectedInterests.slice(0, 3).join(' - ') || 'Choose taste signals';
-  const startSuggestions = cityStartSuggestions[city] ?? defaultStartSuggestions;
+  const startSuggestions = startSuggestionsFor(city, startSuggestionPlaces);
   const estimatedDailyWalk = previewStops ? estimateDailyWalkKm(stopsForPace(pace), pace, budget) : 0;
   const routeStyle = routeStyleFor({ pace, budget, selectedInterests, startArea });
   const resolvedPreviewStops = backendPreview?.estimatedStops ?? previewStops;
+  const resolvedTripDays = tripDays || (city.trim() && resolvedPreviewStops ? Math.max(1, Math.round(resolvedPreviewStops / stopsForPace(pace))) : 0);
   const resolvedDailyWalk = backendPreview?.dailyWalkKm ?? estimatedDailyWalk;
   const resolvedDailyWalkRange = backendPreview?.dailyWalkRange ?? (resolvedDailyWalk ? localWalkRange(resolvedDailyWalk, pace) : '--');
   const resolvedRouteStyle = backendPreview?.routeStyle ?? routeStyle;
   const resolvedPlaceCount = backendPreview?.availablePlaceCount ?? (destinationOptions.find((item) => item.name === city)?.placeCount ?? 0);
   const resolvedMatchedPlaceCount = backendPreview?.matchedPlaceCount ?? Math.min(resolvedPlaceCount, selectedInterests.length ? selectedInterests.length * 4 : resolvedPlaceCount);
+  const placeInsightText = city.trim()
+    ? resolvedPlaceCount
+      ? `Based on ${resolvedMatchedPlaceCount || resolvedPlaceCount} matching places in ${city}`
+      : previewLoading
+        ? `Searching live place providers for ${city}`
+        : `Live provider search will find places in ${city}`
+    : 'Select a destination to estimate local picks';
   const previewConfidence = backendPreview?.confidence ?? (city ? 'Draft' : 'Waiting');
   const previewSummary = backendPreview?.summary;
-  const planningStyle = backendPreview?.planningStyle ?? localPlanningStyle(city, tripDays || 1, pace, budget, selectedInterests, startArea);
+  const planningStyle = backendPreview?.planningStyle ?? localPlanningStyle(city, resolvedTripDays || 1, pace, budget, selectedInterests, startArea);
   const startingAreaInsight = backendPreview?.startingAreaInsight ?? localStartingAreaInsight(startArea, resolvedDailyWalk);
 
   useEffect(() => {
@@ -395,13 +458,15 @@ export default function TripSetupScreen({ navigation, route }: Props) {
     if (!draftCity) {
       return;
     }
-    setCity(draftCity);
+    const providerCandidate = destinationOptions.find((item) => normalizeCityKey(item.name) === normalizeCityKey(draftCity)) ?? draftDestination(draftCity);
+    setCity(providerCandidate?.name ?? draftCity);
     setCityOpen(false);
   };
 
   const generatePlan = () => {
-    if (!city.trim()) {
-      Alert.alert('Destination required', 'Please choose a city before generating a plan.');
+    const selectedDestination = city.trim() || citySearch.trim();
+    if (!selectedDestination) {
+      Alert.alert('Destination required', 'Please enter a city before generating a plan.');
       return;
     }
     if (!startDate || !endDate) {
@@ -419,7 +484,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
     }
 
     const tripDraft: CreateTripRequest = {
-      destination: city,
+      destination: selectedDestination,
       startingArea: startArea.trim() || undefined,
       startDate,
       endDate,
@@ -523,7 +588,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
                   {item.name === city ? <Ionicons name="checkmark-circle" size={19} color={colors.teal} /> : <Ionicons name="chevron-forward" size={17} color={colors.softMuted} />}
                 </TouchableOpacity>
               ))}
-              {!destinationOptions.length && !destinationLoading ? <Text style={styles.emptyDropdown}>No city match yet</Text> : null}
+              {!destinationOptions.length && !destinationLoading ? <Text style={styles.emptyDropdown}>Type a city name to start a provider-backed plan</Text> : null}
               {canCreateDraftDestination ? (
                 <TouchableOpacity style={styles.draftCard} activeOpacity={0.86} onPress={createDraftDestination}>
                   <Ionicons name="add-circle-outline" size={20} color={colors.teal} />
@@ -605,7 +670,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
           </View>
           <Text style={styles.previewMain}>{city ? 'Your plan is taking shape' : 'Choose a city to start shaping your route'}</Text>
           <View style={styles.previewMetaRow}>
-            <PreviewMetric icon="calendar-outline" label="Days" value={tripDays ? `${tripDays}` : '--'} colors={colors} styles={styles} />
+            <PreviewMetric icon="calendar-outline" label="Days" value={resolvedTripDays ? `${resolvedTripDays}` : '--'} colors={colors} styles={styles} />
             <PreviewMetric icon="location-outline" label="Stops" value={resolvedPreviewStops ? `~${resolvedPreviewStops}` : '--'} colors={colors} styles={styles} />
             <PreviewMetric icon="walk-outline" label="Walk" value={resolvedDailyWalkRange} colors={colors} styles={styles} />
           </View>
@@ -621,7 +686,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
           <View style={styles.previewInsightRow}>
             <View style={styles.previewInsight}>
               <Ionicons name="albums-outline" size={14} color={colors.teal} />
-              <Text style={styles.previewInsightText}>{resolvedPlaceCount ? `Based on ${resolvedMatchedPlaceCount || resolvedPlaceCount} matching places in ${city}` : 'City picks appear after selecting a destination'}</Text>
+              <Text style={styles.previewInsightText}>{placeInsightText}</Text>
             </View>
             <View style={styles.previewInsight}>
               <Ionicons name="git-branch-outline" size={14} color={colors.teal} />
@@ -629,7 +694,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
             </View>
           </View>
           <Text style={styles.previewFocus}>
-            {previewSummary ?? (city && tripDays
+            {previewSummary ?? (city && resolvedTripDays
               ? `${previewFocus}. ${startArea.trim() ? `Day 1 starts around ${startArea.trim()}.` : 'First day starts flexibly around your chosen city.'}`
               : previewFocus)}
           </Text>
@@ -684,6 +749,9 @@ export default function TripSetupScreen({ navigation, route }: Props) {
               );
             })}
           </ScrollView>
+          {city.trim() && startSuggestionLoading ? (
+            <Text style={styles.startSuggestionLoading}>Finding real starting points in {city}...</Text>
+          ) : null}
           {startArea.trim() ? (
             <View style={styles.startImpactCard}>
               <View style={styles.startImpactIcon}>
@@ -827,6 +895,77 @@ function stopsForPace(value: string) {
   return 4;
 }
 
+function startSuggestionsFor(city: string, liveSuggestions: string[] = []) {
+  const trimmed = city.trim();
+  if (!trimmed) {
+    return defaultStartSuggestions;
+  }
+  const exact = cityStartSuggestions[trimmed];
+  if (exact) {
+    return uniqueValues([...liveSuggestions, ...exact]).slice(0, 4);
+  }
+  const normalized = normalizeCityKey(trimmed);
+  const match = Object.entries(cityStartSuggestions).find(([key]) => normalizeCityKey(key) === normalized);
+  if (match) {
+    return uniqueValues([...liveSuggestions, ...match[1]]).slice(0, 4);
+  }
+  return uniqueValues([...liveSuggestions, ...fallbackStartSuggestions(trimmed)]).slice(0, 4);
+}
+
+function fallbackStartSuggestions(city: string) {
+  const normalized = normalizeCityKey(city);
+  const known: Record<string, string[]> = {
+    ankara: ['Kızılay', 'Ulus', 'Anıtkabir', 'Tunalı Hilmi'],
+    izmir: ['Alsancak', 'Konak', 'Karsiyaka', 'Bornova'],
+    antalya: ['Kaleici', 'Konyaalti', 'Lara', 'Muratpasa'],
+    adana: ['Seyhan', 'Kazancilar', 'Ziyapasa', 'Cukurova'],
+    trabzon: ['Meydan', 'Boztepe', 'Ortahisar', 'Ataturk Alani'],
+  };
+  const citySpecific = known[normalized];
+  if (citySpecific) {
+    return citySpecific;
+  }
+  return [`${city} city center`, `${city} main station`, `${city} old town`, `${city} museum area`];
+}
+
+function isUsefulStartSuggestion(name: string, city: string) {
+  const normalized = normalizeCityKey(name);
+  const normalizedCity = normalizeCityKey(city);
+  if (!normalized || normalized === normalizedCity) {
+    return false;
+  }
+  if (normalized.length < 3) {
+    return false;
+  }
+  return !['hotel', 'restaurant', 'cafe', 'coffee'].some((generic) => normalized === generic);
+}
+
+function uniqueValues(values: string[]) {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const trimmed = value.trim();
+    const key = normalizeCityKey(trimmed);
+    if (!trimmed || seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeCityKey(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ı/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c');
+}
+
 function estimateDailyWalkKm(stopsPerDay: number, pace: string, budget: string) {
   const paceBase = pace === 'Relaxed' ? 1.1 : pace === 'Full' ? 1.55 : 1.35;
   const budgetAdjustment = budget === 'Lean' ? -0.2 : budget === 'Comfort' ? 0.15 : 0;
@@ -852,6 +991,38 @@ function localPlanningStyle(city: string, days: number, pace: string, budget: st
   const spend = budget === 'Lean' ? 'low-cost picks' : budget === 'Comfort' ? 'comfort-friendly stops' : 'local breaks';
   const area = startArea.trim() ? ` starting from ${startArea.trim()}` : '';
   return `${focus} ${rhythm} with ${spend} across ${days} days${city ? ` in ${city}` : ''}${area}.`;
+}
+
+function dynamicCityDetail(city: string): CityDetail {
+  return {
+    image: cityImage(city),
+    meta: cityMeta(city),
+  };
+}
+
+function draftDestination(city: string): DestinationResponse {
+  const detail = dynamicCityDetail(city);
+  const coordinates = cityCoordinates(city);
+  return {
+    id: `draft-${normalizeCityKey(city)}`,
+    name: city,
+    country: countryForDraftCity(),
+    description: `Journy can build a provider-backed starter route for ${city}.`,
+    imageUrl: detail.image,
+    tags: detail.meta,
+    bestFor: 'Provider-backed city planning',
+    placeCount: 0,
+    averageDailyWalkKm: 5.6,
+    available: true,
+    popular: false,
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
+    provider: 'draft',
+  };
+}
+
+function countryForDraftCity() {
+  return 'Provider-backed';
 }
 
 function localStartingAreaInsight(startArea: string, dailyWalkKm: number) {
@@ -1352,6 +1523,12 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   startSuggestionTextActive: {
     color: colors.surface,
+  },
+  startSuggestionLoading: {
+    color: colors.slate,
+    fontSize: typography.tiny,
+    fontWeight: '800',
+    marginTop: spacing.xs,
   },
   startImpactCard: {
     alignItems: 'center',

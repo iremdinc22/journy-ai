@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   SafeAreaView,
@@ -11,10 +11,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { authApi, profileApi } from '../api/journyApi';
-import type { ProfileResponse } from '../api/types';
+import { authApi, destinationApi, profileApi } from '../api/journyApi';
+import { session } from '../api/session';
+import type { ProfileResponse, TripResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
+import { cityBackupImage, cityImage } from '../utils/destinationVisuals';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -25,21 +27,6 @@ const tasteSignals: Array<{ label: string; detail: string; icon: IconName }> = [
   { label: 'Walking', detail: 'Easy pace', icon: 'walk-outline' },
 ];
 
-const savedPlans = [
-  {
-    city: 'Amsterdam',
-    detail: '4 days - Balanced pace',
-    image:
-      'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=500&q=88',
-  },
-  {
-    city: 'Rome',
-    detail: 'Food-first weekend',
-    image:
-      'https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=500&q=88',
-  },
-];
-
 export default function ProfileScreen() {
   const { isDark, theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -48,6 +35,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [destinationImages, setDestinationImages] = useState<Record<string, string>>({});
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -90,7 +78,58 @@ export default function ProfileScreen() {
     };
   }, []));
 
-  const currentTrip = profile?.currentTrip;
+  const currentTrip = normalizeCurrentTrip(profile?.currentTrip, session.getCurrentTrip());
+  const fallbackDestination = currentTrip?.destination ?? 'Plan a trip';
+  const savedPlanDestinations = useMemo(() => {
+    const seen = new Set<string>();
+    const destinations = [
+      ...(profile?.savedPlans.map((plan) => plan.destination) ?? []),
+      ...(currentTrip?.destination ? [currentTrip.destination] : []),
+    ];
+
+    return destinations.filter((destination) => {
+      const trimmed = destination.trim();
+      const key = trimmed.toLowerCase();
+      if (!trimmed || seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }, [currentTrip?.destination, profile?.savedPlans]);
+
+  useEffect(() => {
+    if (!savedPlanDestinations.length) {
+      setDestinationImages({});
+      return;
+    }
+
+    let mounted = true;
+    Promise.all(savedPlanDestinations.map(async (destination) => {
+      try {
+        const matches = await destinationApi.search(destination);
+        const exact = matches.find((item) => item.name.toLowerCase() === destination.toLowerCase()) ?? matches[0];
+        return [destination, exact?.imageUrl] as const;
+      } catch {
+        return [destination, undefined] as const;
+      }
+    })).then((entries) => {
+      if (!mounted) {
+        return;
+      }
+      const nextImages = entries.reduce<Record<string, string>>((acc, [destination, imageUrl]) => {
+        if (imageUrl) {
+          acc[destination] = imageUrl;
+        }
+        return acc;
+      }, {});
+      setDestinationImages(nextImages);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [savedPlanDestinations]);
   const displayTaste = profile?.tasteProfile?.length
     ? profile.tasteProfile.map((item) => ({
         label: item.title,
@@ -99,18 +138,28 @@ export default function ProfileScreen() {
       }))
     : tasteSignals;
   const displaySavedPlans = profile?.savedPlans?.length
-    ? profile.savedPlans.map((plan, index) => ({
+    ? profile.savedPlans.map((plan) => ({
         key: plan.id,
         id: plan.id,
         city: plan.destination,
         detail: plan.summary,
-        image: savedPlans[index % savedPlans.length].image,
+        image: profileCityImage(plan.destination, destinationImages),
         stops: plan.stops,
         walk: plan.averageWalkKm,
       }))
     : profile
       ? []
-      : savedPlans.map((plan, index) => ({ ...plan, key: `${plan.city}-${index}`, id: `preview-${index}`, stops: 18, walk: 6.2 }));
+      : currentTrip
+        ? [{
+            key: `preview-${currentTrip.destination}`,
+            id: `preview-${currentTrip.id}`,
+            city: currentTrip.destination,
+            detail: `${currentTrip.days} days - ${formatEnum(currentTrip.pace)} pace`,
+            image: profileCityImage(currentTrip.destination, destinationImages),
+            stops: currentTrip.stops,
+            walk: currentTrip.averageWalkKm,
+          }]
+        : [];
   const displayFavoritePlaces = profile?.savedPlaces
     ? profile.savedPlaces.map((place) => ({
         title: place.name,
@@ -206,7 +255,7 @@ export default function ProfileScreen() {
           <View style={styles.tripTop}>
             <View>
               <Text style={styles.kicker}>Current trip</Text>
-              <Text style={styles.tripTitle}>{currentTrip?.destination ?? 'Amsterdam'}</Text>
+              <Text style={styles.tripTitle}>{fallbackDestination}</Text>
             </View>
             <TouchableOpacity style={styles.editPill} activeOpacity={0.82} onPress={editCurrentTrip}>
               <Ionicons name="pencil-outline" size={14} color={colors.teal} />
@@ -221,9 +270,9 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.statRow}>
-            <Stat icon="location-outline" value={`${currentTrip?.stops ?? 18}`} label="Stops" colors={colors} styles={styles} />
-            <Stat icon="restaurant-outline" value={`${currentTrip?.foodPicks ?? 7}`} label="Food picks" colors={colors} styles={styles} />
-            <Stat icon="walk-outline" value={`${(currentTrip?.averageWalkKm ?? 6.2).toFixed(1)} km`} label="Avg walk" colors={colors} styles={styles} />
+            <Stat icon="location-outline" value={`${currentTrip?.stops ?? 0}`} label="Stops" colors={colors} styles={styles} />
+            <Stat icon="restaurant-outline" value={`${currentTrip?.foodPicks ?? 0}`} label="Food picks" colors={colors} styles={styles} />
+            <Stat icon="walk-outline" value={`${(currentTrip?.averageWalkKm ?? 0).toFixed(1)} km`} label="Avg walk" colors={colors} styles={styles} />
           </View>
         </View>
 
@@ -316,28 +365,13 @@ export default function ProfileScreen() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedRail}>
           {displaySavedPlans.map((plan) => (
-            <TouchableOpacity
+            <SavedPlanCard
               key={plan.key}
-              style={styles.savedCard}
-              activeOpacity={0.88}
+              plan={plan}
               onPress={() => navigation.navigate('SavedPlans')}
-            >
-              <Image source={{ uri: plan.image }} style={styles.savedImage} />
-              <View style={styles.savedBody}>
-                <Text style={styles.savedCity}>{plan.city}</Text>
-                <Text style={styles.savedDetail}>{plan.detail}</Text>
-                <View style={styles.savedStats}>
-                  <View style={styles.savedMetric}>
-                    <Ionicons name="location-outline" size={13} color={colors.teal} />
-                    <Text style={styles.savedMetricText}>{plan.stops} stops</Text>
-                  </View>
-                  <View style={styles.savedMetric}>
-                    <Ionicons name="walk-outline" size={13} color={colors.teal} />
-                    <Text style={styles.savedMetricText}>{plan.walk.toFixed(1)} km</Text>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
+              colors={colors}
+              styles={styles}
+            />
           ))}
           {!displaySavedPlans.length ? (
             <TouchableOpacity style={styles.savedEmptyCard} activeOpacity={0.86} onPress={() => navigation.navigate('TripSetup')}>
@@ -425,6 +459,126 @@ export default function ProfileScreen() {
   );
 }
 
+type ProfileTrip = NonNullable<ProfileResponse['currentTrip']>;
+type DisplayCurrentTrip = ProfileTrip & {
+  days: number;
+  stops: number;
+  foodPicks: number;
+  averageWalkKm: number;
+  dates: string;
+};
+type DisplaySavedPlan = {
+  key: string;
+  id: string;
+  city: string;
+  detail: string;
+  image: string;
+  stops: number;
+  walk: number;
+};
+
+function SavedPlanCard({
+  plan,
+  onPress,
+  colors,
+  styles,
+}: {
+  plan: DisplaySavedPlan;
+  onPress: () => void;
+  colors: Theme['colors'];
+  styles: ProfileStyles;
+}) {
+  const [imageUri, setImageUri] = useState(plan.image);
+  const [usedBackup, setUsedBackup] = useState(false);
+
+  useEffect(() => {
+    setImageUri(plan.image);
+    setUsedBackup(false);
+  }, [plan.image]);
+
+  const handleImageError = () => {
+    if (!usedBackup) {
+      setImageUri(cityBackupImage(plan.city));
+      setUsedBackup(true);
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      style={styles.savedCard}
+      activeOpacity={0.88}
+      onPress={onPress}
+    >
+      <Image source={{ uri: imageUri }} style={styles.savedImage} onError={handleImageError} />
+      <View style={styles.savedBody}>
+        <Text style={styles.savedCity}>{plan.city}</Text>
+        <Text style={styles.savedDetail}>{plan.detail}</Text>
+        <View style={styles.savedStats}>
+          <View style={styles.savedMetric}>
+            <Ionicons name="location-outline" size={13} color={colors.teal} />
+            <Text style={styles.savedMetricText}>{plan.stops} stops</Text>
+          </View>
+          <View style={styles.savedMetric}>
+            <Ionicons name="walk-outline" size={13} color={colors.teal} />
+            <Text style={styles.savedMetricText}>{plan.walk.toFixed(1)} km</Text>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function normalizeCurrentTrip(profileTrip?: ProfileResponse['currentTrip'], sessionTrip?: TripResponse | null): DisplayCurrentTrip | null {
+  if (profileTrip) {
+    return {
+      ...profileTrip,
+      days: tripDays(profileTrip.startDate, profileTrip.endDate),
+    };
+  }
+  if (!sessionTrip) {
+    return null;
+  }
+  return {
+    id: sessionTrip.id,
+    destination: sessionTrip.destination,
+    startingArea: sessionTrip.startingArea,
+    startDate: sessionTrip.startDate,
+    endDate: sessionTrip.endDate,
+    days: sessionTrip.days,
+    dates: formatDateRange(sessionTrip.startDate, sessionTrip.endDate),
+    travelerType: sessionTrip.travelerType,
+    budget: sessionTrip.budget,
+    pace: sessionTrip.pace,
+    interests: sessionTrip.interests,
+    stops: sessionTrip.stats.stops,
+    foodPicks: sessionTrip.stats.foodPicks,
+    averageWalkKm: sessionTrip.stats.averageWalkKm,
+  };
+}
+
+function tripDays(startDate: string, endDate: string) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return 1;
+  }
+  return Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+}
+
+function formatDateRange(startDate: string, endDate: string) {
+  const start = shortDate(startDate);
+  const end = shortDate(endDate);
+  return start && end ? `${start} - ${end}` : 'Choose dates';
+}
+
+function shortDate(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return '';
+  }
+  return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 function mapTasteIcon(icon: string): IconName {
   const value = icon.toLowerCase();
   if (value.includes('food') || value.includes('restaurant')) return 'restaurant-outline';
@@ -451,6 +605,19 @@ function formatEnum(value: string) {
     .toLowerCase()
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function profileCityImage(destination: string, destinationImages: Record<string, string>) {
+  const apiImage = destinationImages[destination];
+  if (apiImage) {
+    return apiImage;
+  }
+
+  const localImage = cityImage(destination);
+  if (localImage.includes('Special:FilePath')) {
+    return cityBackupImage(destination);
+  }
+  return localImage;
 }
 
 function buildTravelIdentity(profile: ProfileResponse | null) {
