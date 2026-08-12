@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Image, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -12,6 +13,9 @@ import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SavedPlaces'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
+type CustomCollection = { id: string; label: string; placeIds: string[] };
+
+const COLLECTIONS_STORAGE_KEY = 'journy.savedPlaceCollections';
 
 export default function SavedPlacesScreen({ navigation }: Props) {
   const { isDark, theme } = useAppTheme();
@@ -22,6 +26,22 @@ export default function SavedPlacesScreen({ navigation }: Props) {
   const [error, setError] = useState(false);
   const [busyPlaceId, setBusyPlaceId] = useState<string | null>(null);
   const [activeCollection, setActiveCollection] = useState('all');
+  const [customCollections, setCustomCollections] = useState<CustomCollection[]>([]);
+  const [collectionName, setCollectionName] = useState('');
+  const [collectionModalVisible, setCollectionModalVisible] = useState(false);
+  const [collectionPickerPlace, setCollectionPickerPlace] = useState<SavedPlaceResponse | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(COLLECTIONS_STORAGE_KEY)
+      .then((stored) => {
+        if (!stored) return;
+        const parsed = JSON.parse(stored) as CustomCollection[];
+        if (Array.isArray(parsed)) {
+          setCustomCollections(parsed.filter((item) => item.id && item.label && Array.isArray(item.placeIds)));
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   const loadPlaces = useCallback(async () => {
     setLoading(true);
@@ -63,7 +83,12 @@ export default function SavedPlacesScreen({ navigation }: Props) {
     }
   };
 
-  const collections = useMemo(() => buildCollections(places), [places]);
+  const persistCustomCollections = (next: CustomCollection[]) => {
+    setCustomCollections(next);
+    AsyncStorage.setItem(COLLECTIONS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+  };
+
+  const collections = useMemo(() => buildCollections(places, customCollections), [customCollections, places]);
   const activePlaces = useMemo(() => {
     const active = collections.find((collection) => collection.id === activeCollection);
     if (!active || active.id === 'all') {
@@ -73,10 +98,45 @@ export default function SavedPlacesScreen({ navigation }: Props) {
   }, [activeCollection, collections, places]);
 
   const createCollection = () => {
-    Alert.alert(
-      'Create collection',
-      'Custom collections are coming next. For now, Journy groups your saved places by city and taste automatically.',
-    );
+    setCollectionName('');
+    setCollectionPickerPlace(null);
+    setCollectionModalVisible(true);
+  };
+
+  const saveCollection = () => {
+    const label = collectionName.trim();
+    if (!label) {
+      return;
+    }
+    const id = `custom-${Date.now()}-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    const next = [...customCollections, { id, label, placeIds: collectionPickerPlace ? [collectionPickerPlace.placeId] : [] }];
+    persistCustomCollections(next);
+    setActiveCollection(id);
+    setCollectionName('');
+    setCollectionModalVisible(false);
+    setCollectionPickerPlace(null);
+  };
+
+  const openCollectionPicker = (place: SavedPlaceResponse) => {
+    setCollectionName('');
+    setCollectionPickerPlace(place);
+    setCollectionModalVisible(true);
+  };
+
+  const togglePlaceInCollection = (collectionId: string, place: SavedPlaceResponse) => {
+    const next = customCollections.map((collection) => {
+      if (collection.id !== collectionId) {
+        return collection;
+      }
+      const alreadySaved = collection.placeIds.includes(place.placeId);
+      return {
+        ...collection,
+        placeIds: alreadySaved
+          ? collection.placeIds.filter((placeId) => placeId !== place.placeId)
+          : [...collection.placeIds, place.placeId],
+      };
+    });
+    persistCustomCollections(next);
   };
 
   return (
@@ -150,6 +210,12 @@ export default function SavedPlacesScreen({ navigation }: Props) {
           <Text style={styles.listMeta}>{activePlaces.length} saved</Text>
         </View>
         <View style={styles.placeList}>
+          {!loading && !error && places.length > 0 && activePlaces.length === 0 ? (
+            <InlineEmpty
+              title="This collection is empty"
+              description="Add saved places into this collection from the folder button on each card."
+            />
+          ) : null}
           {activePlaces.map((place) => {
             const busy = busyPlaceId === place.placeId;
             return (
@@ -177,15 +243,25 @@ export default function SavedPlacesScreen({ navigation }: Props) {
                         <Text style={styles.savedStateText}>Saved</Text>
                       </View>
                     </View>
-                    <TouchableOpacity
-                      accessibilityLabel={`Remove ${place.name} from favorites`}
-                      style={[styles.removeButton, busy && styles.disabledButton]}
-                      activeOpacity={0.78}
-                      onPress={() => confirmRemove(place)}
-                      disabled={busy}
-                    >
-                      <Ionicons name={busy ? 'hourglass-outline' : 'trash-outline'} size={16} color={colors.teal} />
-                    </TouchableOpacity>
+                    <View style={styles.footerActions}>
+                      <TouchableOpacity
+                        accessibilityLabel={`Add ${place.name} to a collection`}
+                        style={styles.collectionActionButton}
+                        activeOpacity={0.78}
+                        onPress={() => openCollectionPicker(place)}
+                      >
+                        <Ionicons name="folder-open-outline" size={16} color={colors.teal} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        accessibilityLabel={`Remove ${place.name} from favorites`}
+                        style={[styles.removeButton, busy && styles.disabledButton]}
+                        activeOpacity={0.78}
+                        onPress={() => confirmRemove(place)}
+                        disabled={busy}
+                      >
+                        <Ionicons name={busy ? 'hourglass-outline' : 'trash-outline'} size={16} color={colors.teal} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -193,6 +269,64 @@ export default function SavedPlacesScreen({ navigation }: Props) {
           })}
         </View>
       </ScrollView>
+
+      <Modal visible={collectionModalVisible} transparent animationType="fade" onRequestClose={() => setCollectionModalVisible(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setCollectionModalVisible(false)}>
+          <Pressable style={styles.collectionSheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>{collectionPickerPlace ? 'Add to collection' : 'Create collection'}</Text>
+            <Text style={styles.sheetSubtitle}>
+              {collectionPickerPlace
+                ? `Organize ${collectionPickerPlace.name} into a trip idea or taste list.`
+                : 'Create a reusable list for coffee, food, culture or future trips.'}
+            </Text>
+
+            {collectionPickerPlace && customCollections.length ? (
+              <View style={styles.collectionPickerList}>
+                {customCollections.map((collection) => {
+                  const selected = collection.placeIds.includes(collectionPickerPlace.placeId);
+                  return (
+                    <TouchableOpacity
+                      key={collection.id}
+                      style={[styles.collectionPickerRow, selected && styles.collectionPickerRowActive]}
+                      activeOpacity={0.84}
+                      onPress={() => togglePlaceInCollection(collection.id, collectionPickerPlace)}
+                    >
+                      <View style={[styles.collectionPickerIcon, selected && styles.collectionPickerIconActive]}>
+                        <Ionicons name={selected ? 'checkmark' : 'folder-outline'} size={16} color={selected ? colors.surface : colors.teal} />
+                      </View>
+                      <View style={styles.collectionPickerCopy}>
+                        <Text style={styles.collectionPickerTitle}>{collection.label}</Text>
+                        <Text style={styles.collectionPickerMeta}>{collection.placeIds.length} places</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : null}
+
+            <View style={styles.collectionInputShell}>
+              <Ionicons name="folder-outline" size={16} color={colors.softMuted} />
+              <TextInput
+                value={collectionName}
+                onChangeText={setCollectionName}
+                placeholder={collectionPickerPlace ? 'New collection name' : 'Coffee in Amsterdam'}
+                placeholderTextColor={colors.softMuted}
+                style={styles.collectionInput}
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.sheetPrimaryButton, !collectionName.trim() && styles.sheetPrimaryButtonDisabled]}
+              activeOpacity={0.86}
+              onPress={saveCollection}
+              disabled={!collectionName.trim()}
+            >
+              <Text style={styles.sheetPrimaryText}>{collectionPickerPlace ? 'Create and add' : 'Create collection'}</Text>
+              <Ionicons name="add" size={17} color={colors.surface} />
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -203,16 +337,17 @@ type SavedCollection = {
   count: number;
   icon: IconName;
   filter: (place: SavedPlaceResponse) => boolean;
+  manual?: boolean;
 };
 
-function buildCollections(places: SavedPlaceResponse[]): SavedCollection[] {
+function buildCollections(places: SavedPlaceResponse[], customCollections: CustomCollection[]): SavedCollection[] {
   const base: SavedCollection[] = [
     { id: 'all', label: 'All saved', count: places.length, icon: 'heart-outline', filter: () => true },
     { id: 'coffee', label: 'Coffee spots', count: countCategory(places, 'coffee'), icon: 'cafe-outline', filter: (place) => place.category.toLowerCase().includes('coffee') },
     { id: 'food', label: 'Food list', count: countCategory(places, 'food'), icon: 'restaurant-outline', filter: (place) => place.category.toLowerCase().includes('food') },
     { id: 'culture', label: 'Culture', count: countCategory(places, 'culture'), icon: 'color-palette-outline', filter: (place) => place.category.toLowerCase().includes('culture') },
   ];
-  const cities = [...new Set(places.map((place) => place.city).filter(Boolean))]
+  const cities: SavedCollection[] = [...new Set(places.map((place) => place.city).filter(Boolean))]
     .slice(0, 4)
     .map((city) => ({
       id: `city-${city}`,
@@ -221,7 +356,15 @@ function buildCollections(places: SavedPlaceResponse[]): SavedCollection[] {
       icon: 'map-outline' as IconName,
       filter: (place: SavedPlaceResponse) => place.city === city,
     }));
-  return [...base, ...cities].filter((collection) => collection.id === 'all' || collection.count > 0);
+  const custom: SavedCollection[] = customCollections.map((collection) => ({
+    id: collection.id,
+    label: collection.label,
+    count: places.filter((place) => collection.placeIds.includes(place.placeId)).length,
+    icon: 'folder-outline' as IconName,
+    filter: (place: SavedPlaceResponse) => collection.placeIds.includes(place.placeId),
+    manual: true,
+  }));
+  return [...base, ...cities, ...custom].filter((collection) => collection.id === 'all' || collection.count > 0 || collection.manual);
 }
 
 function countCategory(places: SavedPlaceResponse[], value: string) {
@@ -385,6 +528,17 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
       paddingVertical: spacing.xs,
     },
     savedStateText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900' },
+    footerActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginLeft: spacing.sm },
+    collectionActionButton: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaceWarm,
+      borderColor: colors.mist,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      height: 36,
+      justifyContent: 'center',
+      width: 36,
+    },
     removeButton: {
       alignItems: 'center',
       backgroundColor: colors.fog,
@@ -396,5 +550,76 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
       width: 36,
     },
     disabledButton: { opacity: 0.55 },
+    modalBackdrop: {
+      backgroundColor: 'rgba(31, 42, 43, 0.34)',
+      flex: 1,
+      justifyContent: 'flex-end',
+      padding: spacing.md,
+    },
+    collectionSheet: {
+      backgroundColor: colors.surface,
+      borderColor: colors.mist,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      padding: spacing.lg,
+    },
+    sheetHandle: {
+      alignSelf: 'center',
+      backgroundColor: colors.mist,
+      borderRadius: radius.pill,
+      height: 5,
+      marginBottom: spacing.md,
+      width: 54,
+    },
+    sheetTitle: { color: colors.midnight, fontSize: typography.h2, fontWeight: '900' },
+    sheetSubtitle: { color: colors.slate, fontSize: typography.small, fontWeight: '800', lineHeight: 21, marginTop: spacing.xs },
+    collectionPickerList: { gap: spacing.sm, marginTop: spacing.md },
+    collectionPickerRow: {
+      alignItems: 'center',
+      backgroundColor: colors.ivory,
+      borderColor: colors.mist,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      padding: spacing.sm,
+    },
+    collectionPickerRowActive: { borderColor: colors.teal },
+    collectionPickerIcon: {
+      alignItems: 'center',
+      backgroundColor: colors.fog,
+      borderRadius: radius.md,
+      height: 34,
+      justifyContent: 'center',
+      width: 34,
+    },
+    collectionPickerIconActive: { backgroundColor: colors.midnight },
+    collectionPickerCopy: { flex: 1, minWidth: 0 },
+    collectionPickerTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
+    collectionPickerMeta: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 2 },
+    collectionInputShell: {
+      alignItems: 'center',
+      backgroundColor: colors.fog,
+      borderRadius: radius.lg,
+      flexDirection: 'row',
+      gap: spacing.xs,
+      minHeight: 54,
+      marginTop: spacing.md,
+      paddingHorizontal: spacing.md,
+    },
+    collectionInput: { color: colors.midnight, flex: 1, fontSize: typography.body, fontWeight: '900' },
+    sheetPrimaryButton: {
+      alignItems: 'center',
+      backgroundColor: colors.midnight,
+      borderRadius: radius.pill,
+      flexDirection: 'row',
+      gap: spacing.xs,
+      justifyContent: 'center',
+      minHeight: 54,
+      marginTop: spacing.md,
+      paddingHorizontal: spacing.lg,
+    },
+    sheetPrimaryButtonDisabled: { opacity: 0.45 },
+    sheetPrimaryText: { color: colors.surface, fontSize: typography.body, fontWeight: '900' },
   });
 }

@@ -684,6 +684,17 @@ export default function TripSetupScreen({ navigation, route }: Props) {
               );
             })}
           </ScrollView>
+          {startArea.trim() ? (
+            <View style={styles.startImpactCard}>
+              <View style={styles.startImpactIcon}>
+                <Ionicons name="navigate-outline" size={15} color={colors.teal} />
+              </View>
+              <View style={styles.startImpactCopy}>
+                <Text style={styles.startImpactLabel}>Route-aware start</Text>
+                <Text style={styles.startImpactText}>{startingAreaInsight}</Text>
+              </View>
+            </View>
+          ) : null}
         </View>
 
         <Section title="Travelers" value={travelType} styles={styles} />
@@ -1342,6 +1353,28 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   startSuggestionTextActive: {
     color: colors.surface,
   },
+  startImpactCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderColor: colors.mist,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+  },
+  startImpactIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  startImpactCopy: { flex: 1, minWidth: 0 },
+  startImpactLabel: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  startImpactText: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900', lineHeight: 17, marginTop: 2 },
   previewPanel: {
     backgroundColor: colors.surfaceWarm,
     borderColor: colors.mist,
