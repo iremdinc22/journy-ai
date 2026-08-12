@@ -293,6 +293,11 @@ export default function ProfileScreen() {
             ))}
           </View>
           <Text style={styles.identityInsight}>{travelIdentity.insight}</Text>
+          <View style={styles.identityLearningRow}>
+            <Ionicons name="analytics-outline" size={15} color={colors.teal} />
+            <Text style={styles.identityLearningText}>{travelIdentity.learningSource}</Text>
+          </View>
+          <Text style={styles.preferenceSectionLabel}>Journy knows you prefer</Text>
           <View style={styles.preferenceChips}>
             {travelIdentity.preferences.map((item) => (
               <View key={item} style={styles.preferenceChip}>
@@ -486,6 +491,13 @@ function buildTravelIdentity(profile: ProfileResponse | null) {
   const strongest = levels[0];
   const headline = `${strongest.label} is becoming a signature preference`;
   const insight = `${strongest.label} is one of your strongest travel signals, so Journy will keep using it when shaping route rhythm and recommendations.`;
+  const savedCount = profile?.savedPlaces.length ?? 0;
+  const interestCount = profile?.currentTrip?.interests.length ?? 0;
+  const learningSource = savedCount
+    ? `Learned from ${savedCount} saved places and your current trip setup.`
+    : interestCount
+      ? `Learned from ${interestCount} trip setup signals. Save places to make this sharper.`
+      : 'Journy will sharpen this profile as you save places and plan trips.';
   const preferences: string[] = levels.slice(0, 3).map((level) => {
     if (level.label === 'Coffee') return 'Independent coffee';
     if (level.label === 'Local food') return 'Local food';
@@ -499,6 +511,7 @@ function buildTravelIdentity(profile: ProfileResponse | null) {
   return {
     headline,
     insight,
+    learningSource,
     levels,
     preferences: [...new Set(preferences)].slice(0, 4),
   };
@@ -759,6 +772,24 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     fontWeight: '800',
     lineHeight: 20,
     marginTop: spacing.md,
+  },
+  identityLearningRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  identityLearningText: { color: colors.midnight, flex: 1, fontSize: typography.tiny, fontWeight: '900', lineHeight: 16 },
+  preferenceSectionLabel: {
+    color: colors.teal,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    marginTop: spacing.md,
+    textTransform: 'uppercase',
   },
   preferenceChips: {
     flexDirection: 'row',

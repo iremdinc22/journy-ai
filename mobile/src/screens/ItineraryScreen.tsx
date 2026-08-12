@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { tripApi } from '../api/journyApi';
+import { aiApi, tripApi } from '../api/journyApi';
 import { session } from '../api/session';
 import type { ItineraryDay, ItineraryResponse } from '../api/types';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -59,6 +59,9 @@ export default function ItineraryScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [selectedStop, setSelectedStop] = useState<{ day: ItineraryDay; stop: ItineraryDay['stops'][number] } | null>(null);
+  const [weatherPreviewOpen, setWeatherPreviewOpen] = useState(false);
+  const [weatherApplying, setWeatherApplying] = useState(false);
+  const [weatherApplied, setWeatherApplied] = useState(false);
 
   const loadItinerary = useCallback(async () => {
     setLoading(true);
@@ -109,11 +112,33 @@ export default function ItineraryScreen() {
   const tripId = itinerary?.tripId ?? session.getCurrentTrip()?.id ?? 'preview-trip';
   const totalWalk = visibleDays.reduce((sum, day) => sum + day.walkKm, 0);
   const totalStops = visibleDays.reduce((sum, day) => sum + day.stopCount, 0);
+  const weatherTargetDay = visibleDays.find((day) => hasWeatherSensitiveStop(day)) ?? visibleDays[0];
+  const weatherMovedStop = weatherTargetDay?.stops.find((stop) => isWeatherSensitiveCategory(stop.category)) ?? weatherTargetDay?.stops[0];
+  const indoorStop = weatherTargetDay?.stops.find((stop) => !isWeatherSensitiveCategory(stop.category)) ?? weatherTargetDay?.stops[1] ?? weatherMovedStop;
+  const weatherAfterWalk = weatherTargetDay ? Math.max(2.6, weatherTargetDay.walkKm - 0.8) : 0;
 
   const updateDay = (updatedDay: ItineraryDay) => {
     setItinerary((current) => current
       ? { ...current, days: current.days.map((day) => day.dayNumber === updatedDay.dayNumber ? updatedDay : day) }
       : current);
+  };
+
+  const applyWeatherAdjustment = async () => {
+    if (!weatherTargetDay || tripId === 'preview-trip') {
+      Alert.alert('Live plan required', 'Refresh the itinerary before applying a weather adjustment.');
+      return;
+    }
+    setWeatherApplying(true);
+    try {
+      const updatedDay = await aiApi.applyItinerarySuggestion(tripId, weatherTargetDay.dayNumber, 'weather');
+      updateDay(updatedDay);
+      setWeatherApplied(true);
+      setWeatherPreviewOpen(false);
+    } catch {
+      Alert.alert('Could not update for weather', 'Please check the backend connection and try again.');
+    } finally {
+      setWeatherApplying(false);
+    }
   };
 
   const ensureLivePlan = () => {
@@ -226,6 +251,50 @@ export default function ItineraryScreen() {
             description="Showing the preview plan until the backend responds."
             onRetry={loadItinerary}
           />
+        ) : null}
+
+        {weatherTargetDay ? (
+          <View style={styles.weatherCard}>
+            <View style={styles.weatherTop}>
+              <View style={styles.weatherIcon}>
+                <Ionicons name="rainy-outline" size={20} color={colors.teal} />
+              </View>
+              <View style={styles.weatherCopy}>
+                <Text style={styles.weatherKicker}>Weather adjustment available</Text>
+                <Text style={styles.weatherTitle}>Rain expected around Day {weatherTargetDay.dayNumber} afternoon.</Text>
+                <Text style={styles.weatherText}>
+                  Journy can move {weatherMovedStop?.title ?? 'the outdoor stop'} earlier and protect the afternoon with {indoorStop?.title ?? 'an indoor-friendly stop'}.
+                </Text>
+              </View>
+            </View>
+
+            {weatherPreviewOpen ? (
+              <View style={styles.weatherPreview}>
+                <WeatherPreviewMetric label="Before" value={`${weatherTargetDay.stopCount} stops - ${weatherTargetDay.walkKm.toFixed(1)} km`} styles={styles} />
+                <WeatherPreviewMetric label="After" value={`${weatherTargetDay.stopCount} stops - ${weatherAfterWalk.toFixed(1)} km`} styles={styles} />
+                <View style={styles.weatherChangeList}>
+                  <Text style={styles.weatherChange}>Move {weatherMovedStop?.title ?? 'outdoor walking'} to the morning window</Text>
+                  <Text style={styles.weatherChange}>Keep culture, coffee or food stops for the wettest part of the day</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {weatherApplied ? <Text style={styles.weatherSuccess}>Weather-ready plan applied. Day {weatherTargetDay.dayNumber} was refreshed.</Text> : null}
+
+            <View style={styles.weatherActions}>
+              <TouchableOpacity style={styles.weatherSecondaryButton} activeOpacity={0.86} onPress={() => setWeatherPreviewOpen((open) => !open)}>
+                <Text style={styles.weatherSecondaryText}>{weatherPreviewOpen ? 'Hide preview' : 'Preview changes'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.weatherPrimaryButton, weatherApplying && styles.weatherButtonDisabled]}
+                activeOpacity={0.86}
+                onPress={applyWeatherAdjustment}
+                disabled={weatherApplying}
+              >
+                <Text style={styles.weatherPrimaryText}>{weatherApplying ? 'Applying...' : 'Apply'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         ) : null}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayRail}>
@@ -389,6 +458,15 @@ function OverviewStat({ label, value, styles }: { label: string; value: string; 
   );
 }
 
+function WeatherPreviewMetric({ label, value, styles }: { label: string; value: string; styles: ItineraryStyles }) {
+  return (
+    <View style={styles.weatherPreviewMetric}>
+      <Text style={styles.weatherPreviewLabel}>{label}</Text>
+      <Text style={styles.weatherPreviewValue}>{value}</Text>
+    </View>
+  );
+}
+
 function StopActionRow({
   icon,
   title,
@@ -431,6 +509,15 @@ function iconForCategory(category: string): keyof typeof Ionicons.glyphMap {
   if (normalized.includes('WALKING')) return 'walk-outline';
   if (normalized.includes('FREE')) return 'leaf-outline';
   return 'location-outline';
+}
+
+function hasWeatherSensitiveStop(day: ItineraryDay) {
+  return day.stops.some((stop) => isWeatherSensitiveCategory(stop.category));
+}
+
+function isWeatherSensitiveCategory(category: string) {
+  const normalized = category.toUpperCase();
+  return normalized.includes('WALK') || normalized.includes('FREE') || normalized.includes('OUTDOOR');
 }
 
 function createStyles({ colors, radius, spacing, typography }: Theme) {
@@ -500,6 +587,66 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   overviewStatValue: { color: colors.midnight, fontSize: typography.h3, fontWeight: '900' },
   overviewStatLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900', marginTop: 2 },
+  weatherCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  weatherTop: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.sm },
+  weatherIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  weatherCopy: { flex: 1, minWidth: 0 },
+  weatherKicker: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  weatherTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900', lineHeight: 20, marginTop: 3 },
+  weatherText: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', lineHeight: 17, marginTop: spacing.xs },
+  weatherPreview: {
+    backgroundColor: colors.surfaceWarm,
+    borderRadius: radius.lg,
+    marginTop: spacing.md,
+    padding: spacing.sm,
+  },
+  weatherPreviewMetric: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 28,
+  },
+  weatherPreviewLabel: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  weatherPreviewValue: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900' },
+  weatherChangeList: { borderColor: colors.mist, borderTopWidth: 1, gap: 5, marginTop: spacing.xs, paddingTop: spacing.xs },
+  weatherChange: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', lineHeight: 16 },
+  weatherSuccess: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', marginTop: spacing.sm },
+  weatherActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  weatherSecondaryButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderColor: colors.mist,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  weatherSecondaryText: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900' },
+  weatherPrimaryButton: {
+    alignItems: 'center',
+    backgroundColor: colors.midnight,
+    borderRadius: radius.pill,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  weatherButtonDisabled: { opacity: 0.55 },
+  weatherPrimaryText: { color: colors.surface, fontSize: typography.tiny, fontWeight: '900' },
   dayRail: { gap: spacing.sm, paddingVertical: spacing.md },
   dayChip: {
     backgroundColor: colors.surface,
