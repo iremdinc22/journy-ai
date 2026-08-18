@@ -6,8 +6,8 @@
   <p><strong>AI travel planning for calmer, smarter city trips.</strong></p>
 
   <p>
-    A mobile travel assistant that creates personalized city plans from a destination,
-    travel dates, budget, pace, and interests.
+    Journy builds personalized city itineraries, learns how each traveler moves,
+    and adapts the plan with AI before and during the trip.
   </p>
 
   <p>
@@ -17,184 +17,176 @@
     <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-AI_Agent-009688?style=flat-square&logo=fastapi&logoColor=white" />
     <img alt="OpenAI" src="https://img.shields.io/badge/OpenAI-Agent-412991?style=flat-square&logo=openai&logoColor=white" />
     <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=flat-square&logo=postgresql&logoColor=white" />
+    <img alt="Open-Meteo" src="https://img.shields.io/badge/Open--Meteo-Weather-38BDF8?style=flat-square" />
   </p>
 </div>
 
 ---
 
-## At A Glance
+## Overview
 
-Journy helps travelers stop planning across ten different apps. It brings trip setup, daily itinerary planning, local recommendations, and an AI assistant into one calm mobile experience.
+Journy is a mobile-first AI travel planner. It turns a destination, dates, pace,
+budget, interests and starting area into a practical day-by-day city plan.
 
-| User gives Journy | Journy creates |
-| --- | --- |
-| Destination | Personalized city plan |
-| Travel dates | Day-by-day itinerary |
-| Budget | Food and activity fit |
-| Pace | Realistic daily rhythm |
-| Interests | Local picks and route ideas |
+The product direction is:
 
----
+```txt
+Before trip
+  Trip setup -> AI plan generation -> Explore -> Saved places
 
-## The Problem
+During trip
+  Today mode -> route actions -> weather adjustment -> AI itinerary changes
 
-Travel planning is scattered.
+After trip
+  Saved plans -> favorites -> travel taste profile
+```
 
-Before a trip, users usually check blogs, Google reviews, maps, TikTok videos, Instagram saves, restaurant lists, museum guides, and weather apps. Even after all that, the plan can still feel messy: too many places in one day, long distances between stops, or recommendations that do not match the user's style.
-
-Journy is built around one question:
-
-> How can planning a city trip feel as simple as talking to a travel companion?
+Journy is designed to feel like a calm personal city companion rather than a
+crowded travel blog or a generic chatbot.
 
 ---
 
-## What Journy Does
+## Core Product Features
 
-| Area | Experience |
+| Area | Current experience |
 | --- | --- |
-| Trip setup | Destination, dates, traveler type, budget, pace, and interests |
-| Smart itinerary | Days grouped by distance, rhythm, and realistic walking flow |
-| Local discovery | Food, coffee, culture, neighborhoods, free activities, and hidden spots |
-| AI assistant | Ask for lighter days, dinner ideas, nearby coffee, or rain-friendly plans |
-| Profile | Saved plans, taste profile, current trip, and preference learning |
+| Trip setup | Destination, dates, travelers, budget, pace, interests and route starting area |
+| AI plan preview | Live setup preview that changes as the user selects preferences |
+| Itinerary | Day cards with schedule times, travel-time rows, walking distance and editable stops |
+| Today mode | Home adapts to the trip lifecycle and highlights the active day |
+| Explore | City-aware local picks connected back into the current itinerary |
+| Place detail | Best-fit day suggestion, route-fit reasons and add-to-day flow |
+| Map detail | Route/place toggle, numbered markers, selected stop card and route actions |
+| Journy AI | Context-aware quick actions and chat with preview-before-apply behavior |
+| Weather | Open-Meteo powered weather signal with itinerary adjustment preview |
+| Profile | Current trip, travel identity, taste levels, saved plans and favorites |
+| Saved places | Favorites plus collection-style saved place management |
+| Localization | English and Turkish app language support |
+| Theme | Light and dark mode with product-level mobile UI styling |
+
+---
+
+## Architecture
+
+Journy is split into three services:
+
+```txt
+mobile/      Expo React Native app
+backend/     Spring Boot API, auth, trips, itinerary and persistence
+ai-agent/    FastAPI reasoning service for agent previews
+```
+
+Runtime flow:
+
+```txt
+Mobile app
+  -> Spring Boot API
+  -> PostgreSQL
+  -> Python AI Agent
+  -> OpenAI when configured
+  -> deterministic fallback when AI key/service is unavailable
+```
+
+The Spring Boot backend owns authentication, persisted trip data, itinerary
+updates and apply operations. The Python agent receives context and returns
+structured previews; it does not directly write to the database.
 
 ---
 
 ## AI Agent Layer
 
-Journy now includes a separate Python AI Agent service. The mobile app talks to the Spring Boot API, and Spring Boot sends the active trip/day context to the agent service when the user asks for a plan change.
+Journy's AI layer is built around confirmation-first plan changes. The assistant
+can reason over:
 
-```txt
-Mobile app
-  -> Spring Boot API
-  -> Python AI Agent
-  -> OpenAI, with deterministic fallback
-```
+- current trip destination, dates, budget, pace and interests
+- active itinerary day
+- stop density and walking distance
+- food/coffee windows
+- weather-sensitive outdoor stops
+- language preference
+- preview impact before applying a change
 
-The agent does not blindly rewrite the trip. It creates a preview first, explains why the change fits, and waits for the user to apply it.
+Supported agent behaviors include:
 
-| Agent | What it understands |
+| Agent behavior | Example |
 | --- | --- |
-| Pace Agent | "Make today lighter", less walking, easier rhythm |
-| Food Agent | Coffee breaks, dinner ideas, local food windows |
-| Weather Agent | Rain-ready replanning and indoor alternatives |
-| Context Analyzer | Walking pressure, stop density, anchor stops, flexible stops, break windows |
+| Lighter day | "I am tired" or "Make today lighter" |
+| Food break | "Find lunch nearby" or "Add a food stop" |
+| Indoor/weather plan | "Make an indoor plan for today" |
+| Route fit explanation | Before/after stop count, walking impact and reasons |
+| Apply flow | User sees a preview, then confirms before the itinerary changes |
 
-Example requests:
-
-```txt
-Can we make today lighter?
-Add a coffee stop near the route.
-It might rain, can we make this day indoor?
-Find dinner near the last stop.
-```
-
-The agent returns structured previews such as:
-
-- suggested action
-- affected stops
-- walking or route impact
-- why it fits the current trip
-- confirmation requirement before applying changes
+The agent request includes `language`, so Turkish users can receive localized AI
+responses instead of relying only on frontend translation fallbacks.
 
 ---
 
-## User Journey
+## Itinerary Engine
 
-```txt
-Start
-  -> Choose destination
-  -> Select dates
-  -> Pick interests and budget
-  -> Generate itinerary
-  -> Explore local picks
-  -> Ask AI to adjust the plan
-```
+The itinerary experience is moving toward a real daily schedule, not just a list
+of places.
 
-Example:
+Current planning behavior includes:
 
-```txt
-Amsterdam
-Oct 10 - Oct 14, 2026
-Couple trip
-Balanced budget
-Coffee, museums, local food, walking
-```
-
-Journy can turn that into:
-
-- walkable daily routes
-- museum and culture windows
-- local cafe breaks
-- dinner zones near the final stop
-- flexible afternoons
-- balanced pacing across the trip
+- day-by-day route structure
+- themed daily titles and short summaries
+- schedule windows such as `09:30 - 10:35`
+- travel-time timeline rows such as `10:35 - 10:47 - 12 min walk`
+- stop actions: mark optional, move earlier/later, move to another day, remove
+- weather adjustment preview and apply flow
+- starting-area-aware setup preview
+- city fallback logic for destinations not yet in the seed database
 
 ---
 
-## Screens In The App
+## Data And Providers
+
+Journy currently combines seeded/local data, dynamic fallback generation and
+external provider signals.
+
+| Data type | Current source |
+| --- | --- |
+| Trips, users, saved places | PostgreSQL through Spring Boot |
+| AI reasoning | Python FastAPI agent, OpenAI optional |
+| Weather | Open-Meteo |
+| City and place visuals | Local curated mappings plus dynamic fallbacks |
+| Places | Seed/starter data and backend endpoints |
+
+The next major product step is a full live place provider abstraction such as
+Google Places, Foursquare or OpenStreetMap/Nominatim/Overpass so any city can
+return real venues, coordinates, photos, opening hours and ratings.
+
+---
+
+## Screens
 
 | Screen | Purpose |
 | --- | --- |
-| Welcome | Introduces the product and guides users into the app |
-| Auth | Login, register, and guest access |
-| Home | A simple starting point for the current trip |
-| Trip Setup | Collects destination, dates, interests, budget, and pace |
-| Plan | Shows day-by-day itinerary structure |
-| Explore | Lists local recommendations by category |
-| AI Assistant | Lets users ask for changes and nearby suggestions |
-| Profile | Shows travel preferences, saved plans, and current trip |
-| Settings | Handles app preferences and notification choices |
+| Welcome | Product entry, auth prompt and first impression |
+| Login/Register | JWT-backed authentication and guest-friendly entry points |
+| Home | Current trip overview and Today mode |
+| Trip Setup | Preference collection and live AI plan preview |
+| Loading Plan | AI plan creation progress and failure handling |
+| Plan | Day-by-day itinerary, schedule, weather and stop management |
+| Day Route Detail | Route map, markers, stop cards and route actions |
+| Explore | City-aware discovery feed by category |
+| Place Detail | Add-to-day and best-fit route explanation |
+| AI Assistant | Context-aware assistant actions and chat |
+| Profile | Travel identity, taste profile, saved plans and favorites |
+| Saved Places | Favorites and collections |
+| Saved Plans | Saved trip plans |
+| Settings | Language, dark mode and travel preferences |
 
 ---
 
-## Product Direction
-
-Journy is designed to feel:
-
-| Calm | Personal | Practical |
-| --- | --- | --- |
-| Soft colors and clean layouts | Plans shaped around user interests | Routes that make sense during real travel |
-
-The goal is a premium but approachable travel product: less like a crowded travel blog, more like a personal city planning companion.
-
----
-
-## Current Status
-
-The project currently includes:
-
-- mobile app screens and navigation
-- onboarding, auth, setup, plan, explore, assistant, profile, settings, and notification flows
-- backend API foundation
-- JWT authentication
-- trip creation
-- itinerary generation with budget, pace, interests, and starting area signals
-- explore recommendation endpoints
-- Python AI Agent service with OpenAI support
-- agent previews for pace, food, and weather changes
-- confirmation-first apply flow for itinerary adjustments
-- saved places and saved plans flows
-- dynamic place detail and route-focused day detail screens
-- PostgreSQL setup
-- Swagger API documentation
-
----
-
-## Tech Overview
-
-```txt
-Journy/
-  mobile/     Expo React Native app
-  backend/    Spring Boot API
-  ai-agent/   FastAPI AI agent service
-```
+## Tech Stack
 
 | Layer | Stack |
 | --- | --- |
-| Mobile | Expo, React Native, TypeScript, React Navigation |
+| Mobile | Expo, React Native, TypeScript, React Navigation, React Native Maps |
 | Backend | Java, Spring Boot, Spring Security, JPA |
 | AI Agent | Python, FastAPI, OpenAI API, deterministic fallback agents |
+| Weather | Open-Meteo |
 | Database | PostgreSQL |
 | Auth | JWT access token and refresh token |
 | Docs | Swagger / OpenAPI |
@@ -202,6 +194,39 @@ Journy/
 ---
 
 ## Run Locally
+
+### One-command dev startup
+
+The easiest way to start the full development stack is:
+
+```bash
+cd /Users/iremdinc/Journy
+./scripts/dev.sh
+```
+
+This script starts services in order:
+
+1. Docker dependencies from `backend/compose.yaml`
+2. Spring Boot backend on `8080`
+3. FastAPI AI agent on `8001`
+4. Expo in LAN mode with QR code support
+
+Expo remains interactive, so you can press:
+
+```txt
+i  open iOS simulator
+a  open Android
+r  reload app
+```
+
+Logs are written to:
+
+```txt
+.dev-logs/backend.log
+.dev-logs/ai-agent.log
+```
+
+### Manual startup
 
 Backend:
 
@@ -222,21 +247,12 @@ cp .env.example .env
 uvicorn app.main:app --reload --port 8001
 ```
 
-Add your OpenAI key to `ai-agent/.env`:
-
-```txt
-OPENAI_API_KEY=your_key_here
-OPENAI_MODEL=gpt-4.1-mini
-```
-
-If the Python agent is not running, Spring Boot falls back to its built-in deterministic agent logic so the assistant flow can still respond.
-
 Mobile:
 
 ```bash
 cd mobile
 npm install
-npm start
+npx expo start -c --lan
 ```
 
 Useful local URLs:
@@ -257,27 +273,67 @@ admin123
 
 ---
 
+## Environment
+
+AI is optional in local development:
+
+```txt
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+If `OPENAI_API_KEY` is not configured, the Python service still returns
+deterministic fallback previews with the same response shape.
+
+Weather uses Open-Meteo, which does not require an API key for the current
+development integration.
+
+The mobile API client can discover the Expo/Metro runtime host so local IP
+changes do not require hardcoding a new backend IP each time.
+
+---
+
+## Quality Notes
+
+Journy includes product states that are important for a real mobile app:
+
+- loading, empty, error and offline-style fallback states
+- backend retry cards
+- preview data when live data cannot be loaded
+- localized Turkish/English UI strings
+- dark mode and light mode theme support
+- confirmation-first destructive actions
+- route changes shown before they are applied
+
+---
+
 ## Roadmap
 
-- Expand agent tools so approved previews update more types of itinerary changes
-- Add richer city and place data with opening hours, coordinates, tags, and price levels
-- Expand city data for Paris, Amsterdam, Rome, Barcelona, and more
-- Add map-based route visualization
-- Add hotel-aware recommendations
-- Add live weather-aware replanning
-- Add group trip planning
-- Improve saved plans and preference learning
+Next high-impact product steps:
+
+- Live place provider abstraction for real venues, photos, opening hours and coordinates
+- Constraint validator for opening hours, visit duration, travel time and meal windows
+- More complete route optimization using real map/directions data
+- Offline saved itinerary support
+- Stronger post-trip history and preference learning
+- Group trip collaboration
+- Production deployment, observability and error reporting
 
 ---
 
 ## Vision
 
-Journy aims to become a personal AI travel companion that understands how each user likes to move through a city.
+Journy's long-term vision is:
 
-In the long term, a user should be able to say:
+> Journy builds your trip, learns how you travel and continuously adapts the
+> itinerary while you are there.
+
+In practice, a user should be able to say:
 
 ```txt
 I am going to Paris for four days.
 ```
 
-And Journy should plan the rest: daily routes, local food, museums, neighborhoods, walking pace, budget-friendly options, and flexible changes during the trip.
+Journy should handle the rest: realistic daily routes, local food, museums,
+neighborhoods, walking pace, weather changes, budget fit and flexible AI-powered
+adjustments during the trip.
