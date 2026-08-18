@@ -256,7 +256,7 @@ function ToggleRow({
         value={Boolean(value)}
         onValueChange={onValueChange}
         trackColor={{ false: colors.mist, true: colors.teal }}
-        thumbColor={colors.surface}
+        thumbColor={value ? colors.ivory : colors.surfaceWarm}
         ios_backgroundColor={colors.mist}
         style={styles.switchControl}
       />

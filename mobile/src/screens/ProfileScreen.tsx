@@ -26,7 +26,7 @@ export default function ProfileScreen() {
   const { isDark, theme } = useAppTheme();
   const { language } = useLanguage();
   const t = useTranslation();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, isDark), [isDark, theme]);
   const { colors } = theme;
   const navigation = useNavigation<any>();
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
@@ -761,7 +761,7 @@ function Stat({
   );
 }
 
-function createStyles({ colors, radius, spacing, typography }: Theme) {
+function createStyles({ colors, radius, spacing, typography }: Theme, isDark: boolean) {
   return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { padding: spacing.lg, paddingBottom: 132 },
@@ -772,13 +772,13 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   avatar: {
     alignItems: 'center',
-    backgroundColor: colors.midnight,
+    backgroundColor: isDark ? colors.teal : colors.midnight,
     borderRadius: radius.lg,
     height: 62,
     justifyContent: 'center',
     width: 62,
   },
-  avatarText: { color: colors.surface, fontSize: typography.h3, fontWeight: '900' },
+  avatarText: { color: isDark ? colors.ivory : colors.surface, fontSize: typography.h3, fontWeight: '900' },
   headerCopy: { flex: 1, marginLeft: spacing.md },
   name: { color: colors.midnight, fontSize: typography.h2, fontWeight: '900' },
   meta: { color: colors.slate, fontSize: typography.small, fontWeight: '800', marginTop: 3 },
@@ -816,8 +816,8 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     padding: spacing.lg,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.1,
-    shadowRadius: 24,
+    shadowOpacity: isDark ? 0.28 : 0.1,
+    shadowRadius: isDark ? 18 : 24,
   },
   tripTop: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
   kicker: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
@@ -963,7 +963,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   tasteLevelLabel: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
   tasteLevelValue: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900' },
   tasteTrack: {
-    backgroundColor: colors.fog,
+    backgroundColor: isDark ? colors.mist : colors.fog,
     borderRadius: radius.pill,
     height: 8,
     overflow: 'hidden',

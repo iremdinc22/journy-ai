@@ -14,7 +14,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'LoadingPlan'>;
 export default function LoadingPlanScreen({ navigation, route }: Props) {
   const { isDark, theme } = useAppTheme();
   const t = useTranslation();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, isDark), [isDark, theme]);
   const { colors } = theme;
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState(t('loading.backendError'));
@@ -137,7 +137,7 @@ function messageForError(error: unknown, t: Translate) {
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];
 
-function createStyles({ colors, radius, spacing, typography }: Theme) {
+function createStyles({ colors, radius, spacing, typography }: Theme, isDark: boolean) {
   return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: {
@@ -150,7 +150,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     width: 96,
     height: 96,
     borderRadius: radius.pill,
-    backgroundColor: colors.midnight,
+    backgroundColor: isDark ? colors.teal : colors.midnight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xl,
@@ -214,15 +214,15 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     backgroundColor: colors.teal,
   },
   retryButton: {
-    backgroundColor: colors.midnight,
-    borderColor: colors.midnight,
+    backgroundColor: isDark ? colors.teal : colors.midnight,
+    borderColor: isDark ? colors.teal : colors.midnight,
     borderRadius: radius.lg,
     borderWidth: 1,
     flex: 1,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  retryText: { color: colors.surface, fontSize: typography.small, fontWeight: '900', textAlign: 'center' },
+  retryText: { color: isDark ? colors.ivory : colors.surface, fontSize: typography.small, fontWeight: '900', textAlign: 'center' },
   errorCard: {
     backgroundColor: colors.surface,
     borderColor: colors.mist,

@@ -29,10 +29,10 @@ import { localizeDynamicText } from '../utils/localizedDynamicText';
 type Props = NativeStackScreenProps<RootStackParamList, 'PlaceDetail'>;
 
 export default function PlaceDetailScreen({ navigation, route }: Props) {
-  const { theme } = useAppTheme();
+  const { isDark, theme } = useAppTheme();
   const { language } = useLanguage();
   const t = useTranslation();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, isDark), [isDark, theme]);
   const { colors } = theme;
   const { place } = route.params;
   const [saved, setSaved] = useState(false);
@@ -166,7 +166,7 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.midnight} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.ivory} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <ImageBackground
@@ -522,7 +522,7 @@ function DetailItem({
 type Theme = ReturnType<typeof useAppTheme>['theme'];
 type PlaceDetailStyles = ReturnType<typeof createStyles>;
 
-function createStyles({ colors, radius, spacing, typography }: Theme) {
+function createStyles({ colors, radius, spacing, typography }: Theme, isDark: boolean) {
   return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { paddingBottom: spacing.xxl },
@@ -579,7 +579,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     fontWeight: '900',
   },
   title: {
-    color: colors.surface,
+    color: isDark ? colors.ink : colors.surface,
     fontSize: 34,
     fontWeight: '900',
     lineHeight: 38,
@@ -678,7 +678,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     borderColor: colors.teal,
   },
   secondaryActionText: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
-  secondaryActionTextActive: { color: colors.surface },
+  secondaryActionTextActive: { color: isDark ? colors.ivory : colors.surface },
   stat: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -779,7 +779,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   primaryButton: {
     minHeight: 58,
     borderRadius: radius.lg,
-    backgroundColor: colors.midnight,
+    backgroundColor: isDark ? colors.teal : colors.midnight,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -790,7 +790,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     backgroundColor: colors.teal,
   },
   primaryButtonText: {
-    color: colors.surface,
+    color: isDark ? colors.ivory : colors.surface,
     fontSize: typography.body,
     fontWeight: '900',
   },

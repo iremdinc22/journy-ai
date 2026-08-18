@@ -5,8 +5,8 @@ import { useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 
 export function InlineLoading({ label = 'Loading your trip...' }: { label?: string }) {
-  const { theme } = useAppTheme();
-  const styles = createStyles(theme);
+  const { isDark, theme } = useAppTheme();
+  const styles = createStyles(theme, isDark);
 
   return (
     <View style={styles.stateCard}>
@@ -25,9 +25,9 @@ export function InlineError({
   description?: string;
   onRetry?: () => void;
 }) {
-  const { theme } = useAppTheme();
+  const { isDark, theme } = useAppTheme();
   const t = useTranslation();
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, isDark);
   const { colors } = theme;
 
   return (
@@ -53,8 +53,8 @@ export function InlineEmpty({
   title?: string;
   description?: string;
 }) {
-  const { theme } = useAppTheme();
-  const styles = createStyles(theme);
+  const { isDark, theme } = useAppTheme();
+  const styles = createStyles(theme, isDark);
   const { colors } = theme;
 
   return (
@@ -68,7 +68,7 @@ export function InlineEmpty({
   );
 }
 
-function createStyles({ colors, radius, spacing, typography }: ReturnType<typeof useAppTheme>['theme']) {
+function createStyles({ colors, radius, spacing, typography }: ReturnType<typeof useAppTheme>['theme'], isDark: boolean) {
   return StyleSheet.create({
     stateCard: {
       alignItems: 'center',
@@ -104,14 +104,14 @@ function createStyles({ colors, radius, spacing, typography }: ReturnType<typeof
       textAlign: 'center',
     },
     retryButton: {
-      backgroundColor: colors.midnight,
+      backgroundColor: colors.teal,
       borderRadius: radius.pill,
       marginTop: spacing.md,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.sm,
     },
     retryText: {
-      color: colors.surface,
+      color: isDark ? colors.ivory : colors.surface,
       fontSize: typography.small,
       fontWeight: '900',
     },

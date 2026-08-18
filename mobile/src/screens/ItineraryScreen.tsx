@@ -15,7 +15,7 @@ export default function ItineraryScreen() {
   const { isDark, theme } = useAppTheme();
   const { language } = useLanguage();
   const t = useTranslation();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, isDark), [isDark, theme]);
   const { colors } = theme;
   const navigation = useNavigation<any>();
   const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null);
@@ -572,7 +572,7 @@ function isWeatherSensitiveCategory(category: string) {
   return normalized.includes('WALK') || normalized.includes('FREE') || normalized.includes('OUTDOOR');
 }
 
-function createStyles({ colors, radius, spacing, typography }: Theme) {
+function createStyles({ colors, radius, spacing, typography }: Theme, isDark: boolean) {
   return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { padding: spacing.lg, paddingBottom: 132 },
@@ -691,14 +691,14 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   weatherSecondaryText: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900' },
   weatherPrimaryButton: {
     alignItems: 'center',
-    backgroundColor: colors.midnight,
+    backgroundColor: isDark ? colors.teal : colors.midnight,
     borderRadius: radius.pill,
     flex: 1,
     justifyContent: 'center',
     minHeight: 44,
   },
   weatherButtonDisabled: { opacity: 0.55 },
-  weatherPrimaryText: { color: colors.surface, fontSize: typography.tiny, fontWeight: '900' },
+  weatherPrimaryText: { color: isDark ? colors.ivory : colors.surface, fontSize: typography.tiny, fontWeight: '900' },
   dayRail: { gap: spacing.sm, paddingVertical: spacing.md },
   dayChip: {
     backgroundColor: colors.surface,
@@ -761,13 +761,13 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   routeDot: {
     alignItems: 'center',
-    backgroundColor: colors.midnight,
+    backgroundColor: isDark ? colors.teal : colors.midnight,
     borderRadius: radius.pill,
     height: 26,
     justifyContent: 'center',
     width: 26,
   },
-  routeDotText: { color: colors.surface, fontSize: typography.tiny, fontWeight: '900' },
+  routeDotText: { color: isDark ? colors.ivory : colors.surface, fontSize: typography.tiny, fontWeight: '900' },
   routeLine: { backgroundColor: colors.mist, flex: 1, height: 2, marginHorizontal: spacing.xs },
   timeline: { marginTop: spacing.md },
   stopRow: { alignItems: 'center', flexDirection: 'row', minHeight: 38 },
@@ -792,13 +792,13 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   stopNumber: {
     alignItems: 'center',
-    backgroundColor: colors.midnight,
+    backgroundColor: isDark ? colors.teal : colors.midnight,
     borderRadius: radius.pill,
     height: 28,
     justifyContent: 'center',
     width: 28,
   },
-  stopNumberText: { color: colors.surface, fontSize: typography.tiny, fontWeight: '900' },
+  stopNumberText: { color: isDark ? colors.ivory : colors.surface, fontSize: typography.tiny, fontWeight: '900' },
   stopLine: {
     backgroundColor: colors.mist,
     height: 1,
@@ -852,8 +852,8 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     padding: spacing.md,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 24,
+    shadowOpacity: isDark ? 0.34 : 0.16,
+    shadowRadius: isDark ? 18 : 24,
   },
   actionHandle: {
     alignSelf: 'center',

@@ -29,8 +29,9 @@ export default function HomeScreen() {
   const { isDark, theme } = useAppTheme();
   const { language } = useLanguage();
   const t = useTranslation();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, isDark), [isDark, theme]);
   const { colors } = theme;
+  const overlayTextColor = isDark ? colors.ink : colors.surface;
   const navigation = useNavigation<any>();
   const [trip, setTrip] = useState<TripResponse | undefined>(() => session.getCurrentTrip());
   const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null);
@@ -125,7 +126,7 @@ export default function HomeScreen() {
           <LinearGradient colors={['rgba(34,42,45,0.08)', 'rgba(34,42,45,0.72)']} style={styles.heroOverlay}>
             <View style={styles.heroTop}>
               <View style={styles.pill}>
-                <Ionicons name="partly-sunny-outline" size={14} color={colors.surface} />
+                <Ionicons name="partly-sunny-outline" size={14} color={overlayTextColor} />
                 <Text style={styles.pillText}>{t('home.mildWeather')}</Text>
               </View>
             </View>
@@ -314,7 +315,7 @@ function SummaryItem({
 type Theme = ReturnType<typeof useAppTheme>['theme'];
 type HomeStyles = ReturnType<typeof createStyles>;
 
-function createStyles({ colors, radius, spacing, typography }: Theme) {
+function createStyles({ colors, radius, spacing, typography }: Theme, isDark: boolean) {
   return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { padding: spacing.lg, paddingBottom: 132 },
@@ -377,9 +378,9 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  pillText: { color: colors.surface, fontSize: typography.tiny, fontWeight: '900' },
+  pillText: { color: isDark ? colors.ink : colors.surface, fontSize: typography.tiny, fontWeight: '900' },
   heroKicker: { color: 'rgba(255,255,255,0.76)', fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
-  heroTitle: { color: colors.surface, fontSize: 34, fontWeight: '900', lineHeight: 38, marginTop: spacing.xs },
+  heroTitle: { color: isDark ? colors.ink : colors.surface, fontSize: 34, fontWeight: '900', lineHeight: 38, marginTop: spacing.xs },
   heroMeta: { color: 'rgba(255,255,255,0.78)', fontSize: typography.small, fontWeight: '800', marginTop: spacing.xs },
   routeSummary: {
     backgroundColor: colors.surface,
@@ -426,7 +427,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   nextStopMeta: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 2, textTransform: 'capitalize' },
   directionsButton: {
     alignItems: 'center',
-    backgroundColor: colors.midnight,
+    backgroundColor: isDark ? colors.teal : colors.midnight,
     borderRadius: radius.pill,
     height: 36,
     justifyContent: 'center',
@@ -481,7 +482,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   visualMeta: { color: colors.slate, fontSize: typography.tiny, fontWeight: '700', marginTop: 4 },
   primaryAction: {
     alignItems: 'center',
-    backgroundColor: colors.midnight,
+    backgroundColor: isDark ? colors.teal : colors.midnight,
     borderRadius: radius.lg,
     flexDirection: 'row',
     gap: spacing.sm,
@@ -489,6 +490,6 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     marginTop: spacing.sm,
     minHeight: 56,
   },
-  primaryActionText: { color: colors.surface, fontSize: typography.body, fontWeight: '900' },
+  primaryActionText: { color: isDark ? colors.ivory : colors.surface, fontSize: typography.body, fontWeight: '900' },
 });
 }

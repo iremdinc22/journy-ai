@@ -316,9 +316,9 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  aiPillText: { color: colors.surface, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
+  aiPillText: { color: isDark ? colors.ink : colors.surface, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
   title: {
-    color: colors.surface,
+    color: isDark ? colors.ink : colors.surface,
     fontSize: 32,
     fontWeight: '900',
     letterSpacing: 0,
@@ -417,7 +417,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
     justifyContent: 'center',
     minHeight: 54,
   },
-  primaryButtonText: { color: colors.surface, fontSize: typography.body, fontWeight: '900' },
+  primaryButtonText: { color: isDark ? colors.ivory : colors.surface, fontSize: typography.body, fontWeight: '900' },
   secondaryButton: {
     alignItems: 'center',
     backgroundColor: colors.surface,

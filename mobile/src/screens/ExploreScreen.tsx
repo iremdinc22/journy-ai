@@ -44,7 +44,7 @@ export default function ExploreScreen() {
   const { isDark, theme } = useAppTheme();
   const { language } = useLanguage();
   const t = useTranslation();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, isDark), [isDark, theme]);
   const { colors } = theme;
   const navigation = useNavigation<any>();
   const [activeCategory, setActiveCategory] = useState<Category>('For you');
@@ -314,7 +314,7 @@ function fallbackImage(city: string | undefined, category: string, seed: string)
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];
 
-function createStyles({ colors, radius, spacing, typography }: Theme) {
+function createStyles({ colors, radius, spacing, typography }: Theme, isDark: boolean) {
   return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { padding: spacing.lg, paddingBottom: 132 },
@@ -352,8 +352,8 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     paddingVertical: spacing.sm,
   },
   categoryActive: {
-    backgroundColor: colors.midnight,
-    borderColor: colors.midnight,
+    backgroundColor: isDark ? colors.teal : colors.midnight,
+    borderColor: isDark ? colors.teal : colors.midnight,
   },
   categoryText: {
     color: colors.slate,
@@ -361,7 +361,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     fontWeight: '900',
   },
   categoryTextActive: {
-    color: colors.surface,
+    color: isDark ? colors.ivory : colors.surface,
   },
   card: {
     backgroundColor: colors.surface,

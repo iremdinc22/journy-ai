@@ -168,8 +168,10 @@ export default function TripSetupScreen({ navigation, route }: Props) {
   const { isDark, theme } = useAppTheme();
   const { language } = useLanguage();
   const t = useTranslation();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, isDark), [isDark, theme]);
   const { colors } = theme;
+  const overlayTextColor = isDark ? colors.ink : colors.surface;
+  const activeTextColor = isDark ? colors.ivory : colors.surface;
   const [city, setCity] = useState('');
   const [citySearch, setCitySearch] = useState('');
   const [cityOpen, setCityOpen] = useState(false);
@@ -521,7 +523,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
         <ImageBackground source={{ uri: selectedCity.image }} style={styles.cityPreview} imageStyle={styles.cityPreviewImage}>
           <LinearGradient colors={['rgba(33,43,45,0.04)', 'rgba(33,43,45,0.74)']} style={styles.cityPreviewOverlay}>
             <View style={styles.cityBadge}>
-              <Ionicons name="sparkles-outline" size={13} color={colors.surface} />
+              <Ionicons name="sparkles-outline" size={13} color={overlayTextColor} />
               <Text style={styles.cityBadgeText}>{t('setup.personalSetup')}</Text>
             </View>
             <View>
@@ -748,7 +750,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
                   activeOpacity={0.84}
                   onPress={() => setStartArea(item)}
                 >
-                  <Ionicons name={active ? 'checkmark-circle' : 'location-outline'} size={14} color={active ? colors.surface : colors.teal} />
+                  <Ionicons name={active ? 'checkmark-circle' : 'location-outline'} size={14} color={active ? activeTextColor : colors.teal} />
                   <Text style={[styles.startSuggestionText, active && styles.startSuggestionTextActive]}>{item}</Text>
                 </TouchableOpacity>
               );
@@ -782,7 +784,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
             const active = selectedInterests.includes(item.label);
             return (
               <TouchableOpacity key={item.label} style={[styles.interest, active && styles.interestActive]} onPress={() => toggleInterest(item.label)} activeOpacity={0.86}>
-                <Ionicons name={item.icon} size={18} color={active ? colors.surface : colors.teal} />
+                <Ionicons name={item.icon} size={18} color={active ? activeTextColor : colors.teal} />
                 <Text style={[styles.interestText, active && styles.interestTextActive]}>{setupOptionLabel(item.label, t)}</Text>
               </TouchableOpacity>
             );
@@ -794,7 +796,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
 
         <TouchableOpacity style={styles.primaryButton} activeOpacity={0.9} onPress={generatePlan}>
           <Text style={styles.primaryButtonText}>{initialTrip ? t('setup.regeneratePlan') : t('setup.generatePlan')}</Text>
-          <Ionicons name="arrow-forward" size={18} color={colors.surface} />
+          <Ionicons name="arrow-forward" size={18} color={activeTextColor} />
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -1168,8 +1170,8 @@ function Signal({
   value: string;
   active: boolean;
 }) {
-  const { theme } = useAppTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { isDark, theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [isDark, theme]);
   const { colors } = theme;
 
   return (
@@ -1203,7 +1205,7 @@ function PreviewMetric({
   );
 }
 
-function createStyles({ colors, radius, spacing, typography }: Theme) {
+function createStyles({ colors, radius, spacing, typography }: Theme, isDark: boolean) {
   return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
@@ -1251,13 +1253,13 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     paddingVertical: spacing.xs,
   },
   cityBadgeText: {
-    color: colors.surface,
+    color: isDark ? colors.ink : colors.surface,
     fontSize: typography.tiny,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   cityName: {
-    color: colors.surface,
+    color: isDark ? colors.ink : colors.surface,
     fontSize: 34,
     fontWeight: '900',
     lineHeight: 38,
@@ -1299,7 +1301,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     minHeight: 82,
     padding: spacing.sm,
   },
-  signalActive: { backgroundColor: colors.surfaceWarm },
+  signalActive: { backgroundColor: isDark ? colors.fog : colors.surfaceWarm },
   signalLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '900', marginTop: spacing.xs },
   signalValue: { color: colors.midnight, fontSize: typography.tiny, fontWeight: '900', lineHeight: 15, marginTop: 3 },
   pickerRow: { alignItems: 'center', flexDirection: 'row', minHeight: 62 },
@@ -1348,7 +1350,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     justifyContent: 'flex-end',
     padding: spacing.sm,
   },
-  popularCity: { color: colors.surface, fontSize: typography.body, fontWeight: '900' },
+  popularCity: { color: isDark ? colors.ink : colors.surface, fontSize: typography.body, fontWeight: '900' },
   popularCountry: { color: 'rgba(255,255,255,0.82)', fontSize: typography.tiny, fontWeight: '800', marginTop: 2 },
   searchBox: {
     alignItems: 'center',
@@ -1464,7 +1466,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   dayRange: { backgroundColor: colors.surface },
   daySelected: { backgroundColor: colors.teal },
   dayText: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
-  dayTextSelected: { color: colors.surface },
+  dayTextSelected: { color: isDark ? colors.ivory : colors.surface },
   startCard: {
     backgroundColor: colors.surface,
     borderColor: colors.mist,
@@ -1552,7 +1554,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     fontWeight: '900',
   },
   startSuggestionTextActive: {
-    color: colors.surface,
+    color: isDark ? colors.ivory : colors.surface,
   },
   startSuggestionLoading: {
     color: colors.slate,
@@ -1724,7 +1726,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   segmentItem: { alignItems: 'center', borderRadius: radius.md, flex: 1, paddingVertical: spacing.sm },
   segmentItemActive: { backgroundColor: colors.teal },
   segmentText: { color: colors.slate, fontSize: typography.small, fontWeight: '900' },
-  segmentTextActive: { color: colors.surface },
+  segmentTextActive: { color: isDark ? colors.ivory : colors.surface },
   interestGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
   interest: {
     alignItems: 'center',
@@ -1739,10 +1741,10 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   interestActive: { backgroundColor: colors.teal, borderColor: colors.teal },
   interestText: { color: colors.midnight, flex: 1, fontSize: typography.small, fontWeight: '900' },
-  interestTextActive: { color: colors.surface },
+  interestTextActive: { color: isDark ? colors.ivory : colors.surface },
   primaryButton: {
     alignItems: 'center',
-    backgroundColor: colors.midnight,
+    backgroundColor: isDark ? colors.teal : colors.midnight,
     borderRadius: radius.lg,
     flexDirection: 'row',
     gap: spacing.sm,
@@ -1750,6 +1752,6 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     marginTop: spacing.xl,
     minHeight: 58,
   },
-  primaryButtonText: { color: colors.surface, fontSize: typography.body, fontWeight: '900' },
+  primaryButtonText: { color: isDark ? colors.ivory : colors.surface, fontSize: typography.body, fontWeight: '900' },
 });
 }

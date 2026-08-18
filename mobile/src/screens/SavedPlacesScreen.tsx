@@ -24,7 +24,7 @@ export default function SavedPlacesScreen({ navigation }: Props) {
   const { isDark, theme } = useAppTheme();
   const { language } = useLanguage();
   const t = useTranslation();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, isDark), [isDark, theme]);
   const { colors } = theme;
   const [places, setPlaces] = useState<SavedPlaceResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -409,7 +409,7 @@ function formatPriceLevel(value: string, language: 'en' | 'tr') {
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];
 
-function createStyles({ colors, radius, spacing, typography }: Theme) {
+function createStyles({ colors, radius, spacing, typography }: Theme, isDark: boolean) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.ivory },
     content: { padding: spacing.lg, paddingBottom: 56 },
@@ -431,14 +431,14 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     },
     exploreButton: {
       alignItems: 'center',
-      backgroundColor: colors.midnight,
+      backgroundColor: isDark ? colors.teal : colors.midnight,
       borderRadius: radius.pill,
       flexDirection: 'row',
       gap: 6,
       minHeight: 42,
       paddingHorizontal: spacing.md,
     },
-    exploreButtonText: { color: colors.surface, fontSize: typography.small, fontWeight: '900' },
+    exploreButtonText: { color: isDark ? colors.ivory : colors.surface, fontSize: typography.small, fontWeight: '900' },
     hero: { marginTop: spacing.xl },
     eyebrow: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900', textTransform: 'uppercase' },
     title: { color: colors.midnight, fontSize: typography.title, fontWeight: '900', letterSpacing: 0, lineHeight: 42, marginTop: spacing.xs },
@@ -473,8 +473,8 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
       width: 132,
     },
     collectionCardActive: {
-      backgroundColor: colors.midnight,
-      borderColor: colors.midnight,
+      backgroundColor: isDark ? colors.teal : colors.midnight,
+      borderColor: isDark ? colors.teal : colors.midnight,
     },
     collectionIcon: {
       alignItems: 'center',
@@ -486,7 +486,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     },
     collectionIconActive: { backgroundColor: 'rgba(255,255,255,0.16)' },
     collectionName: { color: colors.midnight, fontSize: typography.small, fontWeight: '900', marginTop: spacing.sm },
-    collectionNameActive: { color: colors.surface },
+    collectionNameActive: { color: isDark ? colors.ivory : colors.surface },
     collectionCount: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 3 },
     collectionCountActive: { color: 'rgba(255,255,255,0.72)' },
     listHeader: {
@@ -616,7 +616,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
       justifyContent: 'center',
       width: 34,
     },
-    collectionPickerIconActive: { backgroundColor: colors.midnight },
+    collectionPickerIconActive: { backgroundColor: isDark ? colors.teal : colors.midnight },
     collectionPickerCopy: { flex: 1, minWidth: 0 },
     collectionPickerTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
     collectionPickerMeta: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 2 },
@@ -633,7 +633,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     collectionInput: { color: colors.midnight, flex: 1, fontSize: typography.body, fontWeight: '900' },
     sheetPrimaryButton: {
       alignItems: 'center',
-      backgroundColor: colors.midnight,
+      backgroundColor: isDark ? colors.teal : colors.midnight,
       borderRadius: radius.pill,
       flexDirection: 'row',
       gap: spacing.xs,
@@ -643,6 +643,6 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
       paddingHorizontal: spacing.lg,
     },
     sheetPrimaryButtonDisabled: { opacity: 0.45 },
-    sheetPrimaryText: { color: colors.surface, fontSize: typography.body, fontWeight: '900' },
+    sheetPrimaryText: { color: isDark ? colors.ivory : colors.surface, fontSize: typography.body, fontWeight: '900' },
   });
 }

@@ -57,7 +57,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 function MainTabs() {
-  const { theme } = useAppTheme();
+  const { isDark, theme } = useAppTheme();
   const t = useTranslation();
   const { colors, radius } = theme;
 
@@ -66,7 +66,7 @@ function MainTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: colors.midnight,
+        tabBarActiveTintColor: isDark ? colors.teal : colors.midnight,
         tabBarInactiveTintColor: colors.softMuted,
         tabBarLabelStyle: {
           fontSize: 11,
@@ -87,8 +87,8 @@ function MainTabs() {
           borderColor: colors.mist,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 14 },
-          shadowOpacity: 0.1,
-          shadowRadius: 24,
+          shadowOpacity: isDark ? 0.34 : 0.1,
+          shadowRadius: isDark ? 18 : 24,
           elevation: 10,
         },
         tabBarIcon: ({ color, focused }) => {

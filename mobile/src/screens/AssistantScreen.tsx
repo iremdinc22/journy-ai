@@ -84,7 +84,7 @@ export default function AssistantScreen() {
   const { isDark, theme } = useAppTheme();
   const { language } = useLanguage();
   const t = useTranslation();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, isDark), [isDark, theme]);
   const { colors } = theme;
   const [messages, setMessages] = useState<Message[]>(() => initialMessages.map((message) => ({
     ...message,
@@ -780,7 +780,7 @@ function buildApplyResultMessage(intent: AgentIntent, updatedDay: ItineraryDay) 
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];
 
-function createStyles({ colors, radius, spacing, typography }: Theme) {
+function createStyles({ colors, radius, spacing, typography }: Theme, isDark: boolean) {
   return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.ivory },
   screen: { flex: 1 },
@@ -919,7 +919,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   weatherAgentIcon: {
     alignItems: 'center',
-    backgroundColor: colors.fog,
+    backgroundColor: isDark ? colors.lilac : colors.fog,
     borderRadius: radius.md,
     height: 38,
     justifyContent: 'center',
@@ -952,7 +952,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   smallAvatar: {
     alignItems: 'center',
-    backgroundColor: colors.teal,
+    backgroundColor: isDark ? colors.lilac : colors.teal,
     borderRadius: radius.pill,
     height: 26,
     justifyContent: 'center',
@@ -970,7 +970,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     paddingVertical: spacing.sm,
   },
   userBubble: {
-    backgroundColor: colors.midnight,
+    backgroundColor: isDark ? colors.teal : colors.midnight,
     borderRadius: radius.lg,
     borderBottomRightRadius: radius.sm,
     maxWidth: '82%',
@@ -978,7 +978,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     paddingVertical: spacing.sm,
   },
   aiText: { color: colors.midnight, fontSize: typography.body, fontWeight: '700', lineHeight: 22 },
-  userText: { color: colors.surface, fontSize: typography.body, fontWeight: '700', lineHeight: 22 },
+  userText: { color: isDark ? colors.ivory : colors.surface, fontSize: typography.body, fontWeight: '700', lineHeight: 22 },
   messageTime: {
     color: colors.softMuted,
     fontSize: 10,
@@ -1157,7 +1157,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
   },
   applyButton: {
     alignItems: 'center',
-    backgroundColor: colors.fog,
+    backgroundColor: isDark ? colors.lilac : colors.fog,
     borderRadius: radius.pill,
     flexDirection: 'row',
     flex: 1,

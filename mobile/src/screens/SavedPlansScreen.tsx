@@ -16,7 +16,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SavedPlans'>;
 export default function SavedPlansScreen({ navigation }: Props) {
   const { isDark, theme } = useAppTheme();
   const t = useTranslation();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, isDark), [isDark, theme]);
   const { colors } = theme;
   const [plans, setPlans] = useState<TripResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,7 +191,7 @@ function formatBudget(value: string, t: Translate) {
   return t('setup.balanced');
 }
 
-function createStyles({ colors, radius, spacing, typography }: Theme) {
+function createStyles({ colors, radius, spacing, typography }: Theme, isDark: boolean) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.ivory },
     content: { padding: spacing.lg, paddingBottom: 56 },
@@ -213,14 +213,14 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     },
     newButton: {
       alignItems: 'center',
-      backgroundColor: colors.midnight,
+      backgroundColor: isDark ? colors.teal : colors.midnight,
       borderRadius: radius.pill,
       flexDirection: 'row',
       gap: 6,
       minHeight: 42,
       paddingHorizontal: spacing.md,
     },
-    newButtonText: { color: colors.surface, fontSize: typography.small, fontWeight: '900' },
+    newButtonText: { color: isDark ? colors.ivory : colors.surface, fontSize: typography.small, fontWeight: '900' },
     hero: {
       marginTop: spacing.xl,
     },
@@ -299,7 +299,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
     },
     openButton: {
       alignItems: 'center',
-      backgroundColor: colors.midnight,
+      backgroundColor: isDark ? colors.teal : colors.midnight,
       borderRadius: radius.pill,
       flex: 1,
       flexDirection: 'row',
@@ -307,7 +307,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme) {
       justifyContent: 'center',
       minHeight: 48,
     },
-    openButtonText: { color: colors.surface, fontSize: typography.small, fontWeight: '900' },
+    openButtonText: { color: isDark ? colors.ivory : colors.surface, fontSize: typography.small, fontWeight: '900' },
     deleteButton: {
       alignItems: 'center',
       backgroundColor: colors.surfaceWarm,
