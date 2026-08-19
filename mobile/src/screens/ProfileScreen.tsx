@@ -132,12 +132,13 @@ export default function ProfileScreen() {
         label: item.title,
         detail: item.description,
         icon: mapTasteIcon(item.icon),
+        score: item.score,
       }))
     : [
-        { label: t('setup.localFood'), detail: t('profile.hiddenRestaurants'), icon: 'restaurant-outline' as IconName },
-        { label: t('setup.museums'), detail: t('profile.cultureWindows'), icon: 'color-palette-outline' as IconName },
-        { label: t('setup.coffee'), detail: t('profile.quietBreaks'), icon: 'cafe-outline' as IconName },
-        { label: t('setup.walking'), detail: t('profile.easyPace'), icon: 'walk-outline' as IconName },
+        { label: t('setup.localFood'), detail: t('profile.hiddenRestaurants'), icon: 'restaurant-outline' as IconName, score: undefined },
+        { label: t('setup.museums'), detail: t('profile.cultureWindows'), icon: 'color-palette-outline' as IconName, score: undefined },
+        { label: t('setup.coffee'), detail: t('profile.quietBreaks'), icon: 'cafe-outline' as IconName, score: undefined },
+        { label: t('setup.walking'), detail: t('profile.easyPace'), icon: 'walk-outline' as IconName, score: undefined },
       ];
   const displaySavedPlans = profile?.savedPlans?.length
     ? profile.savedPlans.map((plan) => ({
@@ -318,6 +319,7 @@ export default function ProfileScreen() {
                 <Text style={styles.tasteLabel}>{localizeDynamicText(item.label, language)}</Text>
                 <Text style={styles.tasteDetail}>{localizeDynamicText(item.detail, language)}</Text>
               </View>
+              {typeof item.score === 'number' ? <Text style={styles.tasteScore}>{item.score}%</Text> : null}
             </View>
           ))}
         </View>
@@ -661,10 +663,11 @@ function buildTravelIdentity(profile: ProfileResponse | null, language: 'en' | '
 
   profile?.tasteProfile.forEach((signal) => {
     const title = signal.title.toLowerCase();
-    if (title.includes('coffee')) weights.Coffee += 18;
-    if (title.includes('food')) weights['Local food'] += 18;
-    if (title.includes('culture')) weights.Culture += 18;
-    if (title.includes('walk')) weights.Walking += 18;
+    const signalWeight = typeof signal.score === 'number' ? Math.max(0, signal.score - 45) : 18;
+    if (title.includes('coffee')) weights.Coffee += signalWeight;
+    if (title.includes('food')) weights['Local food'] += signalWeight;
+    if (title.includes('culture')) weights.Culture += signalWeight;
+    if (title.includes('walk')) weights.Walking += signalWeight;
   });
 
   profile?.savedPlaces.forEach((place) => {
@@ -929,6 +932,12 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
   tasteCopy: { flex: 1 },
   tasteLabel: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
   tasteDetail: { color: colors.slate, fontSize: typography.tiny, fontWeight: '700', lineHeight: 15, marginTop: 3 },
+  tasteScore: {
+    color: colors.teal,
+    fontSize: 11,
+    fontWeight: '900',
+    marginLeft: spacing.xs,
+  },
   identityCard: {
     backgroundColor: colors.surface,
     borderColor: colors.mist,

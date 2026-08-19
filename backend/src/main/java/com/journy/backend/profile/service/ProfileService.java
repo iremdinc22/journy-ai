@@ -3,6 +3,7 @@ package com.journy.backend.profile.service;
 import com.journy.backend.profile.dto.UpdatePreferencesRequest;
 import com.journy.backend.profile.mapper.ProfileMapper;
 import com.journy.backend.profile.dto.ProfileResponse;
+import com.journy.backend.feedback.repository.TasteFeedbackRepository;
 import com.journy.backend.savedplace.repository.SavedPlaceRepository;
 import com.journy.backend.security.CurrentUserService;
 import com.journy.backend.trip.model.Trip;
@@ -21,6 +22,7 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 public class ProfileService {
     private final TripRepository tripRepository;
     private final SavedPlaceRepository savedPlaceRepository;
+    private final TasteFeedbackRepository tasteFeedbackRepository;
     private final UserAccountRepository userAccountRepository;
     private final ProfileMapper profileMapper;
     private final CurrentUserService currentUserService;
@@ -31,12 +33,14 @@ public class ProfileService {
     public ProfileService(
             TripRepository tripRepository,
             SavedPlaceRepository savedPlaceRepository,
+            TasteFeedbackRepository tasteFeedbackRepository,
             UserAccountRepository userAccountRepository,
             ProfileMapper profileMapper,
             CurrentUserService currentUserService
     ) {
         this.tripRepository = tripRepository;
         this.savedPlaceRepository = savedPlaceRepository;
+        this.tasteFeedbackRepository = tasteFeedbackRepository;
         this.userAccountRepository = userAccountRepository;
         this.profileMapper = profileMapper;
         this.currentUserService = currentUserService;
@@ -53,7 +57,8 @@ public class ProfileService {
                 currentTrip,
                 tripRepository.findTop5ByUserEmailIgnoreCaseOrderByCreatedAtDesc(user.getEmail()),
                 savedPlaceRepository.findTop8ByUserEmailIgnoreCaseOrderByCreatedAtDesc(user.getEmail()),
-                savedPlaceRepository.countByUserEmailIgnoreCase(user.getEmail())
+                savedPlaceRepository.countByUserEmailIgnoreCase(user.getEmail()),
+                tasteFeedbackRepository.findTop80ByUserEmailIgnoreCaseOrderByCreatedAtDesc(user.getEmail())
         );
     }
 

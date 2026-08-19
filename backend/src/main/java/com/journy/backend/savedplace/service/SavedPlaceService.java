@@ -1,5 +1,7 @@
 package com.journy.backend.savedplace.service;
 
+import com.journy.backend.feedback.model.TasteFeedbackAction;
+import com.journy.backend.feedback.service.TasteFeedbackService;
 import com.journy.backend.savedplace.dto.SavedPlaceRequest;
 import com.journy.backend.savedplace.dto.SavedPlaceResponse;
 import com.journy.backend.savedplace.dto.SavedPlaceStatusResponse;
@@ -18,15 +20,18 @@ public class SavedPlaceService {
     private final CurrentUserService currentUserService;
     private final SavedPlaceRepository savedPlaceRepository;
     private final SavedPlaceMapper savedPlaceMapper;
+    private final TasteFeedbackService tasteFeedbackService;
 
     public SavedPlaceService(
             CurrentUserService currentUserService,
             SavedPlaceRepository savedPlaceRepository,
-            SavedPlaceMapper savedPlaceMapper
+            SavedPlaceMapper savedPlaceMapper,
+            TasteFeedbackService tasteFeedbackService
     ) {
         this.currentUserService = currentUserService;
         this.savedPlaceRepository = savedPlaceRepository;
         this.savedPlaceMapper = savedPlaceMapper;
+        this.tasteFeedbackService = tasteFeedbackService;
     }
 
     @Transactional(readOnly = true)
@@ -47,7 +52,11 @@ public class SavedPlaceService {
     public SavedPlaceResponse save(SavedPlaceRequest request) {
         UserAccount user = currentUserService.currentUser();
         SavedPlace place = savedPlaceRepository.findByUserEmailIgnoreCaseAndPlaceId(user.getEmail(), request.placeId())
-                .orElseGet(() -> savedPlaceRepository.save(savedPlaceMapper.toEntity(user, request)));
+                .orElseGet(() -> {
+                    SavedPlace saved = savedPlaceRepository.save(savedPlaceMapper.toEntity(user, request));
+                    tasteFeedbackService.record(user, request.placeId(), request.name(), request.category(), TasteFeedbackAction.SAVED, "Saved place");
+                    return saved;
+                });
         return savedPlaceMapper.toResponse(place);
     }
 
@@ -55,6 +64,9 @@ public class SavedPlaceService {
     public void remove(String placeId) {
         UserAccount user = currentUserService.currentUser();
         savedPlaceRepository.findByUserEmailIgnoreCaseAndPlaceId(user.getEmail(), placeId)
-                .ifPresent(savedPlaceRepository::delete);
+                .ifPresent(place -> {
+                    tasteFeedbackService.record(user, place.getPlaceId(), place.getName(), place.getCategory(), TasteFeedbackAction.REMOVED, "Removed saved place");
+                    savedPlaceRepository.delete(place);
+                });
     }
 }

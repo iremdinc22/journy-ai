@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { exploreApi } from '../api/journyApi';
+import { exploreApi, tasteFeedbackApi } from '../api/journyApi';
 import { session } from '../api/session';
-import type { PlaceResponse } from '../api/types';
+import type { PlaceResponse, TasteFeedbackAction } from '../api/types';
 import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
@@ -51,9 +51,15 @@ export default function ExploreScreen() {
   const [apiPlaces, setApiPlaces] = useState<PlaceResponse[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [ignoredPlaceIds, setIgnoredPlaceIds] = useState<Set<string>>(() => new Set());
+  const [feedbackPlace, setFeedbackPlace] = useState<PlaceResponse | null>(null);
   const currentTrip = session.getCurrentTrip();
   const destination = currentTrip?.destination ?? t('home.yourTrip').toLowerCase();
-  const places = useMemo(() => apiPlaces ?? starterPreviewPlaces(destination, activeCategory, language), [activeCategory, apiPlaces, destination, language]);
+  const places = useMemo(
+    () => (apiPlaces ?? starterPreviewPlaces(destination, activeCategory, language))
+      .filter((place) => !ignoredPlaceIds.has(toPlaceDetail(place, activeCategory, language).id)),
+    [activeCategory, apiPlaces, destination, ignoredPlaceIds, language],
+  );
 
   const loadPlaces = useCallback(async () => {
     setLoading(true);
@@ -74,6 +80,26 @@ export default function ExploreScreen() {
   useEffect(() => {
     loadPlaces();
   }, [loadPlaces]);
+
+  const recordFeedback = async (place: PlaceResponse, action: TasteFeedbackAction, reason: string) => {
+    setFeedbackPlace(null);
+    setIgnoredPlaceIds((current) => new Set(current).add(place.id));
+    try {
+      await tasteFeedbackApi.record({
+        placeId: place.id,
+        placeName: place.name,
+        category: place.category,
+        action,
+        reason,
+      });
+    } catch {
+      setIgnoredPlaceIds((current) => {
+        const next = new Set(current);
+        next.delete(place.id);
+        return next;
+      });
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -114,12 +140,13 @@ export default function ExploreScreen() {
         {places.map((place, index) => {
           const normalized = normalizePlace(place, activeCategory, language);
           const reasons = whyPicked(normalized, currentTrip, language);
+          const detailPlace = toPlaceDetail(place, activeCategory, language);
           return (
           <TouchableOpacity
             key={`${normalized.city}-${normalized.title}-${index}`}
             style={styles.card}
             activeOpacity={0.88}
-            onPress={() => navigation.navigate('PlaceDetail', { place: toPlaceDetail(place, activeCategory, language) })}
+            onPress={() => navigation.navigate('PlaceDetail', { place: detailPlace })}
           >
             <Image source={{ uri: normalized.image }} style={styles.image} />
             <View style={styles.body}>
@@ -150,12 +177,86 @@ export default function ExploreScreen() {
                   ))}
                 </View>
               </View>
+              <View style={styles.feedbackRow}>
+                <TouchableOpacity
+                  style={styles.feedbackButton}
+                  activeOpacity={0.82}
+                  onPress={() => setFeedbackPlace(detailPlace)}
+                >
+                  <Ionicons name="options-outline" size={14} color={colors.teal} />
+                  <Text style={styles.feedbackText}>{t('explore.notForMe')}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </TouchableOpacity>
         )})}
       </ScrollView>
+      <Modal visible={Boolean(feedbackPlace)} transparent animationType="fade" onRequestClose={() => setFeedbackPlace(null)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setFeedbackPlace(null)}>
+          <Pressable style={styles.feedbackSheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>{t('explore.feedbackTitle')}</Text>
+            <Text style={styles.sheetSubtitle}>{feedbackPlace?.name}</Text>
+            {feedbackOptions(t).map((option) => (
+              <TouchableOpacity
+                key={option.action}
+                style={styles.feedbackOption}
+                activeOpacity={0.86}
+                onPress={() => feedbackPlace && recordFeedback(feedbackPlace, option.action, option.reason)}
+              >
+                <View style={styles.feedbackOptionIcon}>
+                  <Ionicons name={option.icon} size={17} color={colors.teal} />
+                </View>
+                <View style={styles.feedbackOptionCopy}>
+                  <Text style={styles.feedbackOptionTitle}>{option.title}</Text>
+                  <Text style={styles.feedbackOptionText}>{option.description}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
+}
+
+function feedbackOptions(t: Translate): Array<{
+  action: TasteFeedbackAction;
+  reason: string;
+  title: string;
+  description: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+}> {
+  return [
+    {
+      action: 'NOT_INTERESTED',
+      reason: 'Not interested',
+      title: t('explore.notInterested'),
+      description: t('explore.notInterestedHint'),
+      icon: 'eye-off-outline',
+    },
+    {
+      action: 'TOO_EXPENSIVE',
+      reason: 'Too expensive',
+      title: t('explore.tooExpensive'),
+      description: t('explore.tooExpensiveHint'),
+      icon: 'cash-outline',
+    },
+    {
+      action: 'TOO_FAR',
+      reason: 'Too far',
+      title: t('explore.tooFar'),
+      description: t('explore.tooFarHint'),
+      icon: 'walk-outline',
+    },
+    {
+      action: 'ALREADY_VISITED',
+      reason: 'Already visited',
+      title: t('explore.alreadyVisited'),
+      description: t('explore.alreadyVisitedHint'),
+      icon: 'checkmark-done-outline',
+    },
+  ];
 }
 
 function normalizePlace(place: PlaceResponse | PreviewPlace, activeCategory: Category, language: 'en' | 'tr') {
@@ -444,6 +545,90 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
     color: colors.midnight,
     fontSize: 10,
     fontWeight: '900',
+  },
+  feedbackRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: spacing.sm,
+  },
+  feedbackButton: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    gap: 5,
+    minHeight: 34,
+    paddingHorizontal: spacing.sm,
+  },
+  feedbackText: {
+    color: colors.teal,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+  },
+  modalOverlay: {
+    backgroundColor: 'rgba(28, 31, 32, 0.34)',
+    flex: 1,
+    justifyContent: 'flex-end',
+    padding: spacing.md,
+  },
+  feedbackSheet: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    backgroundColor: colors.mist,
+    borderRadius: radius.pill,
+    height: 5,
+    marginBottom: spacing.md,
+    width: 56,
+  },
+  sheetTitle: {
+    color: colors.midnight,
+    fontSize: typography.h3,
+    fontWeight: '900',
+  },
+  sheetSubtitle: {
+    color: colors.slate,
+    fontSize: typography.small,
+    fontWeight: '800',
+    marginTop: 4,
+    marginBottom: spacing.sm,
+  },
+  feedbackOption: {
+    alignItems: 'center',
+    borderColor: colors.mist,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+  },
+  feedbackOptionIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  feedbackOptionCopy: { flex: 1, minWidth: 0 },
+  feedbackOptionTitle: {
+    color: colors.midnight,
+    fontSize: typography.small,
+    fontWeight: '900',
+  },
+  feedbackOptionText: {
+    color: colors.slate,
+    fontSize: typography.tiny,
+    fontWeight: '800',
+    lineHeight: 16,
+    marginTop: 2,
   },
 });
 }

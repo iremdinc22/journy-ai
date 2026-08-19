@@ -17,6 +17,7 @@ import type {
   RightNowResponse,
   SavedPlaceRequest,
   SavedPlaceResponse,
+  TasteFeedbackRequest,
   TripResponse,
   TripPreviewRequest,
   TripPreviewResponse,
@@ -277,6 +278,15 @@ export const savedPlaceApi = {
   remove(placeId: string) {
     return apiRequest<void>(`/api/saved-places/${encodeURIComponent(placeId)}`, {
       method: 'DELETE',
+    });
+  },
+};
+
+export const tasteFeedbackApi = {
+  record(feedback: TasteFeedbackRequest) {
+    return apiRequest('/api/taste-feedback', {
+      method: 'POST',
+      body: feedback,
     });
   },
 };

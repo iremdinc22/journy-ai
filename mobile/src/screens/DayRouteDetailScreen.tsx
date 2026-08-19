@@ -875,8 +875,8 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       borderColor: colors.midnight,
     },
     mapMarkerEnd: {
-      backgroundColor: colors.midnight,
-      borderColor: colors.midnight,
+      backgroundColor: isDark ? colors.surface : colors.midnight,
+      borderColor: isDark ? colors.teal : colors.midnight,
     },
     mapMarkerSelected: {
       transform: [{ scale: 1.12 }],
@@ -887,7 +887,7 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       fontWeight: '900',
     },
     mapMarkerTextEnd: {
-      color: colors.surface,
+      color: isDark ? colors.midnight : colors.surface,
     },
     mapWater: {
       backgroundColor: isDark ? 'rgba(169,185,167,0.34)' : 'rgba(169,185,167,0.42)',

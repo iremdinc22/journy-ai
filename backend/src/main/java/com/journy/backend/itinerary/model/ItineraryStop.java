@@ -54,7 +54,7 @@ public class ItineraryStop {
     private boolean optionalStop;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "varchar(20) default 'PLANNED'")
+    @Column
     private StopVisitStatus status = StopVisitStatus.PLANNED;
 
     private Instant arrivedAt;

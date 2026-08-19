@@ -247,6 +247,25 @@ export type SavedPlaceResponse = {
 
 export type SavedPlaceRequest = Omit<SavedPlaceResponse, 'id'>;
 
+export type TasteFeedbackAction =
+  | 'SAVED'
+  | 'REMOVED'
+  | 'VISITED'
+  | 'SKIPPED'
+  | 'NOT_INTERESTED'
+  | 'TOO_EXPENSIVE'
+  | 'TOO_FAR'
+  | 'ALREADY_VISITED'
+  | 'REPLACED';
+
+export type TasteFeedbackRequest = {
+  placeId?: string;
+  placeName: string;
+  category: string;
+  action: TasteFeedbackAction;
+  reason?: string;
+};
+
 export type AddPlaceToPlanRequest = {
   placeId: string;
   name: string;
@@ -292,6 +311,7 @@ export type ProfileResponse = {
     title: string;
     description: string;
     icon: string;
+    score?: number;
   }>;
   favoriteCount: number;
   savedPlans: Array<{

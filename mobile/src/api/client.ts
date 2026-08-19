@@ -96,11 +96,16 @@ async function sendRequest<T>(path: string, options: RequestOptions, allowRefres
     throw new ApiError(response.status, message || `Request failed with status ${response.status}`);
   }
 
-  if (response.status === 204) {
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
     return undefined as T;
   }
 
-  return response.json() as Promise<T>;
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
 }
 
 async function refreshAccessToken() {

@@ -8,13 +8,22 @@ import com.journy.backend.explore.mapper.PlaceMapper;
 import com.journy.backend.explore.model.Place;
 import com.journy.backend.explore.provider.PlaceProviderService;
 import com.journy.backend.explore.repository.PlaceRepository;
+import com.journy.backend.feedback.model.TasteFeedback;
+import com.journy.backend.feedback.model.TasteFeedbackAction;
+import com.journy.backend.feedback.repository.TasteFeedbackRepository;
 import com.journy.backend.place.enums.PlaceCategory;
+import com.journy.backend.security.CurrentUserService;
+import com.journy.backend.user.model.UserAccount;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
@@ -25,19 +34,25 @@ public class ExploreService {
     private final PlaceProviderService placeProviderService;
     private final DestinationImageResolver destinationImageResolver;
     private final DestinationCoordinateResolver destinationCoordinateResolver;
+    private final TasteFeedbackRepository tasteFeedbackRepository;
+    private final CurrentUserService currentUserService;
 
     public ExploreService(
             PlaceRepository placeRepository,
             PlaceMapper placeMapper,
             PlaceProviderService placeProviderService,
             DestinationImageResolver destinationImageResolver,
-            DestinationCoordinateResolver destinationCoordinateResolver
+            DestinationCoordinateResolver destinationCoordinateResolver,
+            TasteFeedbackRepository tasteFeedbackRepository,
+            CurrentUserService currentUserService
     ) {
         this.placeRepository = placeRepository;
         this.placeMapper = placeMapper;
         this.placeProviderService = placeProviderService;
         this.destinationImageResolver = destinationImageResolver;
         this.destinationCoordinateResolver = destinationCoordinateResolver;
+        this.tasteFeedbackRepository = tasteFeedbackRepository;
+        this.currentUserService = currentUserService;
     }
 
     @Transactional
@@ -56,11 +71,95 @@ public class ExploreService {
             places = placeRepository.findByCategoryOrderByRatingDesc(parsedCategory);
         }
 
-        List<PlaceResponse> responses = places.stream().map(placeMapper::toResponse).toList();
+        List<TasteFeedback> feedback = userFeedback();
+        List<PlaceResponse> responses = personalizePlaces(places, feedback).stream().map(placeMapper::toResponse).toList();
         if (hasCity && responses.size() < 4) {
-            return starterPicks(normalizedCity, parsedCategory, responses);
+            return personalizeResponses(starterPicks(normalizedCity, parsedCategory, responses), feedback);
         }
         return responses;
+    }
+
+    private List<TasteFeedback> userFeedback() {
+        UserAccount user = currentUserService.currentUser();
+        return tasteFeedbackRepository.findTop80ByUserEmailIgnoreCaseOrderByCreatedAtDesc(user.getEmail());
+    }
+
+    private List<Place> personalizePlaces(List<Place> places, List<TasteFeedback> feedback) {
+        Set<String> hiddenPlaceIds = hiddenPlaceIds(feedback);
+        Map<String, Integer> categoryWeights = categoryWeights(feedback);
+        Map<String, Integer> placeWeights = placeWeights(feedback);
+        return places.stream()
+                .filter(place -> !hiddenPlaceIds.contains(place.getId()))
+                .sorted(Comparator.comparingDouble((Place place) -> personalizedScore(
+                        place.getRating(),
+                        place.getId(),
+                        place.getCategory().name(),
+                        categoryWeights,
+                        placeWeights
+                )).reversed())
+                .toList();
+    }
+
+    private List<PlaceResponse> personalizeResponses(List<PlaceResponse> responses, List<TasteFeedback> feedback) {
+        Set<String> hiddenPlaceIds = hiddenPlaceIds(feedback);
+        Map<String, Integer> categoryWeights = categoryWeights(feedback);
+        Map<String, Integer> placeWeights = placeWeights(feedback);
+        return responses.stream()
+                .filter(place -> !hiddenPlaceIds.contains(place.id()))
+                .sorted(Comparator.comparingDouble((PlaceResponse place) -> personalizedScore(
+                        place.rating(),
+                        place.id(),
+                        place.category(),
+                        categoryWeights,
+                        placeWeights
+                )).reversed())
+                .toList();
+    }
+
+    private double personalizedScore(
+            double rating,
+            String placeId,
+            String category,
+            Map<String, Integer> categoryWeights,
+            Map<String, Integer> placeWeights
+    ) {
+        return rating
+                + categoryWeights.getOrDefault(signalKey(category), 0) * 0.16
+                + placeWeights.getOrDefault(placeId, 0) * 0.24;
+    }
+
+    private Set<String> hiddenPlaceIds(List<TasteFeedback> feedback) {
+        return feedback.stream()
+                .filter(item -> item.getPlaceId() != null && avoidAction(item.getAction()))
+                .map(TasteFeedback::getPlaceId)
+                .collect(Collectors.toSet());
+    }
+
+    private Map<String, Integer> categoryWeights(List<TasteFeedback> feedback) {
+        return feedback.stream()
+                .collect(Collectors.groupingBy(item -> signalKey(item.getCategory()), Collectors.summingInt(TasteFeedback::getWeight)));
+    }
+
+    private Map<String, Integer> placeWeights(List<TasteFeedback> feedback) {
+        return feedback.stream()
+                .filter(item -> item.getPlaceId() != null)
+                .collect(Collectors.groupingBy(TasteFeedback::getPlaceId, Collectors.summingInt(TasteFeedback::getWeight)));
+    }
+
+    private boolean avoidAction(TasteFeedbackAction action) {
+        return action == TasteFeedbackAction.NOT_INTERESTED
+                || action == TasteFeedbackAction.TOO_EXPENSIVE
+                || action == TasteFeedbackAction.TOO_FAR
+                || action == TasteFeedbackAction.ALREADY_VISITED;
+    }
+
+    private String signalKey(String category) {
+        String normalized = category == null ? "" : category.toUpperCase(Locale.ROOT);
+        if (normalized.contains("FOOD")) return "LOCAL_FOOD";
+        if (normalized.contains("COFFEE")) return "COFFEE";
+        if (normalized.contains("CULTURE")) return "CULTURE";
+        if (normalized.contains("FREE")) return "FREE_ACTIVITIES";
+        return "EASY_WALKING";
     }
 
     private List<Place> loadCityPlaces(String city, PlaceCategory category, boolean forYou) {

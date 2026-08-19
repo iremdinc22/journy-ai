@@ -41,7 +41,8 @@ public record ProfileResponse(
     public record TasteSignal(
             String title,
             String description,
-            String icon
+            String icon,
+            int score
     ) {
     }
 

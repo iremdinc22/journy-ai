@@ -2,6 +2,8 @@ package com.journy.backend.itinerary.service;
 
 import com.journy.backend.common.exception.ResourceNotFoundException;
 import com.journy.backend.destination.provider.DestinationCoordinateResolver;
+import com.journy.backend.feedback.model.TasteFeedbackAction;
+import com.journy.backend.feedback.service.TasteFeedbackService;
 import com.journy.backend.itinerary.dto.AddPlaceToPlanRequest;
 import com.journy.backend.itinerary.dto.ItineraryResponse;
 import com.journy.backend.itinerary.dto.MoveStopRequest;
@@ -38,6 +40,7 @@ public class ItineraryService {
     private final CurrentUserService currentUserService;
     private final DestinationCoordinateResolver destinationCoordinateResolver;
     private final WeatherForecastService weatherForecastService;
+    private final TasteFeedbackService tasteFeedbackService;
     private final ZoneId appZone = ZoneId.of("Europe/Istanbul");
 
     public ItineraryService(
@@ -46,7 +49,8 @@ public class ItineraryService {
             ItineraryMapper itineraryMapper,
             CurrentUserService currentUserService,
             DestinationCoordinateResolver destinationCoordinateResolver,
-            WeatherForecastService weatherForecastService
+            WeatherForecastService weatherForecastService,
+            TasteFeedbackService tasteFeedbackService
     ) {
         this.tripRepository = tripRepository;
         this.itineraryDayRepository = itineraryDayRepository;
@@ -54,6 +58,7 @@ public class ItineraryService {
         this.currentUserService = currentUserService;
         this.destinationCoordinateResolver = destinationCoordinateResolver;
         this.weatherForecastService = weatherForecastService;
+        this.tasteFeedbackService = tasteFeedbackService;
     }
 
     @Transactional(readOnly = true)
@@ -282,6 +287,7 @@ public class ItineraryService {
         Trip trip = ownedTrip(tripId);
         ItineraryDay day = dayFor(trip, dayNumber);
         ItineraryStop stop = stopFor(day, stopId);
+        tasteFeedbackService.record(trip.getUser(), stop.getId(), stop.getTitle(), stop.getCategory(), TasteFeedbackAction.REMOVED, "Removed from itinerary");
         day.getStops().remove(stop);
         normalizeStopOrder(day);
         refreshDayAfterManualChange(day, "Removed " + stop.getTitle() + " from this day.");
@@ -317,9 +323,11 @@ public class ItineraryService {
                 stop.setArrivedAt(now);
             }
             stop.setCompletedAt(now);
+            tasteFeedbackService.record(trip.getUser(), stop.getId(), stop.getTitle(), stop.getCategory(), TasteFeedbackAction.VISITED, "Completed itinerary stop");
         }
         if (request.status() == StopVisitStatus.SKIPPED) {
             stop.setCompletedAt(now);
+            tasteFeedbackService.record(trip.getUser(), stop.getId(), stop.getTitle(), stop.getCategory(), TasteFeedbackAction.SKIPPED, "Skipped itinerary stop");
         }
         if (request.status() == StopVisitStatus.PLANNED) {
             stop.setArrivedAt(null);

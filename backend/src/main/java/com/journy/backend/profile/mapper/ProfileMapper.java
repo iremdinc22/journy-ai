@@ -1,5 +1,6 @@
 package com.journy.backend.profile.mapper;
 
+import com.journy.backend.feedback.model.TasteFeedback;
 import com.journy.backend.profile.dto.ProfileResponse;
 import com.journy.backend.savedplace.model.SavedPlace;
 import com.journy.backend.trip.enums.TravelInterest;
@@ -18,7 +19,14 @@ import java.util.Map;
 public class ProfileMapper {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH);
 
-    public ProfileResponse toResponse(UserAccount user, Trip currentTrip, List<Trip> savedTrips, List<SavedPlace> savedPlaces, long favoriteCount) {
+    public ProfileResponse toResponse(
+            UserAccount user,
+            Trip currentTrip,
+            List<Trip> savedTrips,
+            List<SavedPlace> savedPlaces,
+            long favoriteCount,
+            List<TasteFeedback> feedback
+    ) {
         return new ProfileResponse(
                 user.getId(),
                 user.getFullName(),
@@ -31,7 +39,7 @@ public class ProfileMapper {
                         user.isPlanChangeNotifications(),
                         user.isFoodWindowNotifications()
                 ),
-                tasteSignals(currentTrip, savedPlaces),
+                tasteSignals(currentTrip, savedPlaces, feedback),
                 favoriteCount,
                 savedTrips.stream().map(this::toSavedPlan).toList(),
                 savedPlaces.stream().map(this::toSavedPlace).toList()
@@ -79,7 +87,7 @@ public class ProfileMapper {
         );
     }
 
-    private List<ProfileResponse.TasteSignal> tasteSignals(Trip currentTrip, List<SavedPlace> savedPlaces) {
+    private List<ProfileResponse.TasteSignal> tasteSignals(Trip currentTrip, List<SavedPlace> savedPlaces, List<TasteFeedback> feedback) {
         Map<String, Integer> weights = new LinkedHashMap<>();
         if (currentTrip != null) {
             currentTrip.getInterests().forEach(interest -> addSignal(weights, signalKey(interest), 3));
@@ -89,6 +97,7 @@ public class ProfileMapper {
             }
         }
         savedPlaces.forEach(place -> addSignal(weights, signalKey(place.getCategory()), 2));
+        feedback.forEach(item -> addSignal(weights, signalKey(item.getCategory()), item.getWeight()));
 
         if (weights.isEmpty()) {
             addSignal(weights, "ROUTE_RHYTHM", 1);
@@ -97,7 +106,7 @@ public class ProfileMapper {
         return weights.entrySet().stream()
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
                 .limit(6)
-                .map(entry -> toTasteSignal(entry.getKey(), entry.getValue(), savedPlaces))
+                .map(entry -> toTasteSignal(entry.getKey(), entry.getValue(), savedPlaces, feedback))
                 .toList();
     }
 
@@ -146,20 +155,23 @@ public class ProfileMapper {
         return "EASY_WALKING";
     }
 
-    private ProfileResponse.TasteSignal toTasteSignal(String key, int weight, List<SavedPlace> savedPlaces) {
+    private ProfileResponse.TasteSignal toTasteSignal(String key, int weight, List<SavedPlace> savedPlaces, List<TasteFeedback> feedback) {
         long matchingSaved = savedPlaces.stream().filter(place -> signalKey(place.getCategory()).equals(key)).count();
+        long matchingFeedback = feedback.stream().filter(item -> signalKey(item.getCategory()).equals(key)).count();
         String detail = matchingSaved > 0
                 ? matchingSaved + " saved " + (matchingSaved == 1 ? "place" : "places")
+                : matchingFeedback > 0 ? matchingFeedback + " behavior " + (matchingFeedback == 1 ? "signal" : "signals")
                 : weight >= 3 ? "From TripSetup choices" : "Learned from your route";
+        int score = Math.max(8, Math.min(98, 48 + weight * 7));
         return switch (key) {
-            case "LOCAL_FOOD" -> new ProfileResponse.TasteSignal("Local food", detail, "restaurant");
-            case "CULTURE" -> new ProfileResponse.TasteSignal("Culture", detail, "museum");
-            case "COFFEE" -> new ProfileResponse.TasteSignal("Coffee breaks", detail, "coffee");
-            case "FREE_ACTIVITIES" -> new ProfileResponse.TasteSignal("Low-cost picks", detail, "leaf");
-            case "SHOPPING" -> new ProfileResponse.TasteSignal("Shopping", detail, "bag");
-            case "NIGHTLIFE" -> new ProfileResponse.TasteSignal("Nightlife", detail, "moon");
-            case "ROUTE_RHYTHM" -> new ProfileResponse.TasteSignal("Route rhythm", detail, "map");
-            default -> new ProfileResponse.TasteSignal("Easy walking", detail, "walk");
+            case "LOCAL_FOOD" -> new ProfileResponse.TasteSignal("Local food", detail, "restaurant", score);
+            case "CULTURE" -> new ProfileResponse.TasteSignal("Culture", detail, "museum", score);
+            case "COFFEE" -> new ProfileResponse.TasteSignal("Coffee breaks", detail, "coffee", score);
+            case "FREE_ACTIVITIES" -> new ProfileResponse.TasteSignal("Low-cost picks", detail, "leaf", score);
+            case "SHOPPING" -> new ProfileResponse.TasteSignal("Shopping", detail, "bag", score);
+            case "NIGHTLIFE" -> new ProfileResponse.TasteSignal("Nightlife", detail, "moon", score);
+            case "ROUTE_RHYTHM" -> new ProfileResponse.TasteSignal("Route rhythm", detail, "map", score);
+            default -> new ProfileResponse.TasteSignal("Easy walking", detail, "walk", score);
         };
     }
 

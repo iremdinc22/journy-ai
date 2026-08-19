@@ -218,6 +218,11 @@ function translateInsightSentence(text: string): string {
     return `${savedCount[1]} kayıtlı yer`;
   }
 
+  const behaviorSignals = text.match(/^(\d+) behavior (signal|signals)$/i);
+  if (behaviorSignals) {
+    return `${behaviorSignals[1]} davranış sinyali`;
+  }
+
   if (/^From TripSetup choices$/i.test(text)) {
     return 'TripSetup seçimlerinden';
   }
