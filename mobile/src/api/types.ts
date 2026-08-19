@@ -78,6 +78,9 @@ export type ItineraryStop = {
   timeWindow: string;
   note: string;
   optional: boolean;
+  status?: 'PLANNED' | 'ARRIVED' | 'DONE' | 'SKIPPED';
+  arrivedAt?: string | null;
+  completedAt?: string | null;
   latitude: number;
   longitude: number;
 };
@@ -112,6 +115,21 @@ export type ItineraryResponse = {
   tripId: string;
   destination: string;
   days: ItineraryDay[];
+};
+
+export type RightNowResponse = {
+  available: boolean;
+  dayNumber: number;
+  title: string;
+  message: string;
+  recommendationTitle?: string | null;
+  recommendationMeta?: string | null;
+  actionLabel?: string | null;
+  stopId?: string | null;
+  freeWindowMinutes: number;
+  delayMinutes: number;
+  context: string[];
+  reasons: string[];
 };
 
 export type WeatherAdjustmentResponse = {

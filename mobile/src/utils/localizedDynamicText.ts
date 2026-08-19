@@ -34,7 +34,7 @@ function translatePlanningSentence(text: string) {
   return parts.filter(Boolean).join(' · ') + '.';
 }
 
-function translateInsightSentence(text: string) {
+function translateInsightSentence(text: string): string {
   if (/^Tapas Street Window$/i.test(text)) {
     return 'Tapas Sokağı';
   }
@@ -226,6 +226,130 @@ function translateInsightSentence(text: string) {
     return 'Rotandan öğrenildi';
   }
 
+  if (/^Nothing planned yet$/i.test(text)) {
+    return 'Henüz plan oluşturulmadı';
+  }
+
+  if (/^Create an itinerary first so Journy can recommend what to do now\.?$/i.test(text)) {
+    return 'Journy şimdi ne yapacağını önerebilmek için önce bir gezi planına ihtiyaç duyar.';
+  }
+
+  if (/^You are here$/i.test(text)) {
+    return 'Buradasın';
+  }
+
+  if (/^Finish this stop when you are ready, or skip it if you want to keep the day moving\.?$/i.test(text)) {
+    return 'Hazır olduğunda bu durağı tamamla; günü akışta tutmak istersen atlayabilirsin.';
+  }
+
+  if (/^You are done for today$/i.test(text)) {
+    return 'Bugünlük plan tamam';
+  }
+
+  if (/^All planned stops are completed\. Keep the rest of the day flexible\.?$/i.test(text)) {
+    return 'Planlanan tüm duraklar tamamlandı. Günün kalanını esnek bırakabilirsin.';
+  }
+
+  if (/^Adjust your next move$/i.test(text)) {
+    return 'Sıradaki hamleni ayarla';
+  }
+
+  if (/^What should I do now\??$/i.test(text)) {
+    return 'Şimdi ne yapmalıyım?';
+  }
+
+  const behindMessage = text.match(/^You are running about (\d+) min behind schedule\. Journy recommends keeping the next stop simple\.?$/i);
+  if (behindMessage) {
+    return `Programın yaklaşık ${behindMessage[1]} dk gerisindesin. Journy sıradaki durağı sade tutmanı öneriyor.`;
+  }
+
+  const rightNowWindow = text.match(/^You have about (\d+) min before the next planned window\.?$/i);
+  if (rightNowWindow) {
+    return `Sıradaki plan aralığına yaklaşık ${rightNowWindow[1]} dk var.`;
+  }
+
+  const currentStopMeta = text.match(/^(.+?) · current stop · (.+)$/i);
+  if (currentStopMeta) {
+    return `${currentStopMeta[1]} · mevcut durak · ${translateInsightSentence(currentStopMeta[2])}`;
+  }
+
+  const normalStopMeta = text.match(/^(.+?) · (.+?) · (.+)$/i);
+  if (normalStopMeta && /min away/i.test(normalStopMeta[3])) {
+    return `${normalStopMeta[1]} · ${translateLooseCategory(normalStopMeta[2])} · ${translateInsightSentence(normalStopMeta[3])}`;
+  }
+
+  const minAway = text.match(/^(\d+) min away$/i);
+  if (minAway) {
+    return `${minAway[1]} dk uzaklıkta`;
+  }
+
+  const rainRisk = text.match(/^Rain risk (.+)$/i);
+  if (rainRisk) {
+    return `Yağmur riski ${rainRisk[1]}`;
+  }
+
+  if (/^Weather clear enough$/i.test(text)) {
+    return 'Hava uygun görünüyor';
+  }
+
+  const stopsDone = text.match(/^(\d+)\/(\d+) stops done$/i);
+  if (stopsDone) {
+    return `${stopsDone[1]}/${stopsDone[2]} durak tamamlandı`;
+  }
+
+  if (/^On schedule$/i.test(text)) {
+    return 'Program zamanında';
+  }
+
+  const minBehind = text.match(/^(\d+) min behind$/i);
+  if (minBehind) {
+    return `${minBehind[1]} dk geride`;
+  }
+
+  const paceChip = text.match(/^(.+?) pace$/i);
+  if (paceChip) {
+    return `${translateLooseCategory(paceChip[1])} tempo`;
+  }
+
+  if (/^Marked as your current stop$/i.test(text)) {
+    return 'Mevcut durağın olarak işaretlendi';
+  }
+
+  if (/^Part of the main route$/i.test(text)) {
+    return 'Ana rotanın parçası';
+  }
+
+  if (/^Optional, so it can be skipped if needed$/i.test(text)) {
+    return 'Opsiyonel; gerekirse atlanabilir';
+  }
+
+  if (/^Day is still on track$/i.test(text)) {
+    return 'Gün hala yolunda';
+  }
+
+  const nextUnfinished = text.match(/^Next unfinished stop in Day (\d+)$/i);
+  if (nextUnfinished) {
+    return `${nextUnfinished[1]}. günün sıradaki tamamlanmamış durağı`;
+  }
+
+  const scheduleBehind = text.match(/^Schedule is behind by about (\d+) min$/i);
+  if (scheduleBehind) {
+    return `Program yaklaşık ${scheduleBehind[1]} dk geride`;
+  }
+
+  if (/^Fits the current route rhythm$/i.test(text)) {
+    return 'Mevcut rota ritmine uyuyor';
+  }
+
+  const allStopsDone = text.match(/^All stops for Day (\d+) are completed$/i);
+  if (allStopsDone) {
+    return `${allStopsDone[1]}. günün tüm durakları tamamlandı`;
+  }
+
+  if (/^Journy keeps the evening open$/i.test(text)) {
+    return 'Journy akşamı esnek bırakıyor';
+  }
+
   const rainTitle = text.match(/^Rain risk around Day (\d+) at (.+)$/i);
   if (rainTitle) {
     return `${rainTitle[1]}. gün ${rainTitle[2]} civarında yağmur riski var.`;
@@ -338,6 +462,11 @@ function translateCommonPhrases(text: string) {
     [/\bPreview first\b/gi, 'Önce önizleme'],
     [/\bBackend needed to apply this preview\.?/gi, 'Bu önizlemeyi uygulamak için backend bağlantısı gerekir.'],
     [/\bAsk for lighter, cheaper, food-focused or rain-ready\.?/gi, 'Daha hafif, ekonomik, yemek odaklı veya yağmura hazır düzenleme iste.'],
+    [/\bPlan a trip\b/gi, 'Seyahat planla'],
+    [/\bOpen route\b/gi, 'Rotayı aç'],
+    [/\bReview plan\b/gi, 'Planı gözden geçir'],
+    [/\bGo here\b/gi, 'Buraya git'],
+    [/\bcurrent stop\b/gi, 'mevcut durak'],
     [/\bBetter break\b/gi, 'Daha iyi mola'],
     [/\bIndoor-ready\b/gi, 'Kapalı mekana uygun'],
     [/\bLower cost\b/gi, 'Daha ekonomik'],

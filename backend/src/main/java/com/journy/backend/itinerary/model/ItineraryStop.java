@@ -2,6 +2,8 @@ package com.journy.backend.itinerary.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -11,6 +13,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -50,6 +53,14 @@ public class ItineraryStop {
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean optionalStop;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "varchar(20) default 'PLANNED'")
+    private StopVisitStatus status = StopVisitStatus.PLANNED;
+
+    private Instant arrivedAt;
+
+    private Instant completedAt;
+
     public ItineraryStop(
             int stopOrder,
             String title,
@@ -68,5 +79,6 @@ public class ItineraryStop {
         this.latitude = latitude;
         this.longitude = longitude;
         this.optionalStop = false;
+        this.status = StopVisitStatus.PLANNED;
     }
 }

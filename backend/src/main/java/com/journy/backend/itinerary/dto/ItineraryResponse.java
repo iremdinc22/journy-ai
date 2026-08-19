@@ -26,6 +26,9 @@ public record ItineraryResponse(
             String timeWindow,
             String note,
             boolean optional,
+            String status,
+            String arrivedAt,
+            String completedAt,
             double latitude,
             double longitude
     ) {

@@ -16,7 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { tripApi } from '../api/journyApi';
 import { session } from '../api/session';
-import type { ItineraryResponse, TripResponse } from '../api/types';
+import type { ItineraryResponse, RightNowResponse, TripResponse } from '../api/types';
 import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
@@ -37,6 +37,9 @@ export default function HomeScreen() {
   const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null);
   const [loading, setLoading] = useState(!session.getCurrentTrip());
   const [error, setError] = useState(false);
+  const [rightNow, setRightNow] = useState<RightNowResponse | null>(null);
+  const [rightNowLoading, setRightNowLoading] = useState(false);
+  const [rightNowError, setRightNowError] = useState(false);
 
   const loadHome = useCallback(async () => {
     setLoading(true);
@@ -93,7 +96,24 @@ export default function HomeScreen() {
   const dayTitle = localizeDynamicText(firstDay?.title ?? `${destination} day route`, language);
   const walkKm = firstDay?.walkKm ?? trip?.stats.averageWalkKm ?? 6.4;
   const stopCount = firstDay?.stopCount ?? trip?.stats.stops ?? 4;
-  const nextStop = firstDay?.stops[0];
+  const nextStop = firstDay?.stops.find((stop) => stop.status !== 'DONE' && stop.status !== 'SKIPPED') ?? firstDay?.stops[0];
+
+  const checkRightNow = async () => {
+    const currentTrip = trip ?? session.getCurrentTrip();
+    if (!currentTrip?.id || rightNowLoading) {
+      return;
+    }
+    setRightNowLoading(true);
+    setRightNowError(false);
+    try {
+      const response = await tripApi.rightNow(currentTrip.id);
+      setRightNow(response);
+    } catch {
+      setRightNowError(true);
+    } finally {
+      setRightNowLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -176,6 +196,59 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         ) : null}
+
+        <View style={styles.rightNowCard}>
+          <View style={styles.rightNowTop}>
+            <View style={styles.rightNowIcon}>
+              <Ionicons name="compass-outline" size={19} color={colors.teal} />
+            </View>
+            <View style={styles.rightNowCopy}>
+              <Text style={styles.rightNowKicker}>{t('home.companionMode')}</Text>
+              <Text style={styles.rightNowTitle}>{rightNow?.title ? localizeDynamicText(rightNow.title, language) : t('home.whatNow')}</Text>
+              <Text style={styles.rightNowText}>
+                {rightNowError
+                  ? t('home.rightNowError')
+                  : rightNow?.message
+                    ? localizeDynamicText(rightNow.message, language)
+                    : t('home.rightNowHint')}
+              </Text>
+            </View>
+          </View>
+
+          {rightNow?.recommendationTitle ? (
+            <View style={styles.rightNowSuggestion}>
+              <View>
+                <Text style={styles.rightNowSuggestionTitle}>{localizeDynamicText(rightNow.recommendationTitle, language)}</Text>
+                <Text style={styles.rightNowSuggestionMeta}>{localizeDynamicText(rightNow.recommendationMeta ?? '', language)}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.goButton}
+                activeOpacity={0.86}
+                onPress={() => {
+                  const targetDay = itinerary?.days.find((day) => day.dayNumber === rightNow.dayNumber) ?? firstDay;
+                  if (targetDay) navigation.navigate('DayRouteDetail', { tripId: trip?.id ?? 'preview-trip', destination, day: targetDay });
+                }}
+              >
+                <Text style={styles.goButtonText}>{localizeDynamicText(rightNow.actionLabel ?? t('home.goHere'), language)}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {rightNow?.context?.length ? (
+            <View style={styles.rightNowContext}>
+              {rightNow.context.slice(0, 4).map((item) => (
+                <View key={item} style={styles.rightNowContextChip}>
+                  <Text style={styles.rightNowContextText}>{localizeDynamicText(item, language)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          <TouchableOpacity style={styles.rightNowButton} activeOpacity={0.88} onPress={checkRightNow}>
+            <Text style={styles.rightNowButtonText}>{rightNowLoading ? t('home.checkingNow') : t('home.whatShouldNow')}</Text>
+            <Ionicons name="arrow-forward" size={16} color={isDark ? colors.ivory : colors.surface} />
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.routeSummary}>
           <SummaryItem icon="walk-outline" value={`${walkKm.toFixed(1)} km`} label={t('home.walk')} colors={colors} styles={styles} />
@@ -456,6 +529,104 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
     paddingHorizontal: spacing.sm,
   },
   rebuildText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900' },
+  rightNowCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.mist,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  rightNowTop: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  rightNowIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.md,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  rightNowCopy: { flex: 1, minWidth: 0 },
+  rightNowKicker: {
+    color: colors.teal,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  rightNowTitle: {
+    color: colors.midnight,
+    fontSize: typography.h3,
+    fontWeight: '900',
+    lineHeight: 22,
+    marginTop: 3,
+  },
+  rightNowText: {
+    color: colors.slate,
+    fontSize: typography.small,
+    fontWeight: '800',
+    lineHeight: 20,
+    marginTop: spacing.xs,
+  },
+  rightNowSuggestion: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceWarm,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    padding: spacing.sm,
+  },
+  rightNowSuggestionTitle: { color: colors.midnight, fontSize: typography.small, fontWeight: '900' },
+  rightNowSuggestionMeta: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 3 },
+  rightNowContext: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: spacing.sm,
+  },
+  rightNowContextChip: {
+    backgroundColor: colors.surfaceWarm,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  rightNowContextText: {
+    color: colors.slate,
+    fontSize: typography.tiny,
+    fontWeight: '900',
+  },
+  goButton: {
+    alignItems: 'center',
+    backgroundColor: colors.fog,
+    borderRadius: radius.pill,
+    minHeight: 34,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  goButtonText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900' },
+  rightNowButton: {
+    alignItems: 'center',
+    backgroundColor: isDark ? colors.teal : colors.midnight,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    marginTop: spacing.md,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  rightNowButtonText: {
+    color: isDark ? colors.ivory : colors.surface,
+    fontSize: typography.small,
+    fontWeight: '900',
+  },
   summaryItem: { alignItems: 'center', flex: 1 },
   summaryValue: { color: colors.midnight, fontSize: typography.small, fontWeight: '900', marginTop: 3 },
   summaryLabel: { color: colors.slate, fontSize: typography.tiny, fontWeight: '800', marginTop: 2 },

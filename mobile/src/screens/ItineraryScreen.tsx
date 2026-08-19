@@ -153,6 +153,25 @@ export default function ItineraryScreen() {
     }
   };
 
+  const updateStopStatus = async (
+    day: ItineraryDay,
+    stop: ItineraryDay['stops'][number],
+    status: 'PLANNED' | 'ARRIVED' | 'DONE' | 'SKIPPED',
+  ) => {
+    if (tripId === 'preview-trip') {
+      closeStopActions();
+      return;
+    }
+    try {
+      const updatedDay = await tripApi.updateStopStatus(tripId, day.dayNumber, stop.id, status);
+      updateDay(updatedDay);
+    } catch {
+      Alert.alert(t('itinerary.updateErrorTitle'), t('itinerary.backendRetry'));
+    } finally {
+      closeStopActions();
+    }
+  };
+
   const reorderStop = async (day: ItineraryDay, stop: ItineraryDay['stops'][number], direction: -1 | 1) => {
     if (!ensureLivePlan()) return;
     const targetOrder = stop.order + direction;
@@ -369,6 +388,7 @@ export default function ItineraryScreen() {
                     <Text style={styles.actionMeta}>
                       {t('itinerary.day', { day: selectedStop.day.dayNumber })} - {selectedStop.stop.timeWindow}
                       {selectedStop.stop.optional ? ` - ${t('itinerary.optionalStop')}` : ''}
+                      {selectedStop.stop.status && selectedStop.stop.status !== 'PLANNED' ? ` - ${statusLabel(selectedStop.stop.status, t)}` : ''}
                     </Text>
                   </View>
                   <TouchableOpacity style={styles.actionClose} activeOpacity={0.75} onPress={closeStopActions}>
@@ -377,6 +397,30 @@ export default function ItineraryScreen() {
                 </View>
 
                 <View style={styles.actionList}>
+                  <StopActionRow
+                    icon="navigate-outline"
+                    title={t('itinerary.imHere')}
+                    description={t('itinerary.imHereDescription')}
+                    disabled={selectedStop.stop.status === 'ARRIVED' || selectedStop.stop.status === 'DONE' || selectedStop.stop.status === 'SKIPPED'}
+                    onPress={() => updateStopStatus(selectedStop.day, selectedStop.stop, 'ARRIVED')}
+                    styles={styles}
+                  />
+                  <StopActionRow
+                    icon="checkmark-circle-outline"
+                    title={t('itinerary.done')}
+                    description={t('itinerary.doneDescription')}
+                    disabled={selectedStop.stop.status === 'DONE'}
+                    onPress={() => updateStopStatus(selectedStop.day, selectedStop.stop, 'DONE')}
+                    styles={styles}
+                  />
+                  <StopActionRow
+                    icon="play-skip-forward-outline"
+                    title={t('itinerary.skip')}
+                    description={t('itinerary.skipDescription')}
+                    disabled={selectedStop.stop.status === 'SKIPPED'}
+                    onPress={() => updateStopStatus(selectedStop.day, selectedStop.stop, 'SKIPPED')}
+                    styles={styles}
+                  />
                   <StopActionRow
                     icon={selectedStop.stop.optional ? 'star-outline' : 'bookmark-outline'}
                     title={selectedStop.stop.optional ? t('itinerary.keepMain') : t('itinerary.makeOptional')}
@@ -435,6 +479,7 @@ export default function ItineraryScreen() {
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];
 type ItineraryStyles = ReturnType<typeof createStyles>;
+type Translate = ReturnType<typeof useTranslation>;
 
 function previewDays(destination: string, dayCount: number): ItineraryDay[] {
   const base = cityCoordinates(destination);
@@ -561,6 +606,13 @@ function timelineForDay(day: ItineraryDay): ItineraryTimelineItem[] {
 
 function stopNumberForTimelineItem(items: ItineraryTimelineItem[], index: number) {
   return items.slice(0, index + 1).filter((item) => item.type === 'STOP').length;
+}
+
+function statusLabel(status: NonNullable<ItineraryDay['stops'][number]['status']>, t: Translate) {
+  if (status === 'ARRIVED') return t('itinerary.arrived');
+  if (status === 'DONE') return t('itinerary.completed');
+  if (status === 'SKIPPED') return t('itinerary.skipped');
+  return t('itinerary.planned');
 }
 
 function hasWeatherSensitiveStop(day: ItineraryDay) {

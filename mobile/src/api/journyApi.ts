@@ -14,6 +14,7 @@ import type {
   NotificationResponse,
   PlaceResponse,
   ProfileResponse,
+  RightNowResponse,
   SavedPlaceRequest,
   SavedPlaceResponse,
   TripResponse,
@@ -108,6 +109,10 @@ export const tripApi = {
     return apiRequest<WeatherAdjustmentResponse>(`/api/trips/${tripId}/itinerary/weather-adjustment`);
   },
 
+  rightNow(tripId: string) {
+    return apiRequest<RightNowResponse>(`/api/trips/${tripId}/itinerary/right-now`);
+  },
+
   addPlaceToDay(tripId: string, dayNumber: number, place: AddPlaceToPlanRequest) {
     return apiRequest<ItineraryDay>(`/api/trips/${tripId}/itinerary/days/${dayNumber}/stops`, {
       method: 'POST',
@@ -124,6 +129,13 @@ export const tripApi = {
   toggleStopOptional(tripId: string, dayNumber: number, stopId: string) {
     return apiRequest<ItineraryDay>(`/api/trips/${tripId}/itinerary/days/${dayNumber}/stops/${stopId}/optional`, {
       method: 'PATCH',
+    });
+  },
+
+  updateStopStatus(tripId: string, dayNumber: number, stopId: string, status: 'PLANNED' | 'ARRIVED' | 'DONE' | 'SKIPPED') {
+    return apiRequest<ItineraryDay>(`/api/trips/${tripId}/itinerary/days/${dayNumber}/stops/${stopId}/status`, {
+      method: 'PATCH',
+      body: { status },
     });
   },
 

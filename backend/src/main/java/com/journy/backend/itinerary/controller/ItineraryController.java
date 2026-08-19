@@ -4,6 +4,8 @@ import com.journy.backend.itinerary.dto.AddPlaceToPlanRequest;
 import com.journy.backend.itinerary.dto.ItineraryResponse;
 import com.journy.backend.itinerary.dto.MoveStopRequest;
 import com.journy.backend.itinerary.dto.ReorderStopRequest;
+import com.journy.backend.itinerary.dto.RightNowResponse;
+import com.journy.backend.itinerary.dto.UpdateStopStatusRequest;
 import com.journy.backend.itinerary.dto.WeatherAdjustmentResponse;
 import com.journy.backend.itinerary.service.ItineraryService;
 import jakarta.validation.Valid;
@@ -35,6 +37,11 @@ public class ItineraryController {
         return itineraryService.weatherAdjustment(tripId);
     }
 
+    @GetMapping("/right-now")
+    public RightNowResponse rightNow(@PathVariable String tripId) {
+        return itineraryService.rightNow(tripId);
+    }
+
     @PostMapping("/days/{dayNumber}/stops")
     public ItineraryResponse.ItineraryDayResponse addPlaceToDay(
             @PathVariable String tripId,
@@ -60,6 +67,16 @@ public class ItineraryController {
             @PathVariable String stopId
     ) {
         return itineraryService.toggleOptional(tripId, dayNumber, stopId);
+    }
+
+    @PatchMapping("/days/{dayNumber}/stops/{stopId}/status")
+    public ItineraryResponse.ItineraryDayResponse updateStopStatus(
+            @PathVariable String tripId,
+            @PathVariable int dayNumber,
+            @PathVariable String stopId,
+            @Valid @RequestBody UpdateStopStatusRequest request
+    ) {
+        return itineraryService.updateStopStatus(tripId, dayNumber, stopId, request);
     }
 
     @PostMapping("/days/{dayNumber}/stops/{stopId}/move")

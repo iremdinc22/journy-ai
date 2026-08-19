@@ -5,7 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import MapView, { Marker, Polyline, type LatLng } from 'react-native-maps';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import { aiApi } from '../api/journyApi';
+import { aiApi, tripApi } from '../api/journyApi';
 import type { AiItinerarySuggestionResponse, ItineraryDay, ItineraryStop, ItineraryTimelineItem, PlaceResponse } from '../api/types';
 import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -100,6 +100,22 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
 
   const startRoute = () => {
     openRouteInMaps(routeCoordinates);
+  };
+
+  const updateStopStatus = async (stop: ItineraryStop, status: 'PLANNED' | 'ARRIVED' | 'DONE' | 'SKIPPED') => {
+    if (tripId === 'preview-trip') {
+      return;
+    }
+    try {
+      const updatedDay = await tripApi.updateStopStatus(tripId, currentDay.dayNumber, stop.id, status);
+      setCurrentDay(updatedDay);
+      const updatedStop = updatedDay.stops.find((item) => item.id === stop.id);
+      if (updatedStop) {
+        setSelectedStop(updatedStop);
+      }
+    } catch {
+      setSuggestionError(true);
+    }
   };
 
   return (
@@ -228,6 +244,16 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
               </View>
               <View style={styles.markerActions}>
+                <TouchableOpacity style={styles.markerAction} activeOpacity={0.86} onPress={() => updateStopStatus(selectedStop, 'ARRIVED')}>
+                  <Ionicons name="navigate-outline" size={15} color={colors.teal} />
+                  <Text style={styles.markerActionText}>{t('itinerary.imHere')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.markerAction} activeOpacity={0.86} onPress={() => updateStopStatus(selectedStop, 'DONE')}>
+                  <Ionicons name="checkmark-circle-outline" size={15} color={colors.teal} />
+                  <Text style={styles.markerActionText}>{t('itinerary.done')}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.markerActions}>
                 <TouchableOpacity style={styles.markerAction} activeOpacity={0.86} onPress={startRoute}>
                   <Ionicons name="navigate-outline" size={15} color={colors.teal} />
                   <Text style={styles.markerActionText}>{t('dayRoute.directions')}</Text>
@@ -305,34 +331,50 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
                   <Text style={styles.travelTitle}>{localizeDynamicText(item.title, language)}{item.distanceKm ? ` · ${item.distanceKm.toFixed(1)} km` : ''}</Text>
                 </View>
               </View>
-            ) : (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.stopRow}
-                activeOpacity={0.86}
-                onPress={() => {
-                  const stop = currentDay.stops.find((candidate) => candidate.id === item.id);
-                  if (stop) openStop(stop);
-                }}
-              >
-                <View style={styles.stopRail}>
-                  <View style={styles.stopNumber}>
-                    <Text style={styles.stopNumberText}>{stopNumberForTimelineItem(timelineItems, index)}</Text>
+            ) : (() => {
+              const stop = currentDay.stops.find((candidate) => candidate.id === item.id);
+              const status = stop?.status ?? 'PLANNED';
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.stopRow}
+                  activeOpacity={0.86}
+                  onPress={() => {
+                    if (stop) openStop(stop);
+                  }}
+                >
+                  <View style={styles.stopRail}>
+                    <View style={[styles.stopNumber, status === 'DONE' && styles.stopNumberDone, status === 'SKIPPED' && styles.stopNumberSkipped]}>
+                      <Text style={[styles.stopNumberText, (status === 'DONE' || status === 'SKIPPED') && styles.stopNumberTextDone]}>{status === 'DONE' ? '✓' : stopNumberForTimelineItem(timelineItems, index)}</Text>
+                    </View>
+                    {index !== timelineItems.length - 1 ? <View style={styles.verticalLine} /> : null}
                   </View>
-                  {index !== timelineItems.length - 1 ? <View style={styles.verticalLine} /> : null}
-                </View>
-                <View style={styles.stopCopy}>
-                  <View style={styles.stopTopLine}>
-                    <Text style={styles.stopWindow}>{item.startTime} - {item.endTime}</Text>
-                    <Text style={styles.stopCategory}>{formatCategory(item.category ?? 'STOP', t)}</Text>
+                  <View style={styles.stopCopy}>
+                    <View style={styles.stopTopLine}>
+                      <Text style={styles.stopWindow}>{item.startTime} - {item.endTime}</Text>
+                      <Text style={styles.stopCategory}>{status === 'PLANNED' ? formatCategory(item.category ?? 'STOP', t) : statusLabel(status, t)}</Text>
+                    </View>
+                    <Text style={[styles.stopTitle, status === 'SKIPPED' && styles.stopTitleMuted]}>{localizeDynamicText(item.title, language)}</Text>
+                    <Text style={styles.stopNote}>{localizeDynamicText(item.note, language)}</Text>
+                    {item.constraintWarning ? <Text style={styles.constraintWarning}>{localizeDynamicText(item.constraintWarning, language)}</Text> : null}
+                    {stop ? (
+                      <View style={styles.progressActions}>
+                        <TouchableOpacity style={styles.progressChip} activeOpacity={0.84} onPress={() => updateStopStatus(stop, 'ARRIVED')}>
+                          <Text style={styles.progressChipText}>{t('itinerary.imHere')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.progressChip, styles.progressChipPrimary]} activeOpacity={0.84} onPress={() => updateStopStatus(stop, 'DONE')}>
+                          <Text style={styles.progressChipPrimaryText}>{t('itinerary.done')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.progressChip} activeOpacity={0.84} onPress={() => updateStopStatus(stop, 'SKIPPED')}>
+                          <Text style={styles.progressChipText}>{t('itinerary.skip')}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
                   </View>
-                  <Text style={styles.stopTitle}>{localizeDynamicText(item.title, language)}</Text>
-                  <Text style={styles.stopNote}>{localizeDynamicText(item.note, language)}</Text>
-                  {item.constraintWarning ? <Text style={styles.constraintWarning}>{localizeDynamicText(item.constraintWarning, language)}</Text> : null}
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.softMuted} />
-              </TouchableOpacity>
-            )
+                  <Ionicons name="chevron-forward" size={18} color={colors.softMuted} />
+                </TouchableOpacity>
+              );
+            })()
           ))}
         </View>
       </ScrollView>
@@ -458,6 +500,13 @@ function toPlaceDetail(stop: ItineraryStop, destination: string): PlaceResponse 
 }
 
 type Translate = ReturnType<typeof useTranslation>;
+
+function statusLabel(status: NonNullable<ItineraryStop['status']>, t: Translate) {
+  if (status === 'ARRIVED') return t('itinerary.arrived');
+  if (status === 'DONE') return t('itinerary.completed');
+  if (status === 'SKIPPED') return t('itinerary.skipped');
+  return t('itinerary.planned');
+}
 
 function previewFallbackAction(action: ActionKey, t: Translate) {
   if (action === 'food') return t('dayRoute.addNearbyFood');
@@ -1211,6 +1260,9 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       width: 34,
     },
     stopNumberText: { color: colors.teal, fontSize: typography.tiny, fontWeight: '900' },
+    stopNumberDone: { backgroundColor: colors.teal },
+    stopNumberSkipped: { backgroundColor: colors.mist },
+    stopNumberTextDone: { color: isDark ? colors.ivory : colors.surface },
     travelIcon: {
       alignItems: 'center',
       backgroundColor: colors.surfaceWarm,
@@ -1245,7 +1297,36 @@ function createStyles({ colors, radius, spacing, typography }: Theme, isDark: bo
       textTransform: 'capitalize',
     },
     stopTitle: { color: colors.midnight, fontSize: typography.body, fontWeight: '900' },
+    stopTitleMuted: { color: colors.slate, textDecorationLine: 'line-through' },
     stopNote: { color: colors.slate, fontSize: typography.small, fontWeight: '700', lineHeight: 18, marginTop: 4 },
+    progressActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xs,
+      marginTop: spacing.sm,
+    },
+    progressChip: {
+      backgroundColor: colors.surfaceWarm,
+      borderColor: colors.mist,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    progressChipPrimary: {
+      backgroundColor: colors.teal,
+      borderColor: colors.teal,
+    },
+    progressChipText: {
+      color: colors.midnight,
+      fontSize: typography.tiny,
+      fontWeight: '900',
+    },
+    progressChipPrimaryText: {
+      color: isDark ? colors.ivory : colors.surface,
+      fontSize: typography.tiny,
+      fontWeight: '900',
+    },
     constraintWarning: {
       color: colors.teal,
       fontSize: typography.tiny,
