@@ -1,6 +1,8 @@
 package com.journy.backend.trip.service;
 
 import com.journy.backend.common.exception.ResourceNotFoundException;
+import com.journy.backend.destination.provider.ResolvedDestination;
+import com.journy.backend.destination.service.DestinationResolutionService;
 import com.journy.backend.explore.provider.PlaceProviderService;
 import com.journy.backend.explore.repository.PlaceRepository;
 import com.journy.backend.itinerary.repository.ItineraryDayRepository;
@@ -19,6 +21,7 @@ import com.journy.backend.security.CurrentUserService;
 import com.journy.backend.user.model.UserAccount;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.journy.backend.place.enums.PlaceCategory;
 
@@ -26,6 +29,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @Service
 public class TripService {
@@ -36,6 +41,7 @@ public class TripService {
     private final TripMapper tripMapper;
     private final CurrentUserService currentUserService;
     private final PlaceProviderService placeProviderService;
+    private final DestinationResolutionService destinationResolutionService;
 
     public TripService(
             TripRepository tripRepository,
@@ -44,7 +50,8 @@ public class TripService {
             ItineraryGenerationService itineraryGenerationService,
             TripMapper tripMapper,
             CurrentUserService currentUserService,
-            PlaceProviderService placeProviderService
+            PlaceProviderService placeProviderService,
+            DestinationResolutionService destinationResolutionService
     ) {
         this.tripRepository = tripRepository;
         this.itineraryDayRepository = itineraryDayRepository;
@@ -53,11 +60,14 @@ public class TripService {
         this.tripMapper = tripMapper;
         this.currentUserService = currentUserService;
         this.placeProviderService = placeProviderService;
+        this.destinationResolutionService = destinationResolutionService;
     }
 
     @Transactional
     public TripPreviewResponse preview(TripPreviewRequest request) {
         String destination = request.destination() == null ? "" : request.destination().trim();
+        ResolvedDestination resolvedDestination = destination.isBlank() ? null : resolveDestinationOrFail(destination);
+        String resolvedCity = resolvedDestination == null ? "" : resolvedDestination.locality();
         TripPace pace = request.pace() == null ? TripPace.BALANCED : request.pace();
         BudgetMode budget = request.budget() == null ? BudgetMode.BALANCED : request.budget();
         Set<TravelInterest> interests = request.interests() == null ? Set.of() : request.interests();
@@ -65,20 +75,20 @@ public class TripService {
         int days = previewDays(request);
         int stopsPerDay = stopsPerDay(pace, budget);
         int estimatedStops = days * stopsPerDay;
-        int availablePlaceCount = destination.isBlank() ? 0 : (int) placeRepository.countByCityIgnoreCase(destination);
-        if (!destination.isBlank() && availablePlaceCount < 4) {
-            placeProviderService.enrichCity(destination, null, 8);
-            availablePlaceCount = (int) placeRepository.countByCityIgnoreCase(destination);
+        int availablePlaceCount = resolvedCity.isBlank() ? 0 : (int) placeRepository.countByCityIgnoreCase(resolvedCity);
+        if (!resolvedCity.isBlank() && availablePlaceCount < 4) {
+            placeProviderService.enrichCity(resolvedCity, null, 8);
+            availablePlaceCount = (int) placeRepository.countByCityIgnoreCase(resolvedCity);
         }
-        int matchedPlaceCount = destination.isBlank() || interests.isEmpty()
+        int matchedPlaceCount = resolvedCity.isBlank() || interests.isEmpty()
                 ? availablePlaceCount
-                : (int) placeRepository.countByCityIgnoreCaseAndCategoryIn(destination, categoriesFor(interests));
+                : (int) placeRepository.countByCityIgnoreCaseAndCategoryIn(resolvedCity, categoriesFor(interests));
         double dailyWalkKm = dailyWalkKm(stopsPerDay, pace, budget, availablePlaceCount);
         String routeStyle = routeStyle(pace, budget, interests, request.startingArea(), matchedPlaceCount, Turkish);
-        String confidence = confidence(destination, request.startDate() != null && request.endDate() != null, interests, availablePlaceCount, Turkish);
-        String summary = summary(destination, days, routeStyle, availablePlaceCount, matchedPlaceCount, Turkish);
+        String confidence = confidence(resolvedCity, request.startDate() != null && request.endDate() != null, interests, availablePlaceCount, Turkish);
+        String summary = summary(resolvedCity, days, routeStyle, availablePlaceCount, matchedPlaceCount, Turkish);
         String dailyWalkRange = dailyWalkRange(dailyWalkKm, pace, Turkish);
-        String planningStyle = planningStyle(destination, days, pace, budget, interests, request.startingArea(), Turkish);
+        String planningStyle = planningStyle(resolvedCity, days, pace, budget, interests, request.startingArea(), Turkish);
         String startingAreaInsight = startingAreaInsight(request.startingArea(), dailyWalkKm, matchedPlaceCount, Turkish);
 
         return new TripPreviewResponse(
@@ -121,6 +131,7 @@ public class TripService {
     @Transactional
     public TripResponse createTrip(CreateTripRequest request) {
         UserAccount user = currentUserService.currentUser();
+        ResolvedDestination resolvedDestination = resolveDestinationOrFail(request.destination());
 
         tripRepository.findFirstByUserEmailIgnoreCaseAndCurrentTripTrueOrderByCreatedAtDesc(user.getEmail())
                 .ifPresent(current -> {
@@ -130,7 +141,7 @@ public class TripService {
 
         Trip trip = new Trip(
                 user,
-                request.destination(),
+                resolvedDestination.locality(),
                 request.startingArea(),
                 request.startDate(),
                 request.endDate(),
@@ -157,8 +168,18 @@ public class TripService {
                 .orElseGet(() -> tripRepository.findFirstByUserEmailIgnoreCaseAndCurrentTripTrueOrderByCreatedAtDesc(user.getEmail())
                         .orElseThrow(() -> new ResourceNotFoundException("Trip was not found")));
 
+        ResolvedDestination resolvedDestination = resolveDestinationOrFail(trip.getDestination());
+        trip.setDestination(resolvedDestination.locality());
         itineraryGenerationService.regenerate(trip);
         return tripMapper.toResponse(tripRepository.save(trip));
+    }
+
+    private ResolvedDestination resolveDestinationOrFail(String destination) {
+        return destinationResolutionService.resolve(destination)
+                .orElseThrow(() -> new ResponseStatusException(
+                        BAD_REQUEST,
+                        "Destination could not be resolved: " + destination
+                ));
     }
 
     @Transactional

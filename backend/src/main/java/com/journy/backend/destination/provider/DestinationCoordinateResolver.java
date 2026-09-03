@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -30,6 +31,13 @@ public class DestinationCoordinateResolver {
 
     public double longitudeFor(String city, int index) {
         return coordinatesFor(city).longitude() + offset(index);
+    }
+
+    public Optional<DestinationCoordinates> knownCoordinatesFor(String city) {
+        if (city == null || city.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(knownCoordinates(city.trim()));
     }
 
     private DestinationCoordinates resolve(String city) {

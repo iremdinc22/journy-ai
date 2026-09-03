@@ -41,6 +41,12 @@ public class ItineraryStop {
     @Column(nullable = false)
     private String timeWindow;
 
+    @Column
+    private String placeId;
+
+    @Column
+    private String source;
+
     @Column(nullable = false, length = 500)
     private String note;
 
@@ -70,11 +76,27 @@ public class ItineraryStop {
             double latitude,
             double longitude
     ) {
+        this(stopOrder, title, category, timeWindow, null, null, note, latitude, longitude);
+    }
+
+    public ItineraryStop(
+            int stopOrder,
+            String title,
+            String category,
+            String timeWindow,
+            String placeId,
+            String source,
+            String note,
+            double latitude,
+            double longitude
+    ) {
         this.id = "stop_" + UUID.randomUUID();
         this.stopOrder = stopOrder;
         this.title = title;
         this.category = category;
         this.timeWindow = timeWindow;
+        this.placeId = placeId;
+        this.source = source;
         this.note = note;
         this.latitude = latitude;
         this.longitude = longitude;

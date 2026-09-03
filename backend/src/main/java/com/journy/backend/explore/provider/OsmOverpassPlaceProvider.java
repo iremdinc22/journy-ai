@@ -2,12 +2,14 @@ package com.journy.backend.explore.provider;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.journy.backend.destination.provider.DestinationCoordinateResolver;
 import com.journy.backend.destination.provider.DestinationCoordinates;
+import com.journy.backend.destination.provider.ResolvedDestination;
 import com.journy.backend.place.enums.PlaceCategory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
@@ -17,9 +19,9 @@ import java.util.Locale;
 
 @Component
 public class OsmOverpassPlaceProvider implements PlaceProvider {
+    private static final Logger log = LoggerFactory.getLogger(OsmOverpassPlaceProvider.class);
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
-    private final DestinationCoordinateResolver destinationCoordinateResolver;
     private final boolean enabled;
     private final String endpoint;
     private final int radiusMeters;
@@ -28,7 +30,6 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
     public OsmOverpassPlaceProvider(
             RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper,
-            DestinationCoordinateResolver destinationCoordinateResolver,
             @Value("${journy.places.osm.enabled:true}") boolean enabled,
             @Value("${journy.places.osm.endpoint:https://overpass-api.de/api/interpreter}") String endpoint,
             @Value("${journy.places.osm.radius-meters:4500}") int radiusMeters
@@ -38,17 +39,17 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
                 .requestFactory(requestFactory())
                 .build();
         this.objectMapper = objectMapper;
-        this.destinationCoordinateResolver = destinationCoordinateResolver;
         this.enabled = enabled;
         this.endpoint = endpoint;
         this.radiusMeters = radiusMeters;
         this.searchRadii = List.of(radiusMeters, Math.max(radiusMeters * 2, 9000));
     }
 
-    private SimpleClientHttpRequestFactory requestFactory() {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+    private HttpComponentsClientHttpRequestFactory requestFactory() {
+        // Try alternate DNS addresses when an IPv4/IPv6 endpoint is unreachable.
+        HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(3));
-        factory.setReadTimeout(Duration.ofSeconds(9));
+        factory.setReadTimeout(Duration.ofSeconds(23));
         return factory;
     }
 
@@ -58,12 +59,12 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
     }
 
     @Override
-    public List<ExternalPlaceCandidate> search(String city, PlaceCategory category, int limit) {
-        if (!enabled || city == null || city.isBlank()) {
+    public List<ExternalPlaceCandidate> search(ResolvedDestination destination, PlaceCategory category, int limit) {
+        if (!enabled || destination == null || destination.locality() == null || destination.locality().isBlank()) {
             return List.of();
         }
         for (int radius : searchRadii) {
-            List<ExternalPlaceCandidate> candidates = fetch(city, category, limit, query(city, category, limit, radius));
+            List<ExternalPlaceCandidate> candidates = fetch(destination, category, limit, query(destination, category, limit, radius), radius);
             if (!candidates.isEmpty()) {
                 return candidates;
             }
@@ -71,24 +72,28 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
         return List.of();
     }
 
-    private List<ExternalPlaceCandidate> fetch(String city, PlaceCategory category, int limit, String query) {
+    private List<ExternalPlaceCandidate> fetch(ResolvedDestination destination, PlaceCategory category, int limit, String query, int radius) {
         try {
             String body = restClient.post()
                     .uri(endpoint)
                     .body(query)
                     .retrieve()
                     .body(String.class);
-            return parse(city, category, body, limit);
+            return parse(destination, category, body, limit).stream()
+                    .filter(place -> distanceKm(destination.latitude(), destination.longitude(),
+                            place.latitude(), place.longitude()) <= radius / 1000.0)
+                    .toList();
         } catch (RuntimeException exception) {
+            log.warn("osm_request_failed city={} endpoint={} error={}", destination.locality(), endpoint, exception.toString());
             return List.of();
         }
     }
 
-    private String query(String city, PlaceCategory category, int limit, int radius) {
-        DestinationCoordinates coordinates = destinationCoordinateResolver.coordinatesFor(city);
+    private String query(ResolvedDestination destination, PlaceCategory category, int limit, int radius) {
+        DestinationCoordinates coordinates = new DestinationCoordinates(destination.latitude(), destination.longitude());
         String filters = filtersFor(category, coordinates, radius);
         return """
-                [out:json][timeout:8];
+                [out:json][timeout:20];
                 (
                   %s
                 );
@@ -121,16 +126,35 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
     }
 
     private String osmLines(String filter, DestinationCoordinates coordinates, int radius) {
-        String around = "(around:%d,%.6f,%.6f)".formatted(radius, coordinates.latitude(), coordinates.longitude());
-        return "node[" + filter + "]" + around + ";\nway[" + filter + "]" + around + ";";
+        // Bounding-box lookup avoids expensive Overpass around scans for broad discovery.
+        // The response is still checked against the requested circular radius in fetch().
+        double angularRadius = radius / 6371000.0;
+        double latitudeDelta = Math.toDegrees(angularRadius);
+        double longitudeDelta = Math.toDegrees(Math.asin(Math.min(1,
+                Math.sin(angularRadius) / Math.cos(Math.toRadians(coordinates.latitude())))));
+        String area;
+        if (Math.abs(coordinates.latitude()) + latitudeDelta >= 90
+                || Math.abs(coordinates.longitude()) + longitudeDelta >= 180) {
+            area = String.format(Locale.ROOT, "(around:%d,%.6f,%.6f)", radius, coordinates.latitude(), coordinates.longitude());
+        } else {
+            area = String.format(Locale.ROOT, "(%.6f,%.6f,%.6f,%.6f)",
+                    coordinates.latitude() - latitudeDelta, coordinates.longitude() - longitudeDelta,
+                    coordinates.latitude() + latitudeDelta, coordinates.longitude() + longitudeDelta);
+        }
+        return "node[" + filter + "][name]" + area + ";\nway[" + filter + "][name]" + area + ";";
     }
 
-    private List<ExternalPlaceCandidate> parse(String city, PlaceCategory requestedCategory, String body, int limit) {
+    private List<ExternalPlaceCandidate> parse(ResolvedDestination destination, PlaceCategory requestedCategory, String body, int limit) {
         if (body == null || body.isBlank()) {
             return List.of();
         }
         try {
-            JsonNode elements = objectMapper.readTree(body).path("elements");
+            JsonNode root = objectMapper.readTree(body);
+            JsonNode elements = root.path("elements");
+            if (root.has("remark")) {
+                log.warn("osm_response_remark city={} remark={}", destination.locality(), root.path("remark").asText());
+            }
+            log.info("osm_response city={} elements={}", destination.locality(), elements.size());
             List<ExternalPlaceCandidate> places = new ArrayList<>();
             for (JsonNode element : elements) {
                 JsonNode tags = element.path("tags");
@@ -143,19 +167,22 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
                 if (latitude == 0 || longitude == 0) {
                     continue;
                 }
+                if (distanceKm(destination.latitude(), destination.longitude(), latitude, longitude) > maxSearchRadiusKm()) {
+                    continue;
+                }
                 PlaceCategory category = requestedCategory == null ? categoryFromTags(tags) : requestedCategory;
                 String id = element.path("type").asText("node") + "/" + element.path("id").asText(slug(name));
                 places.add(new ExternalPlaceCandidate(
                         name(),
                         id,
                         name,
-                        city,
+                        destination.locality(),
                         category,
-                        description(city, category),
+                        description(destination.locality(), category),
                         priceLevel(category),
-                        syntheticRating(name, category),
+                        0,
                         imageFor(tags, category),
-                        address(tags, city),
+                        address(tags, destination.locality()),
                         tags.path("website").asText(tags.path("contact:website").asText(null)),
                         latitude,
                         longitude,
@@ -169,8 +196,27 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
             }
             return places;
         } catch (Exception exception) {
+            log.warn("osm_parse_failed city={} error={}", destination.locality(), exception.toString());
             return List.of();
         }
+    }
+
+    private double maxSearchRadiusKm() {
+        int largestRadiusMeters = searchRadii.stream().mapToInt(Integer::intValue).max().orElse(radiusMeters);
+        return largestRadiusMeters / 1000.0;
+    }
+
+    private double distanceKm(double fromLatitude, double fromLongitude, double toLatitude, double toLongitude) {
+        double earthRadiusKm = 6371.0;
+        double latDelta = Math.toRadians(toLatitude - fromLatitude);
+        double lonDelta = Math.toRadians(toLongitude - fromLongitude);
+        double fromLat = Math.toRadians(fromLatitude);
+        double toLat = Math.toRadians(toLatitude);
+        double a = Math.sin(latDelta / 2) * Math.sin(latDelta / 2)
+                + Math.cos(fromLat) * Math.cos(toLat)
+                * Math.sin(lonDelta / 2) * Math.sin(lonDelta / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return earthRadiusKm * c;
     }
 
     private PlaceCategory categoryFromTags(JsonNode tags) {
@@ -213,10 +259,7 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
         }
 
         return switch (category) {
-            case COFFEE -> "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=85";
-            case FOOD -> "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=900&q=85";
-            case CULTURE -> "https://images.unsplash.com/photo-1518998053901-5348d3961a04?auto=format&fit=crop&w=900&q=85";
-            case FREE, WALKING -> "https://images.unsplash.com/photo-1516834474-48c0abc2a902?auto=format&fit=crop&w=900&q=85";
+            case COFFEE, FOOD, CULTURE, FREE, WALKING -> "";
         };
     }
 
@@ -244,15 +287,6 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
 
     private String tags(PlaceCategory category) {
         return category.name().toLowerCase(Locale.ROOT) + ",provider:osm,real-place";
-    }
-
-    private double syntheticRating(String name, PlaceCategory category) {
-        int seed = Math.abs((name + category.name()).hashCode() % 5);
-        return Math.round((4.35 + seed * 0.08) * 10.0) / 10.0;
-    }
-
-    private String escape(String value) {
-        return value.replace("\"", "\\\"");
     }
 
     private String urlEncode(String value) {

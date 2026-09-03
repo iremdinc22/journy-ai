@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -60,6 +61,8 @@ public class Place {
     private Integer estimatedVisitMinutes;
 
     private String tags;
+
+    private Instant providerFetchedAt;
 
     public Place(String name, String city, PlaceCategory category, String description, String priceLevel, double rating, String imageUrl) {
         this.id = "plc_" + UUID.randomUUID();

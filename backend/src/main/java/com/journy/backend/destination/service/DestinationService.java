@@ -3,11 +3,8 @@ package com.journy.backend.destination.service;
 import com.journy.backend.common.exception.ResourceNotFoundException;
 import com.journy.backend.destination.dto.DestinationResponse;
 import com.journy.backend.destination.mapper.DestinationMapper;
-import com.journy.backend.destination.provider.DestinationCandidate;
-import com.journy.backend.destination.provider.DestinationCoordinateResolver;
-import com.journy.backend.destination.provider.DestinationCoordinates;
 import com.journy.backend.destination.provider.DestinationImageResolver;
-import com.journy.backend.destination.provider.DestinationProvider;
+import com.journy.backend.destination.provider.ResolvedDestination;
 import com.journy.backend.destination.repository.DestinationRepository;
 import com.journy.backend.explore.repository.PlaceRepository;
 import org.springframework.stereotype.Service;
@@ -22,24 +19,21 @@ public class DestinationService {
     private final DestinationRepository destinationRepository;
     private final DestinationMapper destinationMapper;
     private final PlaceRepository placeRepository;
-    private final List<DestinationProvider> destinationProviders;
     private final DestinationImageResolver destinationImageResolver;
-    private final DestinationCoordinateResolver destinationCoordinateResolver;
+    private final DestinationResolutionService destinationResolutionService;
 
     public DestinationService(
             DestinationRepository destinationRepository,
             DestinationMapper destinationMapper,
             PlaceRepository placeRepository,
-            List<DestinationProvider> destinationProviders,
             DestinationImageResolver destinationImageResolver,
-            DestinationCoordinateResolver destinationCoordinateResolver
+            DestinationResolutionService destinationResolutionService
     ) {
         this.destinationRepository = destinationRepository;
         this.destinationMapper = destinationMapper;
         this.placeRepository = placeRepository;
-        this.destinationProviders = destinationProviders;
         this.destinationImageResolver = destinationImageResolver;
-        this.destinationCoordinateResolver = destinationCoordinateResolver;
+        this.destinationResolutionService = destinationResolutionService;
     }
 
     @Transactional(readOnly = true)
@@ -56,7 +50,9 @@ public class DestinationService {
                 .map(destinationMapper::toResponse)
                 .toList());
         if (query.trim().length() > 1 && matches.stream().noneMatch(destination -> destination.name().equalsIgnoreCase(query.trim()))) {
-            matches.add(dynamicDestination(query.trim()));
+            destinationResolutionService.resolve(query.trim())
+                    .map(this::dynamicDestination)
+                    .ifPresent(matches::add);
         }
         return matches;
     }
@@ -75,17 +71,15 @@ public class DestinationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Destination was not found"));
     }
 
-    private DestinationResponse dynamicDestination(String city) {
-        DestinationCandidate candidate = resolve(city);
-        String resolvedCity = candidate == null ? city : candidate.name();
-        String country = candidate == null ? countryFor(city) : candidate.country();
-        DestinationCoordinates coordinates = destinationCoordinateResolver.coordinatesFor(resolvedCity);
+    private DestinationResponse dynamicDestination(ResolvedDestination resolvedDestination) {
+        String resolvedCity = resolvedDestination.locality();
+        String country = resolvedDestination.country();
         int placeCount = (int) placeRepository.countByCityIgnoreCase(resolvedCity);
         return new DestinationResponse(
                 "dynamic-" + slug(resolvedCity),
                 resolvedCity,
                 country,
-                dynamicDescription(resolvedCity, country, candidate),
+                dynamicDescription(resolvedCity, country),
                 destinationImageResolver.imageFor(resolvedCity, country),
                 tagsFor(resolvedCity),
                 "Provider-backed city planning",
@@ -93,49 +87,19 @@ public class DestinationService {
                 5.6,
                 true,
                 false,
-                candidate == null ? coordinates.latitude() : candidate.latitude(),
-                candidate == null ? coordinates.longitude() : candidate.longitude(),
-                candidate == null ? "dynamic" : candidate.provider(),
-                candidate == null ? null : candidate.providerPlaceId()
+                resolvedDestination.latitude(),
+                resolvedDestination.longitude(),
+                resolvedDestination.provider(),
+                resolvedDestination.providerPlaceId()
         );
-    }
-
-    private DestinationCandidate resolve(String query) {
-        return destinationProviders.stream()
-                .map(provider -> provider.resolve(query))
-                .filter(java.util.Optional::isPresent)
-                .map(java.util.Optional::get)
-                .findFirst()
-                .orElse(null);
     }
 
     private String slug(String value) {
         return value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
     }
 
-    private String dynamicDescription(String city, String country, DestinationCandidate candidate) {
-        if (candidate != null) {
-            return "Journy found " + city + " in " + country + " and can search live place providers to build a route there.";
-        }
-        return "Journy can search live place providers and build a starter route for " + city + ".";
-    }
-
-    private String countryFor(String city) {
-        return switch (normalize(city)) {
-            case "milan", "milano" -> "Italy";
-            case "munich", "münchen" -> "Germany";
-            case "brussels", "bruxelles", "brussel" -> "Belgium";
-            case "budapest" -> "Hungary";
-            case "zurich", "zürich" -> "Switzerland";
-            case "stockholm" -> "Sweden";
-            case "oslo" -> "Norway";
-            case "athens", "atina" -> "Greece";
-            case "dublin" -> "Ireland";
-            case "canakkale", "edirne" -> "Turkey";
-            case "bursa", "eskisehir", "ankara", "izmir", "antalya" -> "Turkey";
-            case "edinburgh", "edinburg" -> "United Kingdom";
-            default -> "Provider-backed";
-        };
+    private String dynamicDescription(String city, String country) {
+        return "Journy found " + city + " in " + country + " and can search live place providers to build a route there.";
     }
 
     private String tagsFor(String city) {

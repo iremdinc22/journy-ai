@@ -12,6 +12,8 @@ import com.journy.backend.trip.enums.BudgetMode;
 import com.journy.backend.trip.enums.TravelInterest;
 import com.journy.backend.trip.model.Trip;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -25,6 +27,7 @@ import java.text.Normalizer;
 
 @Service
 public class ItineraryGenerationService {
+    private static final Logger log = LoggerFactory.getLogger(ItineraryGenerationService.class);
     private final ItineraryDayRepository itineraryDayRepository;
     private final PlaceRepository placeRepository;
     private final DestinationCoordinateResolver destinationCoordinateResolver;
@@ -44,6 +47,7 @@ public class ItineraryGenerationService {
 
     public void generateIfMissing(Trip trip) {
         if (!itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId()).isEmpty()) {
+            log.info("itinerary_existing trip={} destination={} action=keep_persisted", trip.getId(), trip.getDestination());
             return;
         }
 
@@ -56,7 +60,6 @@ public class ItineraryGenerationService {
     }
 
     private void generate(Trip trip) {
-        enrichDestinationPlaces(trip);
         List<Place> candidatePlaces = selectPlaces(trip);
         Set<String> usedPlaceIds = new HashSet<>();
         int days = trip.dayCount();
@@ -83,15 +86,22 @@ public class ItineraryGenerationService {
                         place.getName(),
                         place.getCategory().name(),
                         timeWindowFor(order),
+                        stopPlaceId(place),
+                        stopSource(place),
                         noteFor(place, trip, dayNumber, order),
-                        coordinateFor(place, dayNumber, order, true),
-                        coordinateFor(place, dayNumber, order, false)
+                        latitudeForStop(place, dayNumber, order),
+                        longitudeForStop(place, dayNumber, order)
                 ));
                 order++;
             }
             generatedDays.add(day);
         }
 
+        long fallbackCount = generatedDays.stream().flatMap(day -> day.getStops().stream())
+                .filter(stop -> "planned_fallback".equals(stop.getSource())).count();
+        log.info("itinerary_generated trip={} destination={} candidates={} plannedFallback={} fallbackStops={} reason={}",
+                trip.getId(), trip.getDestination(), candidatePlaces.size(), fallbackCount > 0, fallbackCount,
+                fallbackCount == 0 ? "none" : candidatePlaces.isEmpty() ? "no_eligible_candidates" : "candidate_supply_exhausted");
         itineraryDayRepository.saveAll(generatedDays);
         int totalStops = generatedDays.stream().mapToInt(day -> day.getStops().size()).sum();
         int foodPicks = (int) generatedDays.stream()
@@ -118,26 +128,41 @@ public class ItineraryGenerationService {
 
     private List<Place> selectPlaces(Trip trip) {
         Set<PlaceCategory> categories = categoriesFor(trip.getInterests());
+        int desiredPlaces = Math.max(trip.dayCount() * stopsPerDay(trip), 8);
+        List<Place> verifiedCandidates = placeProviderService.loadCityPlaces(
+                trip.getDestination(),
+                null,
+                true,
+                Math.min(30, desiredPlaces + 12)
+        );
+        List<Place> verified = verifiedCandidates.stream().filter(this::verifiedProviderPlace).toList();
+        List<Place> categoryMatches = verified.stream().filter(place -> categories.contains(place.getCategory())).toList();
+        List<Place> verifiedPlaces = categoryMatches.stream()
+                .filter(place -> budgetAllows(trip.getBudget(), place.getPriceLevel()))
+                .sorted(Comparator.comparingDouble((Place place) -> scorePlace(place, trip, false)).reversed())
+                .toList();
+
+        log.info("itinerary_candidates trip={} destination={} loaded={} verified={} categoryMatch={} budgetMatch={} budget={} candidates={}",
+                trip.getId(), trip.getDestination(), verifiedCandidates.size(), verified.size(), categoryMatches.size(),
+                verifiedPlaces.size(), trip.getBudget(), verifiedCandidates.stream().map(place -> Map.of(
+                        "name", place.getName(), "provider", String.valueOf(place.getProvider()),
+                        "providerFetchedAt", String.valueOf(place.getProviderFetchedAt()), "category", String.valueOf(place.getCategory()))).toList());
+        if (!verifiedPlaces.isEmpty()) {
+            log.info("itinerary_path trip={} verified=true legacy=false", trip.getId());
+            return arrangeForDailyRhythm(verifiedPlaces, trip);
+        }
+
         List<Place> allPlaces = placeRepository.findAll();
         List<Place> exactCityPlaces = filterPlaces(allPlaces, trip, categories, trip.getDestination());
 
+        log.info("itinerary_path trip={} verified=false legacy={} legacyCandidates={} reason={}", trip.getId(),
+                !exactCityPlaces.isEmpty(), exactCityPlaces.size(), verified.isEmpty() ? "no_verified_candidates"
+                        : categoryMatches.isEmpty() ? "category_filter" : "budget_filter");
         if (!exactCityPlaces.isEmpty()) {
             return arrangeForDailyRhythm(exactCityPlaces, trip);
         }
 
         return List.of();
-    }
-
-    private void enrichDestinationPlaces(Trip trip) {
-        String destination = trip.getDestination();
-        if (destination == null || destination.isBlank()) {
-            return;
-        }
-        int desiredPlaces = Math.max(trip.dayCount() * stopsPerDay(trip), 8);
-        if (placeRepository.countByCityIgnoreCase(destination) >= desiredPlaces) {
-            return;
-        }
-        placeProviderService.enrichCity(destination, null, Math.min(12, desiredPlaces + 4));
     }
 
     private List<Place> filterPlaces(List<Place> places, Trip trip, Set<PlaceCategory> categories, String city) {
@@ -411,6 +436,7 @@ public class ItineraryGenerationService {
                 4.5,
                 ""
         );
+        place.setProvider("planned_fallback");
         place.setLatitude(destinationCoordinateResolver.latitudeFor(city, dayNumber + order));
         place.setLongitude(destinationCoordinateResolver.longitudeFor(city, dayNumber + order));
         return place;
@@ -510,6 +536,46 @@ public class ItineraryGenerationService {
             return latitude ? base - delta : base + delta;
         }
         return latitude ? base - delta : base + delta;
+    }
+
+    private double latitudeForStop(Place place, int dayNumber, int order) {
+        if (verifiedProviderPlace(place) && place.getLatitude() != null) {
+            return place.getLatitude();
+        }
+        return coordinateFor(place, dayNumber, order, true);
+    }
+
+    private double longitudeForStop(Place place, int dayNumber, int order) {
+        if (verifiedProviderPlace(place) && place.getLongitude() != null) {
+            return place.getLongitude();
+        }
+        return coordinateFor(place, dayNumber, order, false);
+    }
+
+    private String stopPlaceId(Place place) {
+        return verifiedProviderPlace(place) || repositoryBackedPlace(place) ? place.getId() : null;
+    }
+
+    private String stopSource(Place place) {
+        if (verifiedProviderPlace(place)) {
+            return "provider:" + place.getProvider();
+        }
+        if (repositoryBackedPlace(place)) {
+            return "repository:" + place.getProvider();
+        }
+        return "planned_fallback";
+    }
+
+    private boolean verifiedProviderPlace(Place place) {
+        if (place == null || place.getProvider() == null || place.getProviderFetchedAt() == null) {
+            return false;
+        }
+        String provider = place.getProvider().toLowerCase(java.util.Locale.ROOT);
+        return !provider.equals("seed") && !provider.equals("starter") && !provider.equals("planned_fallback");
+    }
+
+    private boolean repositoryBackedPlace(Place place) {
+        return place != null && place.getId() != null && place.getProvider() != null && !place.getProvider().equals("planned_fallback");
     }
 
     private DayTheme dynamicThemeFor(Trip trip, int dayNumber, List<Place> places) {

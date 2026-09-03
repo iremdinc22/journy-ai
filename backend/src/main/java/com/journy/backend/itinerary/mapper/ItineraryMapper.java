@@ -39,6 +39,8 @@ public class ItineraryMapper {
                 stop.getTitle(),
                 stop.getCategory(),
                 stop.getTimeWindow(),
+                stop.getPlaceId(),
+                stop.getSource(),
                 stop.getNote(),
                 stop.isOptionalStop(),
                 stop.getStatus() == null ? "PLANNED" : stop.getStatus().name(),

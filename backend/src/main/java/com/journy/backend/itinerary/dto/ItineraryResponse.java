@@ -24,6 +24,8 @@ public record ItineraryResponse(
             String title,
             String category,
             String timeWindow,
+            String placeId,
+            String source,
             String note,
             boolean optional,
             String status,

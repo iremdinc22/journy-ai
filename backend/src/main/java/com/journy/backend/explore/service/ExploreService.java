@@ -163,14 +163,10 @@ public class ExploreService {
     }
 
     private List<Place> loadCityPlaces(String city, PlaceCategory category, boolean forYou) {
-        List<Place> cached = forYou
-                ? placeRepository.findByCityIgnoreCaseOrderByRatingDesc(city)
-                : placeRepository.findByCityIgnoreCaseAndCategoryOrderByRatingDesc(city, category);
-        int minimum = forYou ? 10 : 4;
-        if (cached.size() >= minimum) {
-            return cached;
+        List<Place> providerCached = placeProviderService.loadCityPlaces(city, category, forYou, 18);
+        if (!providerCached.isEmpty()) {
+            return providerCached;
         }
-        placeProviderService.enrichCity(city, category, 18);
         return forYou
                 ? placeRepository.findByCityIgnoreCaseOrderByRatingDesc(city)
                 : placeRepository.findByCityIgnoreCaseAndCategoryOrderByRatingDesc(city, category);
