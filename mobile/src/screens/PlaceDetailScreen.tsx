@@ -1,3 +1,4 @@
+import { itineraryDayTitle } from '../utils/itineraryDayTitle';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
@@ -320,7 +321,7 @@ export default function PlaceDetailScreen({ navigation, route }: Props) {
               >
                 <View>
                   <Text style={styles.dayOptionTitle}>{t('place.dayTitle', { day: day.dayNumber })}</Text>
-                  <Text style={styles.dayOptionMeta}>{t('place.dayMeta', { title: localizeDynamicText(day.title, language), km: day.walkKm.toFixed(1), stops: day.stopCount })}</Text>
+                  <Text style={styles.dayOptionMeta}>{t('place.dayMeta', { title: itineraryDayTitle(day, language), km: day.walkKm.toFixed(1), stops: day.stopCount })}</Text>
                 </View>
                 {selectedDayNumber === day.dayNumber ? <Ionicons name="checkmark-circle" size={20} color={colors.teal} /> : null}
               </TouchableOpacity>

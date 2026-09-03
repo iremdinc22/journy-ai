@@ -1,3 +1,4 @@
+import { itineraryDayTitle } from '../utils/itineraryDayTitle';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -308,7 +309,7 @@ export default function ItineraryScreen() {
             <View style={styles.dayHeader}>
               <View style={styles.dayTitleBlock}>
                 <Text style={styles.day}>{t('itinerary.dayDestination', { day: item.dayNumber, destination })}</Text>
-                <Text style={styles.area}>{localizeDynamicText(item.title, language)}</Text>
+                <Text style={styles.area}>{itineraryDayTitle(item, language)}</Text>
               </View>
               <View style={styles.badge}>
                 <Ionicons name="walk-outline" size={14} color={colors.teal} />

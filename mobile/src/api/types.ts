@@ -102,6 +102,7 @@ export type ItineraryTimelineItem = {
 };
 
 export type ItineraryDay = {
+  titleTranslations?: Partial<Record<'en' | 'tr', string>>;
   dayNumber: number;
   title: string;
   summary: string;

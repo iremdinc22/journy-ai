@@ -14,7 +14,8 @@ public record ItineraryResponse(
             double walkKm,
             int stopCount,
             List<ItineraryStopResponse> stops,
-            List<ItineraryTimelineItemResponse> timeline
+            List<ItineraryTimelineItemResponse> timeline,
+            java.util.Map<String, String> titleTranslations
     ) {
     }
 

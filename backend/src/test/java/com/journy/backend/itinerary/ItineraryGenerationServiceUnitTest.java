@@ -155,6 +155,95 @@ class ItineraryGenerationServiceUnitTest {
         assertThat(nyhavn.getLongitude()).isEqualTo(12.5910);
     }
 
+    @Test
+    void destinationsCannotLeakEvenIfProviderReturnsMixedPools() {
+        List<Place> mixed = List.of(
+                verifiedPlace("sarajevo_a", "Zmajevac", "Sarajevo", PlaceCategory.WALKING, 43.86, 18.44, 4.9),
+                verifiedPlace("sarajevo_b", "Muzej Alije Izetbegovića", "Sarajevo", PlaceCategory.CULTURE, 43.86, 18.43, 4.8),
+                verifiedPlace("tallinn_a", "Maiasmokk", "Tallinn", PlaceCategory.COFFEE, 59.43, 24.74, 4.9),
+                verifiedPlace("tallinn_b", "Russalka", "Tallinn", PlaceCategory.WALKING, 59.44, 24.79, 4.8));
+        for (String city : List.of("Sarajevo", "Tallinn")) {
+            var days = new InMemoryItineraryDayRepository();
+            service(days, new InMemoryPlaceRepository(), fakePlaceProviderService(mixed)).generateIfMissing(trip(city, 2));
+            var real = savedStops(days).stream().filter(stop -> stop.getSource().startsWith("provider:")).toList();
+            assertThat(real).hasSize(2).allSatisfy(stop -> {
+                Place selected = mixed.stream().filter(place -> place.getId().equals(stop.getPlaceId())).findFirst().orElseThrow();
+                assertThat(selected.getCity()).isEqualTo(city);
+                assertThat(stop.getTitle()).isEqualTo(selected.getName());
+                assertThat(stop.getLatitude()).isEqualTo(selected.getLatitude());
+                assertThat(stop.getLongitude()).isEqualTo(selected.getLongitude());
+            });
+        }
+    }
+
+    @Test
+    void duplicateIdsAreUsedOnceAcrossTheWholeItineraryAndExhaustionStaysUnverified() {
+        var days = new InMemoryItineraryDayRepository();
+        Place a = verifiedPlace("A", "Museum", "Sarajevo", PlaceCategory.CULTURE, 43.86, 18.43, 4.9);
+        Place b = verifiedPlace("B", "Cafe", "Sarajevo", PlaceCategory.COFFEE, 43.85, 18.42, 4.8);
+        service(days, new InMemoryPlaceRepository(), fakePlaceProviderService(List.of(a, a, b, b)))
+                .generateIfMissing(trip("Sarajevo", 3));
+        var stops = savedStops(days);
+        assertThat(stops).hasSize(12);
+        assertThat(stops.stream().filter(stop -> stop.getSource().startsWith("provider:")))
+                .extracting(ItineraryStop::getPlaceId).containsExactlyInAnyOrder("A", "B");
+        assertThat(stops.stream().filter(stop -> stop.getSource().equals("planned_fallback")))
+                .hasSize(10).allSatisfy(stop -> assertThat(stop.getPlaceId()).isNull());
+    }
+
+    @Test
+    void malformedProviderRowsCannotBecomeVerified() {
+        var invalid = new ArrayList<Place>();
+        for (int i = 0; i < 9; i++) invalid.add(verifiedPlace("bad" + i, "Invalid", "Sarajevo", PlaceCategory.CULTURE, 43.86, 18.43, 4.9));
+        invalid.get(0).setId(null);
+        invalid.get(1).setProvider(" ");
+        invalid.get(2).setProviderFetchedAt(null);
+        invalid.get(3).setLatitude(null);
+        invalid.get(4).setLongitude(Double.NaN);
+        invalid.get(5).setLatitude(91.0);
+        invalid.get(6).setCategory(null);
+        invalid.get(7).setName("");
+        invalid.get(8).setProvider("planned_fallback");
+        var days = new InMemoryItineraryDayRepository();
+        service(days, new InMemoryPlaceRepository(), fakePlaceProviderService(invalid)).generateIfMissing(trip("Sarajevo", 1));
+        assertThat(savedStops(days)).allSatisfy(stop -> {
+            assertThat(stop.getSource()).isEqualTo("planned_fallback");
+            assertThat(stop.getPlaceId()).isNull();
+        });
+    }
+
+    @Test
+    void unknownVerifiedRepositoryRowCannotBypassTheAcceptedProviderPool() {
+        var days = new InMemoryItineraryDayRepository();
+        var repository = new InMemoryPlaceRepository();
+        repository.saved.add(verifiedPlace("D", "Not in candidate pool", "Sarajevo", PlaceCategory.CULTURE, 43.86, 18.43, 4.9));
+        service(days, repository, fakePlaceProviderService(List.of())).generateIfMissing(trip("Sarajevo", 1));
+        assertThat(savedStops(days)).allSatisfy(stop -> {
+            assertThat(stop.getPlaceId()).isNull();
+            assertThat(stop.getSource()).isEqualTo("planned_fallback");
+        });
+    }
+
+    @Test
+    void existingLegacyItineraryIsKeptAndMappedWithoutNewIdentityRequirements() {
+        var days = new InMemoryItineraryDayRepository();
+        Trip trip = trip("Sarajevo", 1);
+        var historical = new ItineraryDay(trip, 1, "Historical title", "Historical summary", 2);
+        historical.addStop(new ItineraryStop(1, "Historical stop", "CULTURE", "09:30", null, null, "", 43.8, 18.4));
+        days.saved.add(historical);
+        var provider = fakePlaceProviderService(List.of());
+        service(days, new InMemoryPlaceRepository(), provider).generateIfMissing(trip);
+        var response = new com.journy.backend.itinerary.mapper.ItineraryMapper().toDayResponse(historical);
+        assertThat(days.saved).containsExactly(historical);
+        assertThat(response.title()).isEqualTo("Historical title");
+        assertThat(response.titleTranslations()).isEmpty();
+        assertThat(response.stops()).singleElement().satisfies(stop -> {
+            assertThat(stop.placeId()).isNull();
+            assertThat(stop.source()).isNull();
+            assertThat(stop.title()).isEqualTo("Historical stop");
+        });
+    }
+
     private ItineraryGenerationService service(
             InMemoryItineraryDayRepository dayRepository,
             InMemoryPlaceRepository placeRepository,

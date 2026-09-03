@@ -3,6 +3,7 @@ package com.journy.backend.itinerary.mapper;
 import com.journy.backend.itinerary.dto.ItineraryResponse;
 import com.journy.backend.itinerary.model.ItineraryDay;
 import com.journy.backend.itinerary.model.ItineraryStop;
+import com.journy.backend.itinerary.service.DayTitleGenerator;
 import com.journy.backend.trip.model.Trip;
 import org.springframework.stereotype.Component;
 
@@ -28,7 +29,9 @@ public class ItineraryMapper {
                 day.getWalkKm(),
                 day.getStops().size(),
                 day.getStops().stream().map(this::toStopResponse).toList(),
-                toTimeline(day)
+                toTimeline(day),
+                DayTitleGenerator.hasVerifiedStops(day.getStops())
+                        ? DayTitleGenerator.translations(day.getStops()) : java.util.Map.of()
         );
     }
 

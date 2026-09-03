@@ -1,3 +1,4 @@
+import { itineraryDayTitle } from '../utils/itineraryDayTitle';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,7 +34,9 @@ export default function DayRouteDetailScreen({ navigation, route }: Props) {
   const [mapMode, setMapMode] = useState<MapMode>('Route');
   const [selectedStop, setSelectedStop] = useState<ItineraryStop | null>(currentDay.stops[0] ?? null);
 
-  const displayTitle = localizeDynamicText(cleanRepeatedPrefix(currentDay.title, 'Lighter'), language);
+  const displayTitle = currentDay.titleTranslations?.[language]
+    ? itineraryDayTitle(currentDay, language)
+    : localizeDynamicText(cleanRepeatedPrefix(currentDay.title, 'Lighter'), language);
   const displaySummary = localizeDynamicText(compactRepeatedSentences(currentDay.summary), language);
   const paceLabel = currentDay.walkKm <= 4.5 ? t('setup.relaxed') : currentDay.walkKm >= 7 ? t('setup.full') : t('setup.balanced');
   const focusLabel = currentDay.stops.some((stop) => stop.category === 'FOOD' || stop.category === 'COFFEE')

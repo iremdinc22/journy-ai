@@ -61,6 +61,7 @@ public class ItineraryGenerationService {
 
     private void generate(Trip trip) {
         List<Place> candidatePlaces = selectPlaces(trip);
+        Map<String, PlannerPlaceContract.Identity> verifiedPool = PlannerPlaceContract.snapshot(candidatePlaces, trip.getDestination());
         Set<String> usedPlaceIds = new HashSet<>();
         int days = trip.dayCount();
         int stopsPerDay = stopsPerDay(trip);
@@ -94,6 +95,9 @@ public class ItineraryGenerationService {
                 ));
                 order++;
             }
+            if (DayTitleGenerator.hasVerifiedStops(day.getStops())) {
+                day.setTitle(DayTitleGenerator.title(day.getStops(), "en"));
+            }
             generatedDays.add(day);
         }
 
@@ -102,6 +106,7 @@ public class ItineraryGenerationService {
         log.info("itinerary_generated trip={} destination={} candidates={} plannedFallback={} fallbackStops={} reason={}",
                 trip.getId(), trip.getDestination(), candidatePlaces.size(), fallbackCount > 0, fallbackCount,
                 fallbackCount == 0 ? "none" : candidatePlaces.isEmpty() ? "no_eligible_candidates" : "candidate_supply_exhausted");
+        PlannerPlaceContract.validate(generatedDays, verifiedPool);
         itineraryDayRepository.saveAll(generatedDays);
         int totalStops = generatedDays.stream().mapToInt(day -> day.getStops().size()).sum();
         int foodPicks = (int) generatedDays.stream()
@@ -135,7 +140,8 @@ public class ItineraryGenerationService {
                 true,
                 Math.min(30, desiredPlaces + 12)
         );
-        List<Place> verified = verifiedCandidates.stream().filter(this::verifiedProviderPlace).toList();
+        List<Place> verified = verifiedCandidates.stream().filter(this::verifiedProviderPlace)
+                .filter(place -> PlannerPlaceContract.inDestination(place, trip.getDestination())).toList();
         List<Place> categoryMatches = verified.stream().filter(place -> categories.contains(place.getCategory())).toList();
         List<Place> verifiedPlaces = categoryMatches.stream()
                 .filter(place -> budgetAllows(trip.getBudget(), place.getPriceLevel()))
@@ -144,8 +150,8 @@ public class ItineraryGenerationService {
 
         log.info("itinerary_candidates trip={} destination={} loaded={} verified={} categoryMatch={} budgetMatch={} budget={} candidates={}",
                 trip.getId(), trip.getDestination(), verifiedCandidates.size(), verified.size(), categoryMatches.size(),
-                verifiedPlaces.size(), trip.getBudget(), verifiedCandidates.stream().map(place -> Map.of(
-                        "name", place.getName(), "provider", String.valueOf(place.getProvider()),
+                verifiedPlaces.size(), trip.getBudget(), verifiedCandidates.stream().filter(java.util.Objects::nonNull).map(place -> Map.of(
+                        "name", String.valueOf(place.getName()), "provider", String.valueOf(place.getProvider()),
                         "providerFetchedAt", String.valueOf(place.getProviderFetchedAt()), "category", String.valueOf(place.getCategory()))).toList());
         if (!verifiedPlaces.isEmpty()) {
             log.info("itinerary_path trip={} verified=true legacy=false", trip.getId());
@@ -167,7 +173,11 @@ public class ItineraryGenerationService {
 
     private List<Place> filterPlaces(List<Place> places, Trip trip, Set<PlaceCategory> categories, String city) {
         return places.stream()
-                .filter(place -> place.getCity().equalsIgnoreCase(city))
+                .filter(place -> PlannerPlaceContract.inDestination(place, city))
+                // An external row absent from the provider pool must not bypass validation via the legacy path.
+                .filter(place -> !verifiedProviderPlace(place))
+                .filter(place -> place.getId() != null && !place.getId().isBlank())
+                .filter(place -> place.getName() != null && !place.getName().isBlank())
                 .filter(place -> categories.contains(place.getCategory()))
                 .filter(place -> budgetAllows(trip.getBudget(), place.getPriceLevel()))
                 .sorted(Comparator.comparingDouble((Place place) -> scorePlace(place, trip, false)).reversed())
@@ -176,7 +186,9 @@ public class ItineraryGenerationService {
 
     private List<Place> arrangeForDailyRhythm(List<Place> places, Trip trip) {
         List<PlaceCategory> rhythm = categoryRhythm(trip.getInterests());
-        List<Place> remaining = new ArrayList<>(places);
+        Map<String, Place> uniquePlaces = new LinkedHashMap<>();
+        places.forEach(place -> uniquePlaces.putIfAbsent(place.getId(), place));
+        List<Place> remaining = new ArrayList<>(uniquePlaces.values());
         List<Place> arranged = new ArrayList<>();
 
         while (!remaining.isEmpty()) {
@@ -237,7 +249,8 @@ public class ItineraryGenerationService {
                 breakIndex = firstIndexOfCategory(placePool, PlaceCategory.FOOD);
             }
             if (breakIndex >= 0 && !dayPlaces.isEmpty()) {
-                dayPlaces.remove(dayPlaces.size() - 1);
+                Place replaced = dayPlaces.remove(dayPlaces.size() - 1);
+                usedPlaceIds.remove(replaced.getId());
                 Place picked = placePool.remove(breakIndex);
                 dayPlaces.add(picked);
                 usedPlaceIds.add(picked.getId());
@@ -567,11 +580,7 @@ public class ItineraryGenerationService {
     }
 
     private boolean verifiedProviderPlace(Place place) {
-        if (place == null || place.getProvider() == null || place.getProviderFetchedAt() == null) {
-            return false;
-        }
-        String provider = place.getProvider().toLowerCase(java.util.Locale.ROOT);
-        return !provider.equals("seed") && !provider.equals("starter") && !provider.equals("planned_fallback");
+        return PlannerPlaceContract.verified(place);
     }
 
     private boolean repositoryBackedPlace(Place place) {
