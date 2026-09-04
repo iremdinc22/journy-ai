@@ -1,0 +1,326 @@
+{
+  "input": "Ljubljana",
+  "resolution": {
+    "status": 200,
+    "body": [
+      {
+        "id": "dynamic-ljubljana",
+        "name": "Ljubljana",
+        "country": "Slovenija",
+        "description": "Journy found Ljubljana in Slovenija and can search live place providers to build a route there.",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Ljubljana_Old_Town%2C_Slovenia_%28Old_Camera%29_%2833286165680%29.jpg/900px-Ljubljana_Old_Town%2C_Slovenia_%28Old_Camera%29_%2833286165680%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+        "tags": "Provider search - local picks - flexible planning",
+        "bestFor": "Provider-backed city planning",
+        "placeCount": 0,
+        "averageDailyWalkKm": 5.6,
+        "available": true,
+        "popular": false,
+        "latitude": 46.0500268,
+        "longitude": 14.5069289,
+        "provider": "nominatim",
+        "providerPlaceId": "node/6968827",
+        "lookupQuery": "Ljubljana"
+      }
+    ]
+  },
+  "suggestions": {
+    "status": 200,
+    "body": [
+      {
+        "id": "osm_5b65d7a2-a5d0-3c32-bd13-c426e19aaf26",
+        "name": "Ljubljana",
+        "type": "transit_station",
+        "latitude": 46.0582538,
+        "longitude": 14.5105343,
+        "source": "provider:osm",
+        "providerPlaceId": "node/617483683"
+      },
+      {
+        "id": "osm_3268c2ef-1733-3465-8672-f1070fbe5948",
+        "name": "Ljubljana",
+        "type": "transit_station",
+        "latitude": 46.0579157,
+        "longitude": 14.5145431,
+        "source": "provider:osm",
+        "providerPlaceId": "node/261041035"
+      },
+      {
+        "id": "osm_62d0e19f-b354-37d9-815a-b314b606d145",
+        "name": "Ljubljana Zalog",
+        "type": "transit_station",
+        "latitude": 46.0595047,
+        "longitude": 14.6148983,
+        "source": "provider:osm",
+        "providerPlaceId": "node/1867167114"
+      },
+      {
+        "id": "osm_a30f7b2e-71f3-3478-bf90-2d60b9fa4c28",
+        "name": "Škofljica",
+        "type": "transit_station",
+        "latitude": 45.9843722,
+        "longitude": 14.5727108,
+        "source": "provider:osm",
+        "providerPlaceId": "node/50736008"
+      },
+      {
+        "id": "osm_45758cec-9956-332f-8690-c750c715c585",
+        "name": "Trnovo",
+        "type": "district",
+        "latitude": 46.041719,
+        "longitude": 14.5038838,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2408559753"
+      },
+      {
+        "id": "osm_bb94c5e3-209f-3790-a68a-a8ce4ded6d86",
+        "name": "Rožna dolina",
+        "type": "neighborhood",
+        "latitude": 46.0496313,
+        "longitude": 14.4844298,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2407395078"
+      }
+    ]
+  },
+  "cacheRepeat": {
+    "status": 200,
+    "body": [
+      {
+        "id": "osm_5b65d7a2-a5d0-3c32-bd13-c426e19aaf26",
+        "name": "Ljubljana",
+        "type": "transit_station",
+        "latitude": 46.0582538,
+        "longitude": 14.5105343,
+        "source": "provider:osm",
+        "providerPlaceId": "node/617483683"
+      },
+      {
+        "id": "osm_3268c2ef-1733-3465-8672-f1070fbe5948",
+        "name": "Ljubljana",
+        "type": "transit_station",
+        "latitude": 46.0579157,
+        "longitude": 14.5145431,
+        "source": "provider:osm",
+        "providerPlaceId": "node/261041035"
+      },
+      {
+        "id": "osm_62d0e19f-b354-37d9-815a-b314b606d145",
+        "name": "Ljubljana Zalog",
+        "type": "transit_station",
+        "latitude": 46.0595047,
+        "longitude": 14.6148983,
+        "source": "provider:osm",
+        "providerPlaceId": "node/1867167114"
+      },
+      {
+        "id": "osm_a30f7b2e-71f3-3478-bf90-2d60b9fa4c28",
+        "name": "Škofljica",
+        "type": "transit_station",
+        "latitude": 45.9843722,
+        "longitude": 14.5727108,
+        "source": "provider:osm",
+        "providerPlaceId": "node/50736008"
+      },
+      {
+        "id": "osm_45758cec-9956-332f-8690-c750c715c585",
+        "name": "Trnovo",
+        "type": "district",
+        "latitude": 46.041719,
+        "longitude": 14.5038838,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2408559753"
+      },
+      {
+        "id": "osm_bb94c5e3-209f-3790-a68a-a8ce4ded6d86",
+        "name": "Rožna dolina",
+        "type": "neighborhood",
+        "latitude": 46.0496313,
+        "longitude": 14.4844298,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2407395078"
+      }
+    ]
+  },
+  "trip": {
+    "status": 200,
+    "body": {
+      "id": "trip_c4836a95-975a-4732-957a-7d53daca9f66",
+      "destination": "Ljubljana",
+      "startingArea": "Ljubljana",
+      "startDate": "2026-10-10",
+      "endDate": "2026-10-11",
+      "days": 1,
+      "travelerType": "SOLO",
+      "budget": "BALANCED",
+      "pace": "RELAXED",
+      "interests": [
+        "WALKING",
+        "LOCAL_FOOD",
+        "COFFEE",
+        "CULTURE"
+      ],
+      "stats": {
+        "stops": 3,
+        "foodPicks": 2,
+        "averageWalkKm": 3.2
+      },
+      "startingAreaSelection": {
+        "id": "osm_5b65d7a2-a5d0-3c32-bd13-c426e19aaf26",
+        "name": "Ljubljana",
+        "type": "transit_station",
+        "latitude": 46.0582538,
+        "longitude": 14.5105343,
+        "source": "provider:osm",
+        "providerPlaceId": "node/617483683"
+      }
+    }
+  },
+  "itinerary": {
+    "status": 200,
+    "body": {
+      "tripId": "trip_c4836a95-975a-4732-957a-7d53daca9f66",
+      "destination": "Ljubljana",
+      "days": [
+        {
+          "dayNumber": 1,
+          "title": "Dama: Coffee & Walks",
+          "summary": "Dama, Spomenik revolucije and Čolnarna Tivoli.",
+          "walkKm": 3.2,
+          "stopCount": 3,
+          "stops": [
+            {
+              "id": "stop_75df60aa-dccd-40ef-8654-897b9af0c6ba",
+              "order": 1,
+              "title": "Dama",
+              "category": "COFFEE",
+              "timeWindow": "09:30",
+              "placeId": "osm_node_269109587",
+              "source": "provider:osm",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Ljubljana route. Suggested visit: 45 min. Starts near Ljubljana.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 46.0708567,
+              "longitude": 14.4838351
+            },
+            {
+              "id": "stop_e5af5424-9865-4d49-bf2f-4f161e902cc9",
+              "order": 2,
+              "title": "Spomenik revolucije",
+              "category": "WALKING",
+              "timeWindow": "11:30",
+              "placeId": "osm_node_46502981",
+              "source": "provider:osm",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Ljubljana route. Suggested visit: 60 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 46.0510403,
+              "longitude": 14.4999964
+            },
+            {
+              "id": "stop_7d3b5351-cc1a-44fe-aabf-d0cd47c9751f",
+              "order": 3,
+              "title": "Čolnarna Tivoli",
+              "category": "COFFEE",
+              "timeWindow": "14:00",
+              "placeId": "osm_node_122054854",
+              "source": "provider:osm",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Ljubljana route. Suggested visit: 45 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 46.052269,
+              "longitude": 14.4940655
+            }
+          ],
+          "timeline": [
+            {
+              "id": "stop_75df60aa-dccd-40ef-8654-897b9af0c6ba",
+              "type": "STOP",
+              "title": "Dama",
+              "startTime": "09:30",
+              "endTime": "10:15",
+              "durationMinutes": 45,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "COFFEE",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Ljubljana route. Suggested visit: 45 min. Starts near Ljubljana.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_75df60aa-dccd-40ef-8654-897b9af0c6ba_stop_e5af5424-9865-4d49-bf2f-4f161e902cc9",
+              "type": "TRAVEL",
+              "title": "43 min walk",
+              "startTime": "10:15",
+              "endTime": "10:58",
+              "durationMinutes": 43,
+              "distanceKm": 2.5,
+              "fromStopId": "stop_75df60aa-dccd-40ef-8654-897b9af0c6ba",
+              "toStopId": "stop_e5af5424-9865-4d49-bf2f-4f161e902cc9",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_e5af5424-9865-4d49-bf2f-4f161e902cc9",
+              "type": "STOP",
+              "title": "Spomenik revolucije",
+              "startTime": "11:10",
+              "endTime": "12:10",
+              "durationMinutes": 60,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "WALKING",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Ljubljana route. Suggested visit: 60 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_e5af5424-9865-4d49-bf2f-4f161e902cc9_stop_7d3b5351-cc1a-44fe-aabf-d0cd47c9751f",
+              "type": "TRAVEL",
+              "title": "8 min walk",
+              "startTime": "12:10",
+              "endTime": "12:18",
+              "durationMinutes": 8,
+              "distanceKm": 0.5,
+              "fromStopId": "stop_e5af5424-9865-4d49-bf2f-4f161e902cc9",
+              "toStopId": "stop_7d3b5351-cc1a-44fe-aabf-d0cd47c9751f",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_7d3b5351-cc1a-44fe-aabf-d0cd47c9751f",
+              "type": "STOP",
+              "title": "Čolnarna Tivoli",
+              "startTime": "12:30",
+              "endTime": "13:15",
+              "durationMinutes": 45,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "COFFEE",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Ljubljana route. Suggested visit: 45 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            }
+          ],
+          "titleTranslations": {
+            "tr": "Dama: Kahve ve Yürüyüş",
+            "en": "Dama: Coffee & Walks"
+          }
+        }
+      ]
+    }
+  },
+  "syntheticFallbackCount": 0
+}

@@ -1,0 +1,241 @@
+[
+  {
+    "input": "Edirne",
+    "resolvedLocality": "Edirne",
+    "latitude": 41.6771,
+    "longitude": 26.5557,
+    "rawCount": 48,
+    "acceptedPool": 46,
+    "displayed": 6,
+    "suggestions": [
+      {
+        "id": "osm_56df8d93-dd21-36ca-a79d-8952e3183ab9",
+        "name": "Edirne",
+        "type": "transit_station",
+        "latitude": 41.6552066,
+        "longitude": 26.5805143,
+        "source": "provider:osm",
+        "providerPlaceId": "node/11132878357",
+        "distanceKm": 3.19
+      },
+      {
+        "id": "osm_f4a711f4-9800-3417-b6ea-069df9a9fa30",
+        "name": "Edirne Şehirlerarası Otobüs Terminali",
+        "type": "transit_station",
+        "latitude": 41.6319481,
+        "longitude": 26.6184351,
+        "source": "provider:osm",
+        "providerPlaceId": "way/753142787",
+        "distanceKm": 7.237
+      },
+      {
+        "id": "osm_7fee26d7-74ad-35b3-8b4d-2b378c28bbe3",
+        "name": "Babademirtaş",
+        "type": "district",
+        "latitude": 41.6802064,
+        "longitude": 26.5546472,
+        "source": "provider:osm",
+        "providerPlaceId": "node/10270056966",
+        "distanceKm": 0.356
+      },
+      {
+        "id": "osm_a7c3a1d1-c767-3018-8ca5-731ef8c6e6e5",
+        "name": "Sabuni",
+        "type": "district",
+        "latitude": 41.6736521,
+        "longitude": 26.5571997,
+        "source": "provider:osm",
+        "providerPlaceId": "node/6979466604",
+        "distanceKm": 0.403
+      },
+      {
+        "id": "osm_01f2d835-2fdf-3aae-b4a1-7c50fc731b8c",
+        "name": "Sarıcapaşa",
+        "type": "district",
+        "latitude": 41.6756198,
+        "longitude": 26.5609202,
+        "source": "provider:osm",
+        "providerPlaceId": "node/6979402535",
+        "distanceKm": 0.464
+      },
+      {
+        "id": "osm_e10fe0ef-b41e-3bb0-ac3c-affa92fc735b",
+        "name": "Mithat Paşa",
+        "type": "district",
+        "latitude": 41.6757901,
+        "longitude": 26.5503475,
+        "source": "provider:osm",
+        "providerPlaceId": "node/8259548245",
+        "distanceKm": 0.468
+      }
+    ],
+    "maxDistanceKm": 7.237,
+    "path": "provider -> cache",
+    "syntheticFallbackCount": 0,
+    "tripStatus": 200
+  },
+  {
+    "input": "Sarajevo",
+    "resolvedLocality": "Sarajevo",
+    "latitude": 43.8570713,
+    "longitude": 18.4126147,
+    "rawCount": 60,
+    "acceptedPool": 58,
+    "displayed": 6,
+    "suggestions": [
+      {
+        "id": "osm_b667a770-054e-38ce-8297-994115a2e1ac",
+        "name": "Sarajevo",
+        "type": "transit_station",
+        "latitude": 43.8604591,
+        "longitude": 18.3989497,
+        "source": "provider:osm",
+        "providerPlaceId": "node/942406094",
+        "distanceKm": 1.159
+      },
+      {
+        "id": "osm_5f277bd5-721b-3257-bd8d-8d8730b8477c",
+        "name": "Skenderija",
+        "type": "district",
+        "latitude": 43.8551592,
+        "longitude": 18.4139241,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2043629667",
+        "distanceKm": 0.237
+      },
+      {
+        "id": "osm_f80c60c1-7124-389a-a8d4-c84e657bb270",
+        "name": "Mejtaš",
+        "type": "district",
+        "latitude": 43.8612082,
+        "longitude": 18.4194456,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2026434322",
+        "distanceKm": 0.715
+      },
+      {
+        "id": "osm_409d57f3-a8b8-3eaa-a979-d53bee9cf7ff",
+        "name": "Soukbunar",
+        "type": "district",
+        "latitude": 43.8503081,
+        "longitude": 18.4145842,
+        "source": "provider:osm",
+        "providerPlaceId": "node/389608127",
+        "distanceKm": 0.768
+      },
+      {
+        "id": "osm_477a65e5-891b-3d80-b4f7-7ca7411b7359",
+        "name": "Ciglane",
+        "type": "district",
+        "latitude": 43.8645049,
+        "longitude": 18.408036,
+        "source": "provider:osm",
+        "providerPlaceId": "node/375768377",
+        "distanceKm": 0.904
+      },
+      {
+        "id": "osm_9c93d22f-cb70-3835-9ac2-d349a5b33499",
+        "name": "Bjelave",
+        "type": "district",
+        "latitude": 43.8637854,
+        "longitude": 18.4195229,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2021033229",
+        "distanceKm": 0.93
+      }
+    ],
+    "maxDistanceKm": 1.159,
+    "path": "provider -> cache",
+    "syntheticFallbackCount": 0,
+    "tripStatus": 200
+  },
+  {
+    "input": "Ljubljana",
+    "resolvedLocality": "Ljubljana",
+    "latitude": 46.0500268,
+    "longitude": 14.5069289,
+    "rawCount": 60,
+    "acceptedPool": 60,
+    "displayed": 6,
+    "suggestions": [
+      {
+        "id": "osm_5b65d7a2-a5d0-3c32-bd13-c426e19aaf26",
+        "name": "Ljubljana",
+        "type": "transit_station",
+        "latitude": 46.0582538,
+        "longitude": 14.5105343,
+        "source": "provider:osm",
+        "providerPlaceId": "node/617483683",
+        "distanceKm": 0.956
+      },
+      {
+        "id": "osm_62d0e19f-b354-37d9-815a-b314b606d145",
+        "name": "Ljubljana Zalog",
+        "type": "transit_station",
+        "latitude": 46.0595047,
+        "longitude": 14.6148983,
+        "source": "provider:osm",
+        "providerPlaceId": "node/1867167114",
+        "distanceKm": 8.398
+      },
+      {
+        "id": "osm_a30f7b2e-71f3-3478-bf90-2d60b9fa4c28",
+        "name": "Škofljica",
+        "type": "transit_station",
+        "latitude": 45.9843722,
+        "longitude": 14.5727108,
+        "source": "provider:osm",
+        "providerPlaceId": "node/50736008",
+        "distanceKm": 8.894
+      },
+      {
+        "id": "osm_45758cec-9956-332f-8690-c750c715c585",
+        "name": "Trnovo",
+        "type": "district",
+        "latitude": 46.041719,
+        "longitude": 14.5038838,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2408559753",
+        "distanceKm": 0.953
+      },
+      {
+        "id": "osm_bb94c5e3-209f-3790-a68a-a8ce4ded6d86",
+        "name": "Rožna dolina",
+        "type": "neighborhood",
+        "latitude": 46.0496313,
+        "longitude": 14.4844298,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2407395078",
+        "distanceKm": 1.737
+      },
+      {
+        "id": "osm_6dbd84ec-7a6c-3e26-b263-5dc54e270897",
+        "name": "Rakovnik",
+        "type": "neighborhood",
+        "latitude": 46.0371062,
+        "longitude": 14.5220167,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2407371106",
+        "distanceKm": 1.849
+      }
+    ],
+    "maxDistanceKm": 8.894,
+    "path": "provider -> cache",
+    "syntheticFallbackCount": 0,
+    "tripStatus": 200
+  },
+  {
+    "input": "Ghent",
+    "resolvedLocality": "Gent",
+    "latitude": 51.0538286,
+    "longitude": 3.7250121,
+    "rawCount": null,
+    "acceptedPool": 0,
+    "displayed": 0,
+    "suggestions": [],
+    "maxDistanceKm": null,
+    "path": "provider -> cache",
+    "syntheticFallbackCount": 0,
+    "tripStatus": 200
+  }
+]

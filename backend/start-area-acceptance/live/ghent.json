@@ -1,0 +1,208 @@
+{
+  "input": "Ghent",
+  "resolution": {
+    "status": 200,
+    "body": [
+      {
+        "id": "dynamic-gent",
+        "name": "Gent",
+        "country": "België / Belgique / Belgien",
+        "description": "Journy found Gent in België / Belgique / Belgien and can search live place providers to build a route there.",
+        "imageUrl": "https://loremflickr.com/900/600/Gent%2CBelgi%C3%AB%20%2F%20Belgique%20%2F%20Belgien%2Ccity",
+        "tags": "Provider search - local picks - flexible planning",
+        "bestFor": "Provider-backed city planning",
+        "placeCount": 0,
+        "averageDailyWalkKm": 5.6,
+        "available": true,
+        "popular": false,
+        "latitude": 51.0538286,
+        "longitude": 3.7250121,
+        "provider": "nominatim",
+        "providerPlaceId": "relation/897671",
+        "lookupQuery": "Ghent"
+      }
+    ]
+  },
+  "suggestions": {
+    "status": 200,
+    "body": []
+  },
+  "cacheRepeat": {
+    "status": 200,
+    "body": []
+  },
+  "trip": {
+    "status": 200,
+    "body": {
+      "id": "trip_69c7055c-6174-4fb7-a0b6-1fd19c075a13",
+      "destination": "Gent",
+      "startingArea": null,
+      "startDate": "2026-10-10",
+      "endDate": "2026-10-11",
+      "days": 1,
+      "travelerType": "SOLO",
+      "budget": "BALANCED",
+      "pace": "RELAXED",
+      "interests": [
+        "WALKING",
+        "LOCAL_FOOD",
+        "COFFEE",
+        "CULTURE"
+      ],
+      "stats": {
+        "stops": 3,
+        "foodPicks": 1,
+        "averageWalkKm": 3.4
+      },
+      "startingAreaSelection": null
+    }
+  },
+  "itinerary": {
+    "status": 200,
+    "body": {
+      "tripId": "trip_69c7055c-6174-4fb7-a0b6-1fd19c075a13",
+      "destination": "Gent",
+      "days": [
+        {
+          "dayNumber": 1,
+          "title": "Beauté, Force et Sagesse: Walks & Coffee",
+          "summary": "Beauté, Force et Sagesse, Het Natuurpuntcafé and Museum Dr. Guislain.",
+          "walkKm": 3.4,
+          "stopCount": 3,
+          "stops": [
+            {
+              "id": "stop_1112dc20-9818-4de7-a157-8f8c3831e71c",
+              "order": 1,
+              "title": "Beauté, Force et Sagesse",
+              "category": "WALKING",
+              "timeWindow": "09:30",
+              "placeId": "osm_node_279877147",
+              "source": "provider:osm",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Gent route. Suggested visit: 60 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 51.0313179,
+              "longitude": 3.7195611
+            },
+            {
+              "id": "stop_3952ad24-f044-4d61-9d8b-5f607900198d",
+              "order": 2,
+              "title": "Het Natuurpuntcafé",
+              "category": "COFFEE",
+              "timeWindow": "11:30",
+              "placeId": "osm_node_309512008",
+              "source": "provider:osm",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Gent route. Suggested visit: 45 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 51.0667945,
+              "longitude": 3.6823929
+            },
+            {
+              "id": "stop_7b814ad9-4acb-4023-a3f8-a7579d2efb9e",
+              "order": 3,
+              "title": "Museum Dr. Guislain",
+              "category": "CULTURE",
+              "timeWindow": "14:00",
+              "placeId": "osm_node_204761338",
+              "source": "provider:osm",
+              "note": "A real culture place from OpenStreetMap that can anchor a Gent day. Suggested visit: 120 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 51.0668514,
+              "longitude": 3.7033213
+            }
+          ],
+          "timeline": [
+            {
+              "id": "stop_1112dc20-9818-4de7-a157-8f8c3831e71c",
+              "type": "STOP",
+              "title": "Beauté, Force et Sagesse",
+              "startTime": "09:30",
+              "endTime": "10:30",
+              "durationMinutes": 60,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "WALKING",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Gent route. Suggested visit: 60 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_1112dc20-9818-4de7-a157-8f8c3831e71c_stop_3952ad24-f044-4d61-9d8b-5f607900198d",
+              "type": "TRAVEL",
+              "title": "79 min walk",
+              "startTime": "10:30",
+              "endTime": "11:49",
+              "durationMinutes": 79,
+              "distanceKm": 4.7,
+              "fromStopId": "stop_1112dc20-9818-4de7-a157-8f8c3831e71c",
+              "toStopId": "stop_3952ad24-f044-4d61-9d8b-5f607900198d",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_3952ad24-f044-4d61-9d8b-5f607900198d",
+              "type": "STOP",
+              "title": "Het Natuurpuntcafé",
+              "startTime": "12:00",
+              "endTime": "12:45",
+              "durationMinutes": 45,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "COFFEE",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Gent route. Suggested visit: 45 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_3952ad24-f044-4d61-9d8b-5f607900198d_stop_7b814ad9-4acb-4023-a3f8-a7579d2efb9e",
+              "type": "TRAVEL",
+              "title": "25 min walk",
+              "startTime": "12:45",
+              "endTime": "13:10",
+              "durationMinutes": 25,
+              "distanceKm": 1.5,
+              "fromStopId": "stop_3952ad24-f044-4d61-9d8b-5f607900198d",
+              "toStopId": "stop_7b814ad9-4acb-4023-a3f8-a7579d2efb9e",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_7b814ad9-4acb-4023-a3f8-a7579d2efb9e",
+              "type": "STOP",
+              "title": "Museum Dr. Guislain",
+              "startTime": "13:20",
+              "endTime": "15:20",
+              "durationMinutes": 120,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "CULTURE",
+              "note": "A real culture place from OpenStreetMap that can anchor a Gent day. Suggested visit: 120 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            }
+          ],
+          "titleTranslations": {
+            "tr": "Beauté, Force et Sagesse: Yürüyüş ve Kahve",
+            "en": "Beauté, Force et Sagesse: Walks & Coffee"
+          }
+        }
+      ]
+    }
+  },
+  "syntheticFallbackCount": 0
+}

@@ -1,0 +1,3 @@
+2026-09-04: xcrun simctl list devices booted returned no booted devices (installed iOS runtimes listed only).
+Native computer interaction is disabled in the available UI tool. No native simulator touch/visual acceptance was performed.
+See REPORT.md for exact manual retest steps; do not count automated logic/API tests as simulator acceptance.

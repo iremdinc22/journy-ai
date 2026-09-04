@@ -22,7 +22,8 @@ public class DestinationMapper {
                 null,
                 null,
                 "seed",
-                null
+                null,
+                destination.getName()
         );
     }
 }

@@ -86,7 +86,7 @@ class ItineraryControllerIntegrationTest {
     private String createTripAndGetId(String token) throws Exception {
         Map<String, Object> trip = Map.of(
                 "destination", "Amsterdam",
-                "startingArea", "Centraal Station",
+                "startingArea", "",
                 "startDate", LocalDate.of(2026, 10, 10).toString(),
                 "endDate", LocalDate.of(2026, 10, 14).toString(),
                 "travelerType", "COUPLE",

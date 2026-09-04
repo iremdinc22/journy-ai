@@ -21,6 +21,7 @@ public record CreateTripRequest(
         @NotNull TravelerType travelerType,
         @NotNull BudgetMode budget,
         @NotNull TripPace pace,
-        @NotEmpty Set<TravelInterest> interests
+        @NotEmpty Set<TravelInterest> interests,
+        com.journy.backend.startarea.StartAreaSuggestion startingAreaSelection
 ) {
 }

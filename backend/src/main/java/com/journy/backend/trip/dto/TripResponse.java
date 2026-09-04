@@ -14,7 +14,8 @@ public record TripResponse(
         String budget,
         String pace,
         List<String> interests,
-        TripStats stats
+        TripStats stats,
+        com.journy.backend.startarea.StartAreaSuggestion startingAreaSelection
 ) {
     public record TripStats(
             int stops,

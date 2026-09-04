@@ -1,0 +1,59 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "id": "osm_22db3ba6-aacd-3dab-bf47-113fbee33125",
+      "name": "Baščaršija",
+      "type": "district",
+      "latitude": 43.8591032,
+      "longitude": 18.4309501,
+      "source": "provider:osm",
+      "providerPlaceId": "node/5205110200"
+    },
+    {
+      "id": "osm_f1688cad-d069-3251-83e5-e5c464c0f1f1",
+      "name": "Baščaršija",
+      "type": "square",
+      "latitude": 43.8595107,
+      "longitude": 18.4311425,
+      "source": "provider:osm",
+      "providerPlaceId": "way/23480932"
+    },
+    {
+      "id": "osm_e12ebc2b-ba06-3f22-bcf2-d8ed42931e20",
+      "name": "Baščaršija",
+      "type": null,
+      "latitude": 43.8590061,
+      "longitude": 18.4308354,
+      "source": "provider:osm",
+      "providerPlaceId": "way/548827012"
+    },
+    {
+      "id": "osm_25de5421-8241-393b-8e47-205d5443b681",
+      "name": "Baščaršija",
+      "type": null,
+      "latitude": 43.8593756,
+      "longitude": 18.4310964,
+      "source": "provider:osm",
+      "providerPlaceId": "way/548827011"
+    },
+    {
+      "id": "osm_8a2800d6-a87a-372e-907c-9dc377ba2278",
+      "name": "Baščaršija",
+      "type": null,
+      "latitude": 43.8598459,
+      "longitude": 18.4311701,
+      "source": "provider:osm",
+      "providerPlaceId": "way/548827008"
+    },
+    {
+      "id": "osm_e03bc044-ec8d-332a-b27d-c01647b1e534",
+      "name": "Baščaršija",
+      "type": null,
+      "latitude": 43.8597447,
+      "longitude": 18.4312349,
+      "source": "provider:osm",
+      "providerPlaceId": "way/1534234897"
+    }
+  ]
+}

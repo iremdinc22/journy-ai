@@ -90,7 +90,8 @@ public class DestinationService {
                 resolvedDestination.latitude(),
                 resolvedDestination.longitude(),
                 resolvedDestination.provider(),
-                resolvedDestination.providerPlaceId()
+                resolvedDestination.providerPlaceId(),
+                resolvedDestination.originalQuery()
         );
     }
 

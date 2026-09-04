@@ -1,0 +1,21 @@
+mobile/src/i18n/translations.ts:361:  'place.cityCenter': '{{city}} city center',
+mobile/src/i18n/translations.ts:435:  'setup.startHelper': 'Search a hotel area, station or neighborhood so Journy can reduce first-leg walking.',
+backend/src/main/java/com/journy/backend/explore/service/ExploreService.java:203:            case "prague" -> "Old Town - river - cafes";
+backend/src/main/java/com/journy/backend/explore/service/ExploreService.java:210:            case "edinburgh", "edinburg" -> "Castle views - old town - pubs";
+backend/src/main/java/com/journy/backend/explore/service/ExploreService.java:263:                city + " city center",
+mobile/src/utils/localizedDynamicText.ts:400:    [/\bOld Town\b/gi, 'Eski şehir'],
+mobile/src/utils/localizedDynamicText.ts:462:    [/\bcity center\b/gi, 'şehir merkezi'],
+backend/src/main/java/com/journy/backend/explore/model/Place.java:76:        this.address = city + " city center";
+mobile/src/utils/destinationVisuals.ts:101:  if (normalized === 'eskisehir' || normalized === 'eskişehir') return 'Porsuk river - old town - cafes';
+mobile/src/utils/destinationVisuals.ts:104:  if (normalized === 'antalya') return 'Old town - beaches - historic walks';
+mobile/src/utils/destinationVisuals.ts:106:  if (normalized === 'edinburgh' || normalized === 'edinburg') return 'Castle views - old town - pubs';
+mobile/src/screens/ExploreScreen.tsx:390:    address: language === 'tr' ? `${place.city} şehir merkezi` : `${place.city} city center`,
+mobile/src/screens/DayRouteDetailScreen.tsx:496:    address: `${destination} city center`,
+mobile/src/screens/TripSetupScreen.tsx:64:    meta: 'Old Town - river - cafes',
+backend/src/main/java/com/journy/backend/destination/service/DestinationService.java:112:            case "zurich", "zürich" -> "Lake walks - design - old town";
+backend/src/main/java/com/journy/backend/destination/service/DestinationService.java:120:            case "eskisehir" -> "Porsuk river - old town - cafes";
+backend/src/main/java/com/journy/backend/destination/service/DestinationService.java:123:            case "antalya" -> "Old town - beaches - historic walks";
+backend/src/main/java/com/journy/backend/destination/service/DestinationService.java:124:            case "edinburgh", "edinburg" -> "Castle views - old town - pubs";
+backend/src/main/java/com/journy/backend/seed/DatabaseSeeder.java:200:                        "Old Town, River, Cafes",
+backend/src/main/java/com/journy/backend/seed/DatabaseSeeder.java:360:                new Place("Old Town Morning Loop", "Prague", PlaceCategory.WALKING, "A compact walk through historic streets before the central areas get crowded.", "Free", 4.7, "https://images.unsplash.com/photo-1519677100203-a0e668c92439?auto=format&fit=crop&w=700&q=85", "Old Town, Prague", 50.0870, 14.4208, "Open route window", 80, "walking,history,free"),
+backend/src/main/java/com/journy/backend/seed/DatabaseSeeder.java:363:                new Place("Lokal Dinner Window", "Prague", PlaceCategory.FOOD, "A reliable local dinner zone that keeps the evening practical and low-stress.", "Mid", 4.6, "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=700&q=85", "Old Town, Prague", 50.0902, 14.4248, "12:00 - 22:30", 90, "food,local,dinner"),

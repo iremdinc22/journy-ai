@@ -15,6 +15,7 @@ public record DestinationResponse(
         Double latitude,
         Double longitude,
         String provider,
-        String providerPlaceId
+        String providerPlaceId,
+        String lookupQuery
 ) {
 }

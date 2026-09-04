@@ -5,12 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import { destinationApi, exploreApi, tripApi } from '../api/journyApi';
-import type { CreateTripRequest, DestinationResponse, TripPreviewResponse } from '../api/types';
+import { destinationApi, startAreaApi, tripApi } from '../api/journyApi';
+import type { CreateTripRequest, DestinationResponse, TripPreviewResponse, StartAreaSuggestion } from '../api/types';
 import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { cityCoordinates, cityImage, cityMeta } from '../utils/destinationVisuals';
 import { localizeDynamicText } from '../utils/localizedDynamicText';
+import { startAreaSelectionPayload, visibleStartAreas } from '../utils/startAreaSuggestions';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TripSetup'>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -112,27 +113,6 @@ const interests: Array<{ label: string; icon: IconName }> = [
   { label: 'Nightlife', icon: 'moon-outline' },
 ];
 const paceOptions = ['Relaxed', 'Balanced', 'Full'];
-const defaultStartSuggestions = ['Hotel area', 'Main station', 'Old town', 'City center'];
-const cityStartSuggestions: Record<string, string[]> = {
-  Amsterdam: ['Centraal Station', 'Jordaan', 'De Pijp', 'Museumplein'],
-  Paris: ['Saint-Germain', 'Le Marais', 'Latin Quarter', 'Montmartre'],
-  Rome: ['Trastevere', 'Centro Storico', 'Monti', 'Termini'],
-  Barcelona: ['Eixample', 'Gothic Quarter', 'Gracia', 'El Born'],
-  Tokyo: ['Shinjuku', 'Shibuya', 'Ueno', 'Ginza'],
-  London: ['South Bank', 'Soho', 'Covent Garden', 'Shoreditch'],
-  Lisbon: ['Chiado', 'Alfama', 'Baixa', 'Cais do Sodre'],
-  Prague: ['Old Town', 'Mala Strana', 'Vinohrady', 'Kampa'],
-  Vienna: ['Innere Stadt', 'MuseumsQuartier', 'Naschmarkt', 'Leopoldstadt'],
-  Berlin: ['Mitte', 'Kreuzberg', 'Prenzlauer Berg', 'Friedrichshain'],
-  Copenhagen: ['Indre By', 'Norrebro', 'Vesterbro', 'Nyhavn'],
-  Istanbul: ['Sultanahmet', 'Karakoy', 'Kadikoy', 'Galata'],
-  Bursa: ['Osmangazi', 'Nilufer', 'Heykel', 'Mudanya'],
-  Eskişehir: ['Odunpazari', 'Porsuk River', 'Train Station', 'Doktorlar Caddesi'],
-  Eskisehir: ['Odunpazari', 'Porsuk River', 'Train Station', 'Doktorlar Caddesi'],
-  'New York': ['West Village', 'SoHo', 'Upper East Side', 'Chelsea'],
-  Kyoto: ['Gion', 'Higashiyama', 'Arashiyama', 'Kyoto Station'],
-  Madrid: ['Centro', 'Malasana', 'Retiro', 'La Latina'],
-};
 const countryByCity: Record<string, string> = {
   Amsterdam: 'Netherlands',
   Paris: 'France',
@@ -174,6 +154,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
   const activeTextColor = isDark ? colors.ivory : colors.surface;
   const [city, setCity] = useState('');
   const [citySearch, setCitySearch] = useState('');
+  const [destinationQuery, setDestinationQuery] = useState('');
   const [cityOpen, setCityOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [monthIndex, setMonthIndex] = useState(defaultCalendarDate.monthIndex);
@@ -185,13 +166,17 @@ export default function TripSetupScreen({ navigation, route }: Props) {
   const [budget, setBudget] = useState('Balanced');
   const [pace, setPace] = useState('Balanced');
   const [startArea, setStartArea] = useState('');
+  const [selectedStartArea, setSelectedStartArea] = useState<StartAreaSuggestion | null>(null);
+  const editStartArea = (value: string) => { setStartArea(value); setSelectedStartArea(null); };
+  const chooseStartArea = (value: StartAreaSuggestion) => { setStartArea(value.name); setSelectedStartArea(value); };
+  const changeDestination = (value: string, query = value) => { setCity(value); setDestinationQuery(query); editStartArea(''); setStartSuggestionPlaces([]); };
   const [destinations, setDestinations] = useState<DestinationResponse[]>([]);
   const [popularDestinations, setPopularDestinations] = useState<DestinationResponse[]>([]);
   const [destinationLoading, setDestinationLoading] = useState(false);
   const [backendPreview, setBackendPreview] = useState<TripPreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewLive, setPreviewLive] = useState(false);
-  const [startSuggestionPlaces, setStartSuggestionPlaces] = useState<string[]>([]);
+  const [startSuggestionPlaces, setStartSuggestionPlaces] = useState<StartAreaSuggestion[]>([]);
   const [startSuggestionLoading, setStartSuggestionLoading] = useState(false);
   const destinationDetails = useMemo<Record<string, CityDetail>>(() => {
     const mapped = destinations.reduce<Record<string, { image: string; meta: string }>>((acc, destination) => {
@@ -226,9 +211,11 @@ export default function TripSetupScreen({ navigation, route }: Props) {
     }
     if (initialTrip.destination) {
       setCity(initialTrip.destination);
+      setDestinationQuery(initialTrip.destination);
     }
     if (initialTrip.startingArea) {
       setStartArea(initialTrip.startingArea);
+      setSelectedStartArea(initialTrip.startingAreaSelection ?? null);
     }
     if (initialTrip.budget) {
       setBudget(fromBudget(initialTrip.budget));
@@ -298,42 +285,19 @@ export default function TripSetupScreen({ navigation, route }: Props) {
   }, [citySearch]);
 
   useEffect(() => {
-    const selected = city.trim();
-    if (!selected) {
-      setStartSuggestionPlaces([]);
-      setStartSuggestionLoading(false);
-      return;
-    }
-
-    let mounted = true;
+    const destination = destinationQuery.trim() || city.trim();
+    let active = true;
+    setStartSuggestionPlaces([]);
+    if (!destination) { setStartSuggestionLoading(false); return; }
     setStartSuggestionLoading(true);
-    exploreApi.places('For you', selected)
-      .then((places) => {
-        if (!mounted) {
-          return;
-        }
-        const suggestions = places
-          .filter((place) => place.city.toLowerCase() === selected.toLowerCase())
-          .filter((place) => place.provider !== 'starter')
-          .map((place) => place.name)
-          .filter((name) => isUsefulStartSuggestion(name, selected));
-        setStartSuggestionPlaces(uniqueValues(suggestions).slice(0, 5));
-      })
-      .catch(() => {
-        if (mounted) {
-          setStartSuggestionPlaces([]);
-        }
-      })
-      .finally(() => {
-        if (mounted) {
-          setStartSuggestionLoading(false);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [city]);
+    const timer = setTimeout(() => {
+      startAreaApi.search(destination, selectedStartArea ? '' : startArea.trim())
+        .then(items => { if (active) setStartSuggestionPlaces(items); })
+        .catch(() => { if (active) setStartSuggestionPlaces([]); })
+        .finally(() => { if (active) setStartSuggestionLoading(false); });
+    }, 400);
+    return () => { active = false; clearTimeout(timer); };
+  }, [city, destinationQuery, startArea, selectedStartArea]);
 
   const daysInMonth = useMemo(() => new Date(year, monthIndex + 1, 0).getDate(), [monthIndex, year]);
   const firstOffset = useMemo(() => (new Date(year, monthIndex, 1).getDay() + 6) % 7, [monthIndex, year]);
@@ -352,9 +316,10 @@ export default function TripSetupScreen({ navigation, route }: Props) {
   const tripDays = startDate && endDate ? Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000)) : 0;
   const previewStops = tripDays ? tripDays * stopsForPace(pace) : 0;
   const previewFocus = selectedInterests.slice(0, 3).map((item) => setupOptionLabel(item, t)).join(' - ') || t('setup.chooseTaste');
-  const startSuggestions = startSuggestionsFor(city, startSuggestionPlaces);
+  const startSuggestions = visibleStartAreas(startSuggestionPlaces, selectedStartArea);
+  const planningStartArea = selectedStartArea?.name ?? '';
   const estimatedDailyWalk = previewStops ? estimateDailyWalkKm(stopsForPace(pace), pace, budget) : 0;
-  const routeStyle = routeStyleFor({ pace, budget, selectedInterests, startArea }, t);
+  const routeStyle = routeStyleFor({ pace, budget, selectedInterests, startArea: planningStartArea }, t);
   const resolvedPreviewStops = backendPreview?.estimatedStops ?? previewStops;
   const resolvedTripDays = tripDays || (city.trim() && resolvedPreviewStops ? Math.max(1, Math.round(resolvedPreviewStops / stopsForPace(pace))) : 0);
   const resolvedDailyWalk = backendPreview?.dailyWalkKm ?? estimatedDailyWalk;
@@ -371,8 +336,8 @@ export default function TripSetupScreen({ navigation, route }: Props) {
     : t('setup.selectDestination');
   const previewConfidence = backendPreview?.confidence ?? (city ? 'Draft' : 'Waiting');
   const previewSummary = localizeDynamicText(backendPreview?.summary, language);
-  const planningStyle = localizeDynamicText(backendPreview?.planningStyle ?? localPlanningStyle(city, resolvedTripDays || 1, pace, budget, selectedInterests, startArea, t), language);
-  const startingAreaInsight = localizeDynamicText(backendPreview?.startingAreaInsight ?? localStartingAreaInsight(startArea, resolvedDailyWalk, t), language);
+  const planningStyle = localizeDynamicText(backendPreview?.planningStyle ?? localPlanningStyle(city, resolvedTripDays || 1, pace, budget, selectedInterests, planningStartArea, t), language);
+  const startingAreaInsight = localizeDynamicText(backendPreview?.startingAreaInsight ?? localStartingAreaInsight(planningStartArea, resolvedDailyWalk, t), language);
 
   useEffect(() => {
     if (!city.trim()) {
@@ -387,7 +352,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
       setPreviewLoading(true);
       tripApi.preview({
         destination: city.trim(),
-        startingArea: startArea.trim() || undefined,
+        startingArea: planningStartArea || undefined,
         startDate: startDate ?? undefined,
         endDate: endDate ?? undefined,
         budget: mapBudget(budget),
@@ -418,7 +383,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
       mounted = false;
       clearTimeout(timer);
     };
-  }, [budget, city, endDate, pace, selectedInterests, startArea, startDate]);
+  }, [budget, city, endDate, pace, selectedInterests, planningStartArea, startDate]);
 
   const selectDay = (day: number) => {
     if (!startDay || endDay || day <= startDay) {
@@ -455,7 +420,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
   };
 
   const selectDestination = (destination: DestinationResponse) => {
-    setCity(destination.name);
+    changeDestination(destination.name, destination.lookupQuery ?? destination.name);
     setCitySearch('');
     setCityOpen(false);
   };
@@ -466,12 +431,12 @@ export default function TripSetupScreen({ navigation, route }: Props) {
       return;
     }
     const providerCandidate = destinationOptions.find((item) => normalizeCityKey(item.name) === normalizeCityKey(draftCity)) ?? draftDestination(draftCity);
-    setCity(providerCandidate?.name ?? draftCity);
+    changeDestination(providerCandidate?.name ?? draftCity, providerCandidate?.lookupQuery ?? draftCity);
     setCityOpen(false);
   };
 
   const generatePlan = () => {
-    const selectedDestination = city.trim() || citySearch.trim();
+    const selectedDestination = destinationQuery.trim() || city.trim() || citySearch.trim();
     if (!selectedDestination) {
       Alert.alert(t('setup.destinationRequiredTitle'), t('setup.destinationRequiredMessage'));
       return;
@@ -492,7 +457,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
 
     const tripDraft: CreateTripRequest = {
       destination: selectedDestination,
-      startingArea: startArea.trim() || undefined,
+      ...startAreaSelectionPayload(selectedStartArea),
       startDate,
       endDate,
       travelerType: mapTravelerType(travelType),
@@ -672,7 +637,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
             <Text style={styles.previewTitle}>{t('setup.planPreview')}</Text>
             <View style={styles.previewBadge}>
               <Ionicons name="sparkles-outline" size={13} color={colors.teal} />
-              <Text style={styles.previewBadgeText}>{previewLoading ? t('setup.updating') : previewLive ? t('setup.confidence', { value: previewConfidence }) : t('setup.ready', { count: [city, startDate && endDate ? 'dates' : '', selectedInterests.length ? 'taste' : '', pace, startArea.trim()].filter(Boolean).length })}</Text>
+              <Text style={styles.previewBadgeText}>{previewLoading ? t('setup.updating') : previewLive ? t('setup.confidence', { value: previewConfidence }) : t('setup.ready', { count: [city, startDate && endDate ? 'dates' : '', selectedInterests.length ? 'taste' : '', pace, planningStartArea].filter(Boolean).length })}</Text>
             </View>
           </View>
           <Text style={styles.previewMain}>{city ? t('setup.planTakingShape') : t('setup.chooseCityRoute')}</Text>
@@ -702,7 +667,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
           </View>
           <Text style={styles.previewFocus}>
             {previewSummary ?? (city && resolvedTripDays
-              ? `${previewFocus}. ${startArea.trim() ? t('setup.dayStarts', { area: startArea.trim() }) : t('setup.flexibleStart')}`
+              ? `${previewFocus}. ${planningStartArea ? t('setup.dayStarts', { area: planningStartArea }) : t('setup.flexibleStart')}`
               : previewFocus)}
           </Text>
           <View style={styles.startingAreaPreview}>
@@ -723,7 +688,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
               </View>
             </View>
             {startArea.trim() ? (
-              <TouchableOpacity style={styles.startClearButton} activeOpacity={0.82} onPress={() => setStartArea('')}>
+              <TouchableOpacity style={styles.startClearButton} activeOpacity={0.82} onPress={() => editStartArea('')}>
                 <Ionicons name="close" size={15} color={colors.teal} />
               </TouchableOpacity>
             ) : null}
@@ -733,7 +698,7 @@ export default function TripSetupScreen({ navigation, route }: Props) {
             <Ionicons name="search-outline" size={16} color={colors.softMuted} />
             <TextInput
               value={startArea}
-              onChangeText={setStartArea}
+              onChangeText={editStartArea}
               placeholder={city ? t('setup.searchArea', { city }) : t('setup.hotelStation')}
               placeholderTextColor={colors.softMuted}
               style={styles.startInput}
@@ -742,16 +707,16 @@ export default function TripSetupScreen({ navigation, route }: Props) {
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.startSuggestionRail}>
             {startSuggestions.map((item) => {
-              const active = startArea.trim().toLowerCase() === item.toLowerCase();
+              const active = selectedStartArea?.id === item.id;
               return (
                 <TouchableOpacity
-                  key={item}
+                  key={item.id}
                   style={[styles.startSuggestion, active && styles.startSuggestionActive]}
                   activeOpacity={0.84}
-                  onPress={() => setStartArea(item)}
+                  onPress={() => chooseStartArea(item)}
                 >
                   <Ionicons name={active ? 'checkmark-circle' : 'location-outline'} size={14} color={active ? activeTextColor : colors.teal} />
-                  <Text style={[styles.startSuggestionText, active && styles.startSuggestionTextActive]}>{item}</Text>
+                  <Text style={[styles.startSuggestionText, active && styles.startSuggestionTextActive]}>{item.name}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -759,7 +724,10 @@ export default function TripSetupScreen({ navigation, route }: Props) {
           {city.trim() && startSuggestionLoading ? (
             <Text style={styles.startSuggestionLoading}>{t('setup.findingStartPoints', { city })}</Text>
           ) : null}
-          {startArea.trim() ? (
+          {startArea.trim() && !selectedStartArea && !startSuggestionLoading ? (
+            <Text style={styles.startSuggestionLoading}>{t('setup.selectVerifiedStart')}</Text>
+          ) : null}
+          {selectedStartArea ? (
             <View style={styles.startImpactCard}>
               <View style={styles.startImpactIcon}>
                 <Ionicons name="navigate-outline" size={15} color={colors.teal} />
@@ -900,64 +868,6 @@ function stopsForPace(value: string) {
   if (value === 'Relaxed') return 3;
   if (value === 'Full') return 5;
   return 4;
-}
-
-function startSuggestionsFor(city: string, liveSuggestions: string[] = []) {
-  const trimmed = city.trim();
-  if (!trimmed) {
-    return defaultStartSuggestions;
-  }
-  const exact = cityStartSuggestions[trimmed];
-  if (exact) {
-    return uniqueValues([...liveSuggestions, ...exact]).slice(0, 4);
-  }
-  const normalized = normalizeCityKey(trimmed);
-  const match = Object.entries(cityStartSuggestions).find(([key]) => normalizeCityKey(key) === normalized);
-  if (match) {
-    return uniqueValues([...liveSuggestions, ...match[1]]).slice(0, 4);
-  }
-  return uniqueValues([...liveSuggestions, ...fallbackStartSuggestions(trimmed)]).slice(0, 4);
-}
-
-function fallbackStartSuggestions(city: string) {
-  const normalized = normalizeCityKey(city);
-  const known: Record<string, string[]> = {
-    ankara: ['Kızılay', 'Ulus', 'Anıtkabir', 'Tunalı Hilmi'],
-    izmir: ['Alsancak', 'Konak', 'Karsiyaka', 'Bornova'],
-    antalya: ['Kaleici', 'Konyaalti', 'Lara', 'Muratpasa'],
-    adana: ['Seyhan', 'Kazancilar', 'Ziyapasa', 'Cukurova'],
-    trabzon: ['Meydan', 'Boztepe', 'Ortahisar', 'Ataturk Alani'],
-  };
-  const citySpecific = known[normalized];
-  if (citySpecific) {
-    return citySpecific;
-  }
-  return [`${city} city center`, `${city} main station`, `${city} old town`, `${city} museum area`];
-}
-
-function isUsefulStartSuggestion(name: string, city: string) {
-  const normalized = normalizeCityKey(name);
-  const normalizedCity = normalizeCityKey(city);
-  if (!normalized || normalized === normalizedCity) {
-    return false;
-  }
-  if (normalized.length < 3) {
-    return false;
-  }
-  return !['hotel', 'restaurant', 'cafe', 'coffee'].some((generic) => normalized === generic);
-}
-
-function uniqueValues(values: string[]) {
-  const seen = new Set<string>();
-  return values.filter((value) => {
-    const trimmed = value.trim();
-    const key = normalizeCityKey(trimmed);
-    if (!trimmed || seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
 }
 
 function normalizeCityKey(value: string) {

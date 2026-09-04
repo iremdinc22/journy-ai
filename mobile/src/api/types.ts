@@ -1,3 +1,13 @@
+export type StartAreaSuggestion = {
+  id: string;
+  name: string;
+  type: string | null;
+  latitude: number;
+  longitude: number;
+  source: string;
+  providerPlaceId: string | null;
+};
+
 export type UserSummary = {
   id: string;
   fullName: string;
@@ -16,6 +26,7 @@ export type TripResponse = {
   id: string;
   destination: string;
   startingArea?: string;
+  startingAreaSelection?: StartAreaSuggestion | null;
   startDate: string;
   endDate: string;
   days: number;
@@ -33,6 +44,7 @@ export type TripResponse = {
 export type CreateTripRequest = {
   destination: string;
   startingArea?: string;
+  startingAreaSelection?: StartAreaSuggestion | null;
   startDate: string;
   endDate: string;
   travelerType: 'SOLO' | 'COUPLE' | 'FRIENDS' | 'FAMILY';
@@ -170,6 +182,7 @@ export type PlaceResponse = {
 };
 
 export type DestinationResponse = {
+  lookupQuery?: string;
   id: string;
   name: string;
   country: string;

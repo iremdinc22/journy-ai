@@ -1,6 +1,7 @@
 import { apiRequest } from './client';
 import { session } from './session';
 import type {
+  StartAreaSuggestion,
   AiChatResponse,
   AgentIntent,
   AgentMessageResponse,
@@ -59,6 +60,12 @@ export const authApi = {
     } finally {
       session.clearAuth();
     }
+  },
+};
+
+export const startAreaApi = {
+  search(destination: string, query = '') {
+    return apiRequest<StartAreaSuggestion[]>(`/api/start-areas?destination=${encodeURIComponent(destination)}&query=${encodeURIComponent(query)}`, { timeoutMs: 30000 });
   },
 };
 

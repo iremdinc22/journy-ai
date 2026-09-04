@@ -191,7 +191,8 @@ class DestinationResolutionServiceTest {
                 null,
                 null,
                 null,
-                resolutionService
+                resolutionService,
+                null
         );
 
         assertThatThrownBy(() -> tripService.preview(new TripPreviewRequest(

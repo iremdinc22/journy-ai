@@ -1,0 +1,326 @@
+{
+  "input": "Edirne",
+  "resolution": {
+    "status": 200,
+    "body": [
+      {
+        "id": "dynamic-edirne",
+        "name": "Edirne",
+        "country": "Turkey",
+        "description": "Journy found Edirne in Turkey and can search live place providers to build a route there.",
+        "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Selimiye_Mosque_Edirne.jpg?width=900",
+        "tags": "Ottoman heritage - river walks - local food",
+        "bestFor": "Provider-backed city planning",
+        "placeCount": 24,
+        "averageDailyWalkKm": 5.6,
+        "available": true,
+        "popular": false,
+        "latitude": 41.6771,
+        "longitude": 26.5557,
+        "provider": "known",
+        "providerPlaceId": "edirne",
+        "lookupQuery": "Edirne"
+      }
+    ]
+  },
+  "suggestions": {
+    "status": 200,
+    "body": [
+      {
+        "id": "osm_56df8d93-dd21-36ca-a79d-8952e3183ab9",
+        "name": "Edirne",
+        "type": "transit_station",
+        "latitude": 41.6552066,
+        "longitude": 26.5805143,
+        "source": "provider:osm",
+        "providerPlaceId": "node/11132878357"
+      },
+      {
+        "id": "osm_f4a711f4-9800-3417-b6ea-069df9a9fa30",
+        "name": "Edirne Şehirlerarası Otobüs Terminali",
+        "type": "transit_station",
+        "latitude": 41.6319481,
+        "longitude": 26.6184351,
+        "source": "provider:osm",
+        "providerPlaceId": "way/753142787"
+      },
+      {
+        "id": "osm_7fee26d7-74ad-35b3-8b4d-2b378c28bbe3",
+        "name": "Babademirtaş",
+        "type": "district",
+        "latitude": 41.6802064,
+        "longitude": 26.5546472,
+        "source": "provider:osm",
+        "providerPlaceId": "node/10270056966"
+      },
+      {
+        "id": "osm_a7c3a1d1-c767-3018-8ca5-731ef8c6e6e5",
+        "name": "Sabuni",
+        "type": "district",
+        "latitude": 41.6736521,
+        "longitude": 26.5571997,
+        "source": "provider:osm",
+        "providerPlaceId": "node/6979466604"
+      },
+      {
+        "id": "osm_01f2d835-2fdf-3aae-b4a1-7c50fc731b8c",
+        "name": "Sarıcapaşa",
+        "type": "district",
+        "latitude": 41.6756198,
+        "longitude": 26.5609202,
+        "source": "provider:osm",
+        "providerPlaceId": "node/6979402535"
+      },
+      {
+        "id": "osm_e10fe0ef-b41e-3bb0-ac3c-affa92fc735b",
+        "name": "Mithat Paşa",
+        "type": "district",
+        "latitude": 41.6757901,
+        "longitude": 26.5503475,
+        "source": "provider:osm",
+        "providerPlaceId": "node/8259548245"
+      }
+    ]
+  },
+  "cacheRepeat": {
+    "status": 200,
+    "body": [
+      {
+        "id": "osm_56df8d93-dd21-36ca-a79d-8952e3183ab9",
+        "name": "Edirne",
+        "type": "transit_station",
+        "latitude": 41.6552066,
+        "longitude": 26.5805143,
+        "source": "provider:osm",
+        "providerPlaceId": "node/11132878357"
+      },
+      {
+        "id": "osm_f4a711f4-9800-3417-b6ea-069df9a9fa30",
+        "name": "Edirne Şehirlerarası Otobüs Terminali",
+        "type": "transit_station",
+        "latitude": 41.6319481,
+        "longitude": 26.6184351,
+        "source": "provider:osm",
+        "providerPlaceId": "way/753142787"
+      },
+      {
+        "id": "osm_7fee26d7-74ad-35b3-8b4d-2b378c28bbe3",
+        "name": "Babademirtaş",
+        "type": "district",
+        "latitude": 41.6802064,
+        "longitude": 26.5546472,
+        "source": "provider:osm",
+        "providerPlaceId": "node/10270056966"
+      },
+      {
+        "id": "osm_a7c3a1d1-c767-3018-8ca5-731ef8c6e6e5",
+        "name": "Sabuni",
+        "type": "district",
+        "latitude": 41.6736521,
+        "longitude": 26.5571997,
+        "source": "provider:osm",
+        "providerPlaceId": "node/6979466604"
+      },
+      {
+        "id": "osm_01f2d835-2fdf-3aae-b4a1-7c50fc731b8c",
+        "name": "Sarıcapaşa",
+        "type": "district",
+        "latitude": 41.6756198,
+        "longitude": 26.5609202,
+        "source": "provider:osm",
+        "providerPlaceId": "node/6979402535"
+      },
+      {
+        "id": "osm_e10fe0ef-b41e-3bb0-ac3c-affa92fc735b",
+        "name": "Mithat Paşa",
+        "type": "district",
+        "latitude": 41.6757901,
+        "longitude": 26.5503475,
+        "source": "provider:osm",
+        "providerPlaceId": "node/8259548245"
+      }
+    ]
+  },
+  "trip": {
+    "status": 200,
+    "body": {
+      "id": "trip_19283437-c044-4526-b5ce-1500649ba3bc",
+      "destination": "Edirne",
+      "startingArea": "Edirne",
+      "startDate": "2026-10-10",
+      "endDate": "2026-10-11",
+      "days": 1,
+      "travelerType": "SOLO",
+      "budget": "BALANCED",
+      "pace": "RELAXED",
+      "interests": [
+        "WALKING",
+        "LOCAL_FOOD",
+        "COFFEE",
+        "CULTURE"
+      ],
+      "stats": {
+        "stops": 3,
+        "foodPicks": 1,
+        "averageWalkKm": 3.4
+      },
+      "startingAreaSelection": {
+        "id": "osm_56df8d93-dd21-36ca-a79d-8952e3183ab9",
+        "name": "Edirne",
+        "type": "transit_station",
+        "latitude": 41.6552066,
+        "longitude": 26.5805143,
+        "source": "provider:osm",
+        "providerPlaceId": "node/11132878357"
+      }
+    }
+  },
+  "itinerary": {
+    "status": 200,
+    "body": {
+      "tripId": "trip_19283437-c044-4526-b5ce-1500649ba3bc",
+      "destination": "Edirne",
+      "days": [
+        {
+          "dayNumber": 1,
+          "title": "Edirne Müzesi: Culture & Walks",
+          "summary": "Edirne Müzesi, Balkan Savaşı Şehitleri Anıtı and Yesil Sera.",
+          "walkKm": 3.4,
+          "stopCount": 3,
+          "stops": [
+            {
+              "id": "stop_c696cf58-562a-4180-9542-f75598c58780",
+              "order": 1,
+              "title": "Edirne Müzesi",
+              "category": "CULTURE",
+              "timeWindow": "09:30",
+              "placeId": "osm_node_2181137651",
+              "source": "provider:osm",
+              "note": "A real culture place from OpenStreetMap that can anchor a Edirne day. Suggested visit: 120 min. Starts near Edirne.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 41.678894,
+              "longitude": 26.5607674
+            },
+            {
+              "id": "stop_713ce0d1-0f67-4f24-bf4f-823fb7d52006",
+              "order": 2,
+              "title": "Balkan Savaşı Şehitleri Anıtı",
+              "category": "WALKING",
+              "timeWindow": "11:30",
+              "placeId": "osm_node_1801477226",
+              "source": "provider:osm",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Edirne route. Suggested visit: 60 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 41.6592439,
+              "longitude": 26.5377829
+            },
+            {
+              "id": "stop_8b5fdf89-e540-4f66-9b53-d8cb810af4b8",
+              "order": 3,
+              "title": "Yesil Sera",
+              "category": "COFFEE",
+              "timeWindow": "14:00",
+              "placeId": "osm_node_1801477240",
+              "source": "provider:osm",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Edirne route. Suggested visit: 45 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 41.6578631,
+              "longitude": 26.5332945
+            }
+          ],
+          "timeline": [
+            {
+              "id": "stop_c696cf58-562a-4180-9542-f75598c58780",
+              "type": "STOP",
+              "title": "Edirne Müzesi",
+              "startTime": "09:30",
+              "endTime": "11:30",
+              "durationMinutes": 120,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "CULTURE",
+              "note": "A real culture place from OpenStreetMap that can anchor a Edirne day. Suggested visit: 120 min. Starts near Edirne.",
+              "constraintStatus": "WARNING",
+              "constraintWarning": "Edirne Müzesi may not be open yet. Opens around 10:00."
+            },
+            {
+              "id": "travel_stop_c696cf58-562a-4180-9542-f75598c58780_stop_713ce0d1-0f67-4f24-bf4f-823fb7d52006",
+              "type": "TRAVEL",
+              "title": "49 min walk",
+              "startTime": "11:30",
+              "endTime": "12:19",
+              "durationMinutes": 49,
+              "distanceKm": 2.9,
+              "fromStopId": "stop_c696cf58-562a-4180-9542-f75598c58780",
+              "toStopId": "stop_713ce0d1-0f67-4f24-bf4f-823fb7d52006",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_713ce0d1-0f67-4f24-bf4f-823fb7d52006",
+              "type": "STOP",
+              "title": "Balkan Savaşı Şehitleri Anıtı",
+              "startTime": "12:30",
+              "endTime": "13:30",
+              "durationMinutes": 60,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "WALKING",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Edirne route. Suggested visit: 60 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_713ce0d1-0f67-4f24-bf4f-823fb7d52006_stop_8b5fdf89-e540-4f66-9b53-d8cb810af4b8",
+              "type": "TRAVEL",
+              "title": "7 min walk",
+              "startTime": "13:30",
+              "endTime": "13:37",
+              "durationMinutes": 7,
+              "distanceKm": 0.4,
+              "fromStopId": "stop_713ce0d1-0f67-4f24-bf4f-823fb7d52006",
+              "toStopId": "stop_8b5fdf89-e540-4f66-9b53-d8cb810af4b8",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_8b5fdf89-e540-4f66-9b53-d8cb810af4b8",
+              "type": "STOP",
+              "title": "Yesil Sera",
+              "startTime": "13:45",
+              "endTime": "14:30",
+              "durationMinutes": 45,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "COFFEE",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Edirne route. Suggested visit: 45 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            }
+          ],
+          "titleTranslations": {
+            "tr": "Edirne Müzesi: Kültür ve Yürüyüş",
+            "en": "Edirne Müzesi: Culture & Walks"
+          }
+        }
+      ]
+    }
+  },
+  "syntheticFallbackCount": 0
+}

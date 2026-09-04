@@ -1,0 +1,326 @@
+{
+  "input": "Sarajevo",
+  "resolution": {
+    "status": 200,
+    "body": [
+      {
+        "id": "dynamic-sarajevo",
+        "name": "Sarajevo",
+        "country": "Bosna i Hercegovina / Босна и Херцеговина",
+        "description": "Journy found Sarajevo in Bosna i Hercegovina / Босна и Херцеговина and can search live place providers to build a route there.",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Sarajevo_City_Panorama.JPG/900px-Sarajevo_City_Panorama.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+        "tags": "Provider search - local picks - flexible planning",
+        "bestFor": "Provider-backed city planning",
+        "placeCount": 20,
+        "averageDailyWalkKm": 5.6,
+        "available": true,
+        "popular": false,
+        "latitude": 43.8570713,
+        "longitude": 18.4126147,
+        "provider": "nominatim",
+        "providerPlaceId": "relation/15445108",
+        "lookupQuery": "Sarajevo"
+      }
+    ]
+  },
+  "suggestions": {
+    "status": 200,
+    "body": [
+      {
+        "id": "osm_b667a770-054e-38ce-8297-994115a2e1ac",
+        "name": "Sarajevo",
+        "type": "transit_station",
+        "latitude": 43.8604591,
+        "longitude": 18.3989497,
+        "source": "provider:osm",
+        "providerPlaceId": "node/942406094"
+      },
+      {
+        "id": "osm_5f277bd5-721b-3257-bd8d-8d8730b8477c",
+        "name": "Skenderija",
+        "type": "district",
+        "latitude": 43.8551592,
+        "longitude": 18.4139241,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2043629667"
+      },
+      {
+        "id": "osm_f80c60c1-7124-389a-a8d4-c84e657bb270",
+        "name": "Mejtaš",
+        "type": "district",
+        "latitude": 43.8612082,
+        "longitude": 18.4194456,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2026434322"
+      },
+      {
+        "id": "osm_409d57f3-a8b8-3eaa-a979-d53bee9cf7ff",
+        "name": "Soukbunar",
+        "type": "district",
+        "latitude": 43.8503081,
+        "longitude": 18.4145842,
+        "source": "provider:osm",
+        "providerPlaceId": "node/389608127"
+      },
+      {
+        "id": "osm_477a65e5-891b-3d80-b4f7-7ca7411b7359",
+        "name": "Ciglane",
+        "type": "district",
+        "latitude": 43.8645049,
+        "longitude": 18.408036,
+        "source": "provider:osm",
+        "providerPlaceId": "node/375768377"
+      },
+      {
+        "id": "osm_9c93d22f-cb70-3835-9ac2-d349a5b33499",
+        "name": "Bjelave",
+        "type": "district",
+        "latitude": 43.8637854,
+        "longitude": 18.4195229,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2021033229"
+      }
+    ]
+  },
+  "cacheRepeat": {
+    "status": 200,
+    "body": [
+      {
+        "id": "osm_b667a770-054e-38ce-8297-994115a2e1ac",
+        "name": "Sarajevo",
+        "type": "transit_station",
+        "latitude": 43.8604591,
+        "longitude": 18.3989497,
+        "source": "provider:osm",
+        "providerPlaceId": "node/942406094"
+      },
+      {
+        "id": "osm_5f277bd5-721b-3257-bd8d-8d8730b8477c",
+        "name": "Skenderija",
+        "type": "district",
+        "latitude": 43.8551592,
+        "longitude": 18.4139241,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2043629667"
+      },
+      {
+        "id": "osm_f80c60c1-7124-389a-a8d4-c84e657bb270",
+        "name": "Mejtaš",
+        "type": "district",
+        "latitude": 43.8612082,
+        "longitude": 18.4194456,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2026434322"
+      },
+      {
+        "id": "osm_409d57f3-a8b8-3eaa-a979-d53bee9cf7ff",
+        "name": "Soukbunar",
+        "type": "district",
+        "latitude": 43.8503081,
+        "longitude": 18.4145842,
+        "source": "provider:osm",
+        "providerPlaceId": "node/389608127"
+      },
+      {
+        "id": "osm_477a65e5-891b-3d80-b4f7-7ca7411b7359",
+        "name": "Ciglane",
+        "type": "district",
+        "latitude": 43.8645049,
+        "longitude": 18.408036,
+        "source": "provider:osm",
+        "providerPlaceId": "node/375768377"
+      },
+      {
+        "id": "osm_9c93d22f-cb70-3835-9ac2-d349a5b33499",
+        "name": "Bjelave",
+        "type": "district",
+        "latitude": 43.8637854,
+        "longitude": 18.4195229,
+        "source": "provider:osm",
+        "providerPlaceId": "node/2021033229"
+      }
+    ]
+  },
+  "trip": {
+    "status": 200,
+    "body": {
+      "id": "trip_ab7edc01-50d4-4fe7-b116-67cd2ce74912",
+      "destination": "Sarajevo",
+      "startingArea": "Sarajevo",
+      "startDate": "2026-10-10",
+      "endDate": "2026-10-11",
+      "days": 1,
+      "travelerType": "SOLO",
+      "budget": "BALANCED",
+      "pace": "RELAXED",
+      "interests": [
+        "WALKING",
+        "LOCAL_FOOD",
+        "COFFEE",
+        "CULTURE"
+      ],
+      "stats": {
+        "stops": 3,
+        "foodPicks": 1,
+        "averageWalkKm": 3.4
+      },
+      "startingAreaSelection": {
+        "id": "osm_b667a770-054e-38ce-8297-994115a2e1ac",
+        "name": "Sarajevo",
+        "type": "transit_station",
+        "latitude": 43.8604591,
+        "longitude": 18.3989497,
+        "source": "provider:osm",
+        "providerPlaceId": "node/942406094"
+      }
+    }
+  },
+  "itinerary": {
+    "status": 200,
+    "body": {
+      "tripId": "trip_ab7edc01-50d4-4fe7-b116-67cd2ce74912",
+      "destination": "Sarajevo",
+      "days": [
+        {
+          "dayNumber": 1,
+          "title": "Konak: Culture & Walks",
+          "summary": "Konak, Zmajevac and Art.",
+          "walkKm": 3.4,
+          "stopCount": 3,
+          "stops": [
+            {
+              "id": "stop_97677519-0494-4d6a-9584-fe8fce903b24",
+              "order": 1,
+              "title": "Konak",
+              "category": "CULTURE",
+              "timeWindow": "09:30",
+              "placeId": "osm_node_704412254",
+              "source": "provider:osm",
+              "note": "A real culture place from OpenStreetMap that can anchor a Sarajevo day. Suggested visit: 120 min. Starts near Sarajevo.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 43.8563325,
+              "longitude": 18.4307435
+            },
+            {
+              "id": "stop_09759568-ada3-40ac-b818-5e0704201602",
+              "order": 2,
+              "title": "Zmajevac",
+              "category": "WALKING",
+              "timeWindow": "11:30",
+              "placeId": "osm_node_375762263",
+              "source": "provider:osm",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Sarajevo route. Suggested visit: 60 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 43.8669491,
+              "longitude": 18.4418938
+            },
+            {
+              "id": "stop_a5d05af7-e632-49b8-bf85-f6c59cc01325",
+              "order": 3,
+              "title": "Art",
+              "category": "COFFEE",
+              "timeWindow": "14:00",
+              "placeId": "osm_node_492137265",
+              "source": "provider:osm",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Sarajevo route. Suggested visit: 45 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 43.867595,
+              "longitude": 18.4122772
+            }
+          ],
+          "timeline": [
+            {
+              "id": "stop_97677519-0494-4d6a-9584-fe8fce903b24",
+              "type": "STOP",
+              "title": "Konak",
+              "startTime": "09:30",
+              "endTime": "11:30",
+              "durationMinutes": 120,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "CULTURE",
+              "note": "A real culture place from OpenStreetMap that can anchor a Sarajevo day. Suggested visit: 120 min. Starts near Sarajevo.",
+              "constraintStatus": "WARNING",
+              "constraintWarning": "Konak may not be open yet. Opens around 10:00."
+            },
+            {
+              "id": "travel_stop_97677519-0494-4d6a-9584-fe8fce903b24_stop_09759568-ada3-40ac-b818-5e0704201602",
+              "type": "TRAVEL",
+              "title": "25 min walk",
+              "startTime": "11:30",
+              "endTime": "11:55",
+              "durationMinutes": 25,
+              "distanceKm": 1.5,
+              "fromStopId": "stop_97677519-0494-4d6a-9584-fe8fce903b24",
+              "toStopId": "stop_09759568-ada3-40ac-b818-5e0704201602",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_09759568-ada3-40ac-b818-5e0704201602",
+              "type": "STOP",
+              "title": "Zmajevac",
+              "startTime": "12:05",
+              "endTime": "13:05",
+              "durationMinutes": 60,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "WALKING",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Sarajevo route. Suggested visit: 60 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_09759568-ada3-40ac-b818-5e0704201602_stop_a5d05af7-e632-49b8-bf85-f6c59cc01325",
+              "type": "TRAVEL",
+              "title": "40 min walk",
+              "startTime": "13:05",
+              "endTime": "13:45",
+              "durationMinutes": 40,
+              "distanceKm": 2.4,
+              "fromStopId": "stop_09759568-ada3-40ac-b818-5e0704201602",
+              "toStopId": "stop_a5d05af7-e632-49b8-bf85-f6c59cc01325",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_a5d05af7-e632-49b8-bf85-f6c59cc01325",
+              "type": "STOP",
+              "title": "Art",
+              "startTime": "13:55",
+              "endTime": "14:40",
+              "durationMinutes": 45,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "COFFEE",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Sarajevo route. Suggested visit: 45 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            }
+          ],
+          "titleTranslations": {
+            "tr": "Konak: Kültür ve Yürüyüş",
+            "en": "Konak: Culture & Walks"
+          }
+        }
+      ]
+    }
+  },
+  "syntheticFallbackCount": 0
+}

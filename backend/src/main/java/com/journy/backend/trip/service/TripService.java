@@ -34,6 +34,7 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @Service
 public class TripService {
+    private final com.journy.backend.startarea.StartAreaSuggestionService startAreas;
     private final TripRepository tripRepository;
     private final ItineraryDayRepository itineraryDayRepository;
     private final PlaceRepository placeRepository;
@@ -51,8 +52,10 @@ public class TripService {
             TripMapper tripMapper,
             CurrentUserService currentUserService,
             PlaceProviderService placeProviderService,
-            DestinationResolutionService destinationResolutionService
+            DestinationResolutionService destinationResolutionService,
+            com.journy.backend.startarea.StartAreaSuggestionService startAreas
     ) {
+        this.startAreas = startAreas;
         this.tripRepository = tripRepository;
         this.itineraryDayRepository = itineraryDayRepository;
         this.placeRepository = placeRepository;
@@ -132,6 +135,7 @@ public class TripService {
     public TripResponse createTrip(CreateTripRequest request) {
         UserAccount user = currentUserService.currentUser();
         ResolvedDestination resolvedDestination = resolveDestinationOrFail(request.destination());
+        var startSelection = startAreas.verify(resolvedDestination, request.startingAreaSelection(), request.startingArea());
 
         tripRepository.findFirstByUserEmailIgnoreCaseAndCurrentTripTrueOrderByCreatedAtDesc(user.getEmail())
                 .ifPresent(current -> {
@@ -150,6 +154,7 @@ public class TripService {
                 request.pace(),
                 request.interests()
         );
+        trip.selectStartingArea(startSelection);
         trip.setDestinationQuery(request.destination().trim());
         trip.setCurrentTrip(true);
         trip.setTotalStops(0);

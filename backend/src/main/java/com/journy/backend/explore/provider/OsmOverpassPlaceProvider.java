@@ -72,6 +72,67 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
         return List.of();
     }
 
+    /** Dedicated area discovery; itinerary search and its categories are unchanged. */
+    @Override
+    public List<com.journy.backend.startarea.StartAreaSuggestion> searchStartAreas(ResolvedDestination destination, String search, int limit) {
+        if (!enabled || destination == null || limit <= 0) return List.of();
+        int radius = Math.max(radiusMeters * 2, 9000);
+        var coordinates = new DestinationCoordinates(destination.latitude(), destination.longitude());
+        try {
+            String filters;
+            if (search != null && !search.isBlank()) {
+                // Quote regex metacharacters and then encode as an Overpass string, never concatenate raw input.
+                String escaped = search.trim().replaceAll("([\\\\.\\^$|?*+()\\[\\]{}])", "\\\\$1");
+                filters = osmLines("\"name\"~" + objectMapper.writeValueAsString(escaped) + ",i", coordinates, radius);
+            } else {
+                filters = String.join("\n",
+                        osmLines("\"railway\"=\"station\"", coordinates, radius),
+                        osmLines("\"amenity\"=\"bus_station\"", coordinates, radius),
+                        osmLines("\"place\"~\"neighbourhood|quarter|suburb|borough|square\"", coordinates, radius),
+                        osmLines("\"tourism\"~\"attraction|museum\"", coordinates, radius),
+                        osmLines("\"historic\"~\"monument|castle\"", coordinates, radius));
+            }
+            // Areas may be OSM relations; reuse exactly the same bounds for their lookup.
+            String relations = filters.lines().filter(line -> line.startsWith("way[")).map(line -> "relation" + line.substring(3))
+                    .collect(java.util.stream.Collectors.joining("\n"));
+            String query = "[out:json][timeout:20];(" + filters + "\n" + relations + ");out center tags " + Math.max(limit, 60) + ";";
+            JsonNode root = objectMapper.readTree(restClient.post().uri(endpoint).body(query).retrieve().body(String.class));
+            // Overpass may return partial data with a timeout remark; do not present that as successful discovery.
+            if (root.has("remark")) return List.of();
+            List<com.journy.backend.startarea.StartAreaSuggestion> result = new ArrayList<>();
+            for (JsonNode element : root.path("elements")) {
+                JsonNode tags = element.path("tags");
+                String label = tags.path("name").asText("");
+                JsonNode center = element.has("lat") ? element : element.path("center");
+                if (label.isBlank() || !center.path("lat").isNumber() || !center.path("lon").isNumber()) continue;
+                double lat = center.path("lat").asDouble(), lon = center.path("lon").asDouble();
+                if (!Double.isFinite(lat) || !Double.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180
+                        || (lat == 0 && lon == 0) || distanceKm(destination.latitude(), destination.longitude(), lat, lon) > radius / 1000.0) continue;
+                String osmType = element.path("type").asText("");
+                if (!List.of("node", "way", "relation").contains(osmType) || !element.hasNonNull("id")) continue;
+                String identity = osmType + "/" + element.path("id").asText();
+                result.add(new com.journy.backend.startarea.StartAreaSuggestion("osm_" + identity.replace('/', '_'), label,
+                        startAreaType(tags), lat, lon, "provider:osm", identity));
+            }
+            log.info("start_area_osm city={} query={} raw={} accepted={}", destination.locality(), search, root.path("elements").size(), result.size());
+            return result;
+        } catch (Exception exception) {
+            log.warn("start_area_osm_failed city={} error={}", destination.locality(), exception.toString());
+            return List.of();
+        }
+    }
+
+    private String startAreaType(JsonNode tags) {
+        if (tags.path("railway").asText().equals("station") || tags.path("amenity").asText().equals("bus_station")) return "transit_station";
+        String place = tags.path("place").asText();
+        if (place.equals("neighbourhood") || place.equals("quarter")) return "neighborhood";
+        if (place.equals("suburb") || place.equals("borough")) return "district";
+        if (place.equals("square")) return "square";
+        if (tags.has("historic") || List.of("museum", "attraction").contains(tags.path("tourism").asText())) return "landmark";
+        // A named hotel is a hotel, not evidence of a hotel-heavy area.
+        return null;
+    }
+
     private List<ExternalPlaceCandidate> fetch(ResolvedDestination destination, PlaceCategory category, int limit, String query, int radius) {
         try {
             String body = restClient.post()

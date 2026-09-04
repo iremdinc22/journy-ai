@@ -22,7 +22,8 @@ public class TripMapper {
                         trip.getTotalStops(),
                         trip.getFoodPicks(),
                         trip.getAverageWalkKm()
-                )
+                ),
+                trip.startingAreaSelection()
         );
     }
 }

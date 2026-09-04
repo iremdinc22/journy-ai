@@ -56,6 +56,25 @@ public class Trip {
     @Column
     private String startingArea;
 
+    @Column private String startingAreaId;
+    @Column private String startingAreaType;
+    @Column private Double startingAreaLatitude;
+    @Column private Double startingAreaLongitude;
+    @Column private String startingAreaSource;
+    @Column private String startingAreaProviderPlaceId;
+
+    public void selectStartingArea(com.journy.backend.startarea.StartAreaSuggestion selection) {
+        if (selection == null) return;
+        startingArea = selection.name(); startingAreaId = selection.id(); startingAreaType = selection.type();
+        startingAreaLatitude = selection.latitude(); startingAreaLongitude = selection.longitude();
+        startingAreaSource = selection.source(); startingAreaProviderPlaceId = selection.providerPlaceId();
+    }
+
+    public com.journy.backend.startarea.StartAreaSuggestion startingAreaSelection() {
+        return startingAreaId == null ? null : new com.journy.backend.startarea.StartAreaSuggestion(startingAreaId, startingArea,
+                startingAreaType, startingAreaLatitude, startingAreaLongitude, startingAreaSource, startingAreaProviderPlaceId);
+    }
+
     @Column(nullable = false)
     private LocalDate startDate;
 
