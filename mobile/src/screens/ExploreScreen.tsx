@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Image, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { exploreApi, tasteFeedbackApi } from '../api/journyApi';
 import { session } from '../api/session';
@@ -47,6 +47,10 @@ export default function ExploreScreen() {
   const styles = useMemo(() => createStyles(theme, isDark), [isDark, theme]);
   const { colors } = theme;
   const navigation = useNavigation<any>();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [submittedSearch, setSubmittedSearch] = useState('');
+  const searchMode = searchQuery.trim().length > 0;
+  const requestVersion = useRef(0);
   const [activeCategory, setActiveCategory] = useState<Category>('For you');
   const [apiPlaces, setApiPlaces] = useState<PlaceResponse[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,30 +60,49 @@ export default function ExploreScreen() {
   const currentTrip = session.getCurrentTrip();
   const destination = currentTrip?.destination ?? t('home.yourTrip').toLowerCase();
   const places = useMemo(
-    () => (apiPlaces ?? starterPreviewPlaces(destination, activeCategory, language))
+    () => (apiPlaces ?? (searchMode ? [] : starterPreviewPlaces(destination, activeCategory, language)))
       .filter((place) => !ignoredPlaceIds.has(toPlaceDetail(place, activeCategory, language).id)),
-    [activeCategory, apiPlaces, destination, ignoredPlaceIds, language],
+    [activeCategory, apiPlaces, destination, ignoredPlaceIds, language, searchMode],
   );
 
   const loadPlaces = useCallback(async () => {
+    const version = ++requestVersion.current;
+    if (searchMode && submittedSearch !== searchQuery.trim()) return;
     setLoading(true);
     setError(false);
+    if (searchMode) setApiPlaces([]);
     try {
       await session.restore();
       const city = session.getCurrentTrip()?.destination ?? currentTrip?.destination;
-      const response = await exploreApi.places(activeCategory, city);
+      if (searchMode && !city) throw new Error('Destination required');
+      const response = searchMode
+        ? await exploreApi.search(city!, submittedSearch)
+        : await exploreApi.places(activeCategory, city);
+      if (version !== requestVersion.current) return;
+      setError(false);
       setApiPlaces(response);
     } catch {
-      setApiPlaces(null);
+      if (version !== requestVersion.current) return;
+      setApiPlaces(searchMode ? [] : null);
       setError(true);
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
-  }, [activeCategory, currentTrip?.destination]);
+  }, [activeCategory, currentTrip?.destination, searchMode, searchQuery, submittedSearch]);
 
   useEffect(() => {
     loadPlaces();
+    return () => { requestVersion.current++; };
   }, [loadPlaces]);
+
+  const editSearch = (value: string) => {
+    requestVersion.current++;
+    setSearchQuery(value);
+    setSubmittedSearch('');
+    setApiPlaces([]);
+    setLoading(false);
+    setError(false);
+  };
 
   const recordFeedback = async (place: PlaceResponse, action: TasteFeedbackAction, reason: string) => {
     setFeedbackPlace(null);
@@ -104,12 +127,36 @@ export default function ExploreScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.ivory} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Text style={styles.eyebrow}>{t('explore.eyebrow')}</Text>
         <Text style={styles.title}>{t('explore.title', { destination })}</Text>
         <Text style={styles.subtitle}>{t('explore.subtitle')}</Text>
 
-        <ScrollView
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginVertical: 16 }}>
+          <TextInput
+            accessibilityLabel={t('explore.searchPlaceholder')}
+            placeholder={t('explore.searchPlaceholder')}
+            placeholderTextColor={colors.slate}
+            value={searchQuery}
+            onChangeText={editSearch}
+            onSubmitEditing={() => { if (searchQuery.trim().length >= 2) setSubmittedSearch(searchQuery.trim()); }}
+            returnKeyType="search"
+            maxLength={100}
+            style={{ flex: 1, color: colors.midnight, borderWidth: 1, borderColor: colors.slate, borderRadius: 12, padding: 12 }}
+          />
+          {searchMode ? <TouchableOpacity accessibilityLabel={t('explore.clearSearch')} onPress={() => editSearch('')}>
+            <Ionicons name="close-circle-outline" size={24} color={colors.midnight} />
+          </TouchableOpacity> : null}
+          <TouchableOpacity disabled={searchQuery.trim().length < 2}
+            onPress={() => setSubmittedSearch(searchQuery.trim())}>
+            <Text style={{ color: colors.midnight }}>{t('explore.search')}</Text>
+          </TouchableOpacity>
+        </View>
+        {searchMode && !submittedSearch ? <Text style={{ color: colors.slate }}>{t('explore.searchHint')}</Text> : null}
+        {searchMode && submittedSearch && !loading && !error && places.length === 0
+          ? <Text style={{ color: colors.slate }}>{t('explore.searchEmpty')}</Text> : null}
+
+        {!searchMode ? <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryRail}
@@ -126,13 +173,13 @@ export default function ExploreScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </ScrollView> : null}
 
         {loading ? <InlineLoading label={t('explore.loading')} /> : null}
         {error ? (
           <InlineError
-            title={t('explore.previewTitle')}
-            description={t('explore.previewDescription', { destination })}
+            title={t(searchMode ? 'explore.searchError' : 'explore.previewTitle')}
+            description={t(searchMode ? 'explore.searchRetry' : 'explore.previewDescription', { destination })}
             onRetry={loadPlaces}
           />
         ) : null}

@@ -1,4 +1,12 @@
 export const en = {
+  'explore.searchPlaceholder': 'Search places or categories',
+  'explore.search': 'Search',
+  'explore.clearSearch': 'Clear search',
+  'explore.searchHint': 'Enter at least 2 characters, then tap Search.',
+  'explore.searchEmpty': 'No places found',
+  'explore.searchError': 'Search could not be completed',
+  'explore.searchRetry': 'Please try again.',
+
   'common.language': 'Language',
   'common.english': 'English',
   'common.turkish': 'Turkish',
@@ -551,6 +559,14 @@ export const en = {
 export type TranslationKey = keyof typeof en;
 
 export const tr: Record<TranslationKey, string> = {
+  'explore.searchPlaceholder': 'Mekan veya kategori ara',
+  'explore.search': 'Ara',
+  'explore.clearSearch': 'Aramayı temizle',
+  'explore.searchHint': 'En az 2 karakter yazıp Ara’ya dokun.',
+  'explore.searchEmpty': 'Sonuç bulunamadı',
+  'explore.searchError': 'Arama tamamlanamadı',
+  'explore.searchRetry': 'Lütfen tekrar dene.',
+
   'common.language': 'Dil',
   'common.english': 'İngilizce',
   'common.turkish': 'Türkçe',

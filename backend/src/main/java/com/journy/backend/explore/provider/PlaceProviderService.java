@@ -20,6 +20,9 @@ import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import com.journy.backend.explore.search.PlaceSearchQuery;
 
 @Service
 public class PlaceProviderService {
@@ -33,6 +36,11 @@ public class PlaceProviderService {
     private final int cacheMinimumForYou;
     private final int cacheMinimumCategory;
     private final Map<String, Object> enrichmentLocks = new ConcurrentHashMap<>();
+    // In-flight work only, removed on success/failure. Place remains the only result cache.
+    private final Map<SearchRequest, CompletableFuture<List<Place>>> searchesInFlight = new ConcurrentHashMap<>();
+
+    private record SearchRequest(String locality, double latitude, double longitude,
+                                 PlaceSearchQuery query, int limit) {}
 
     public PlaceProviderService(
             List<PlaceProvider> providers,
@@ -171,6 +179,76 @@ public class PlaceProviderService {
             }
         }
         return discovered.stream().limit(limit).toList();
+    }
+
+    /** Search only: query-aware discovery must not be suppressed by a broad category cache hit. */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public List<Place> searchPlaces(ResolvedDestination destination, PlaceSearchQuery query, int limit) {
+        var cached = matchingSearchCache(destination, query);
+        if (!cached.isEmpty()) {
+            log.info("place_search cache_hit city={} matches={}", destination.locality(), cached.size());
+            return cached;
+        }
+        var request = new SearchRequest(destination.locality().trim().toLowerCase(Locale.ROOT),
+                destination.latitude(), destination.longitude(), query, limit);
+        var pending = new CompletableFuture<List<Place>>();
+        var existing = searchesInFlight.putIfAbsent(request, pending);
+        if (existing != null) {
+            log.info("place_search shared_discovery city={}", destination.locality());
+            try {
+                return existing.join();
+            } catch (CompletionException failure) {
+                // Preserve 503 and other existing HTTP error semantics for waiting requests.
+                if (failure.getCause() instanceof RuntimeException cause) throw cause;
+                if (failure.getCause() instanceof Error cause) throw cause;
+                throw failure;
+            }
+        }
+        try {
+            // Another discovery may have committed after the first lookup, before this request won the gate.
+            var result = discoverSearchPlaces(destination, query, limit);
+            pending.complete(result);
+            return result;
+        } catch (RuntimeException | Error failure) {
+            pending.completeExceptionally(failure);
+            throw failure;
+        } finally {
+            searchesInFlight.remove(request, pending);
+        }
+    }
+
+    private List<Place> matchingSearchCache(ResolvedDestination destination, PlaceSearchQuery query) {
+        return cachedPlaces(destination, query.category(), query.category() == null, null).stream()
+                .filter(com.journy.backend.itinerary.service.PlannerPlaceContract::verified)
+                .filter(query::matches).toList();
+    }
+
+    private List<Place> discoverSearchPlaces(ResolvedDestination destination, PlaceSearchQuery query, int limit) {
+        var cached = matchingSearchCache(destination, query);
+        if (!cached.isEmpty()) return cached;
+        boolean failed = false;
+        for (PlaceProvider provider : providers) {
+            List<ExternalPlaceCandidate> candidates;
+            try { candidates = provider.searchPlaces(destination, query, limit); }
+            catch (RuntimeException failure) {
+                log.warn("place_search_failed provider={} city={}", provider.name(), destination.locality());
+                failed = true;
+                continue;
+            }
+            for (var candidate : candidates) {
+                if (validCandidate(destination, candidate) && candidate.category() != null
+                        && candidate.provider() != null && !candidate.provider().isBlank()
+                        && candidate.providerPlaceId() != null && !candidate.providerPlaceId().isBlank()
+                        && destination.locality().equalsIgnoreCase(candidate.city())) upsert(candidate);
+            }
+        }
+        // Re-read even after provider failure: concurrent work may have supplied a usable canonical result.
+        var results = matchingSearchCache(destination, query);
+        if (results.isEmpty() && failed) throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "Place search provider is temporarily unavailable");
+        if (failed && !results.isEmpty())
+            log.info("place_search cache_fallback city={} matches={}", destination.locality(), results.size());
+        return results;
     }
 
     private int refreshDestination(ResolvedDestination destination, PlaceCategory category, int limit) {

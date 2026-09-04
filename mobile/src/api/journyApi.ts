@@ -183,6 +183,12 @@ export const tripApi = {
 };
 
 export const exploreApi = {
+  search(city: string, query: string) {
+    const params = new URLSearchParams({ city: city.trim(), q: query.trim() });
+    // OSM name search can exhaust two bounded provider radii (up to about 46 seconds).
+    return apiRequest<PlaceResponse[]>(`/api/explore/places/search?${params.toString()}`, { timeoutMs: 60000 });
+  },
+
   places(category?: string, city?: string) {
     const params = new URLSearchParams();
     if (category && category !== 'For you') {

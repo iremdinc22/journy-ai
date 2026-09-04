@@ -1,0 +1,191 @@
+{
+  "date": "2026-09-04",
+  "environment": "Test-classpath backend, ephemeral H2, random loopback port; live Nominatim/Overpass",
+  "manualSimulatorAcceptance": false,
+  "attempts": [
+    {
+      "verified": false,
+      "recordsBefore": 0,
+      "city": "Edirne",
+      "places": [],
+      "q": "Selimiye",
+      "count": 0,
+      "run": "journy-phase4-live.log"
+    },
+    {
+      "verified": true,
+      "recordsBefore": 0,
+      "city": "Tallinn",
+      "places": [
+        "Maiasmokk [node/274236812]"
+      ],
+      "q": "Maiasmokk",
+      "count": 1,
+      "run": "journy-phase4-live.log"
+    },
+    {
+      "verified": true,
+      "recordsBefore": 1,
+      "city": "Edirne",
+      "places": [
+        "Coffee Bee Bakery Lab [node/14075585797]",
+        "Armağan Büfe [node/13094926501]",
+        "Bardak Waffle [node/13094920303]",
+        "Berry Coffee Shop [node/13176104234]",
+        "Cadde Restaurant Cafe & Bistro [node/13176104248]",
+        "Çamlık Cafe & Nargile Düğün Sarayı [node/9725275818]",
+        "Chanel Park [node/4339391091]",
+        "Çikolata Evim [node/13968948697]",
+        "EGYPT COFFEE [node/14025099156]",
+        "Emilee Bakery & Coffee [node/14025099149]",
+        "Emir Börek [node/6726372388]",
+        "Espressolab [node/14025099142]",
+        "Friends 22 [node/13968948699]",
+        "Genco Börek & Cafe [node/13176104240]",
+        "Göl Evi Kafe [node/6979334916]",
+        "Hanımeli [node/14086283512]",
+        "HiJazz Coffee [node/12278563123]",
+        "Kaffein [node/14084289379]",
+        "Kahve Dükkanı [node/14053775820]",
+        "Kahve Dünyası [node/14053775821]"
+      ],
+      "q": "coffee",
+      "count": 20,
+      "run": "journy-phase4-live.log"
+    },
+    {
+      "verified": true,
+      "recordsBefore": 41,
+      "city": "Tallinn",
+      "places": [
+        "Maiasmokk [node/274236812]"
+      ],
+      "q": "coffee",
+      "count": 1,
+      "run": "journy-phase4-live.log"
+    },
+    {
+      "verified": false,
+      "recordsBefore": 41,
+      "city": "Ghent",
+      "places": [],
+      "q": "museum",
+      "count": 0,
+      "run": "journy-phase4-live.log"
+    },
+    {
+      "verified": true,
+      "recordsBefore": 41,
+      "city": "Brno",
+      "places": [
+        "10-Z [node/4240996352]",
+        "Anthropos [node/463552817]",
+        "Biskupský dvůr [node/393178584]",
+        "Brněnská kostnice [node/3858998077]",
+        "Dětské muzeum [node/5483269858]",
+        "Diecézní muzeum Petrov [node/393178583]",
+        "Dům pánů z Kunštátu [way/49999689]",
+        "Dům umění města Brna [way/39018396]",
+        "Etnografický ústav MZM [node/647885052]",
+        "Galerie MATHIAS - akad.malíř Josef Minařík [node/2276109679]",
+        "Hvězdárna a planetárium Brno [node/88978151]",
+        "Jurkovičova vila [way/51792548]",
+        "Kapucínská hrobka [node/6352951731]",
+        "Kasematy [node/297078170]",
+        "Klub modelářů železnic Brno I [node/4689652297]",
+        "Mendelianum [node/7158235861]",
+        "Mendelovo muzeum [node/374215287]",
+        "Měnínská brána [way/50312541]",
+        "Místodržitelský palác [node/83483337]",
+        "Moravské zemské muzeum [node/647885009]"
+      ],
+      "q": "museum",
+      "count": 20,
+      "run": "journy-phase4-live.log"
+    },
+    {
+      "verified": true,
+      "recordsBefore": 73,
+      "city": "Ljubljana",
+      "places": [
+        "Bežigrajska galerija 2 [way/320014266]",
+        "Chocolarium [node/12337484948]",
+        "Dessa arhitekturni center [node/7271611485]",
+        "Društvo ljubiteljev železnic “Železna cesta” Ljubljana [node/5792727153]",
+        "Emonska hiša [node/11962742671]",
+        "Hiša eksperimentov [node/7448534427]",
+        "MAO: Muzej za arhitekturo in oblikovanje [node/2341905147]",
+        "Mestni muzej Ljubljana [node/1502918208]",
+        "Muzej bančništva Slovenije [node/10047334026]",
+        "Muzej iluzij [node/4751680421]",
+        "Muzej novejše zgodovine [way/8119565]",
+        "Muzej sodobne umetnosti Metelkova (MSUM) [way/186332660]",
+        "Narodna galerija [way/24785631]",
+        "Narodni muzej Slovenije – Metelkova [way/186332701]",
+        "Plečnikova hiša [way/178573747]",
+        "Računalniški muzej [node/3797424410]",
+        "Slovenski etnografski muzej [way/186332697]",
+        "Slovenski šolski muzej [way/1254156821]",
+        "Staro letališče Ljubljana [node/8747425953]",
+        "Upravna hiša [node/10227913786]"
+      ],
+      "q": "museum",
+      "count": 20,
+      "run": "journy-phase4-live.log"
+    },
+    {
+      "recordsBefore": 0,
+      "verified": true,
+      "count": 2,
+      "q": "Selimiye",
+      "places": [
+        "Selimiye Karakol Binası [way/1434024096]",
+        "Selimiye Külliyesi Duvar Çeşmesi [node/13188447941]"
+      ],
+      "city": "Edirne",
+      "run": "journy-phase4-live-retry.log"
+    },
+    {
+      "recordsBefore": 2,
+      "verified": true,
+      "count": 18,
+      "q": "museum",
+      "places": [
+        "Museum Dr. Guislain [node/204761338]",
+        "Museum voor Schone Kunsten [way/108043033]",
+        "Museum voor Stenen Voorwerpen [node/2365493578]",
+        "Arnold Vander Haeghen [way/140966622]",
+        "Belfort [way/501472628]",
+        "Beroepenhuis [node/11736590785]",
+        "Caermersklooster [node/2627642121]",
+        "De school van toen [node/717698375]",
+        "De Wereld van Kina [way/329902834]",
+        "De wereld van Kina: de Tuin [way/1551840823]",
+        "Design Museum Gent [way/1111992419]",
+        "Gents Universiteitsmuseum [node/7637345774]",
+        "Industriemuseum [way/502977224]",
+        "Klooster Zusters van Liefde [way/236475060]",
+        "Kunsthal Gent [node/9208745503]",
+        "Lakenhalle [way/501469592]",
+        "S.M.A.K. [way/227926229]",
+        "Stadsmuseum Gent [way/105533772]"
+      ],
+      "city": "Ghent",
+      "run": "journy-phase4-live-retry.log"
+    },
+    {
+      "q": "Selimiye",
+      "places": [
+        "Selimiye Camii [relation/3376582]",
+        "Selimiye Karakol Binası [way/1434024096]",
+        "Selimiye Külliyesi Darülhadis Medresesi [relation/19688189]",
+        "Selimiye Külliyesi Duvar Çeşmesi [node/13188447941]"
+      ],
+      "city": "Edirne",
+      "recordsBefore": 0,
+      "verified": true,
+      "count": 4,
+      "run": "journy-phase4-live-selimiye.log"
+    }
+  ]
+}

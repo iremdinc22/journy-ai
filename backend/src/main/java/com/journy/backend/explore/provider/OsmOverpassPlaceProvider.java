@@ -72,6 +72,45 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
         return List.of();
     }
 
+    /** Explicit search is independent of broad itinerary discovery and its cache limits. */
+    @Override
+    public List<ExternalPlaceCandidate> searchPlaces(ResolvedDestination destination,
+            com.journy.backend.explore.search.PlaceSearchQuery search, int limit) {
+        if (!enabled || destination == null || limit <= 0) return List.of();
+        for (int radius : searchRadii) {
+            var coordinates = new DestinationCoordinates(destination.latitude(), destination.longitude());
+            String filters;
+            if (!search.type().isEmpty()) {
+                String key = search.type().equals("park") ? "leisure" : "tourism";
+                filters = osmLines("\"" + key + "\"=\"" + search.type() + "\"", coordinates, radius);
+            } else if (search.category() != null) {
+                filters = filtersFor(search.category(), coordinates, radius);
+            } else {
+                String literal = search.text().replaceAll("([\\\\.\\^$|?*+()\\[\\]{}])", "\\\\$1")
+                        .replace("\\", "\\\\").replace("\"", "\\\"");
+                filters = (filtersFor(null, coordinates, radius) + "\n"
+                        + osmLines("\"amenity\"=\"place_of_worship\"", coordinates, radius))
+                        .replace("[name]", "[name~\"" + literal + "\",i]");
+            }
+            // Named landmarks may be OSM relations (for example multipolygon buildings).
+            filters += "\n" + filters.lines().filter(line -> line.startsWith("way["))
+                    .map(line -> "relation" + line.substring(3)).collect(java.util.stream.Collectors.joining("\n"));
+            try {
+                String body = restClient.post().uri(endpoint)
+                        .body("[out:json][timeout:20];(" + filters + ");out center tags " + limit + ";")
+                        .retrieve().body(String.class);
+                var found = parse(destination, search.category(), body, limit, true).stream()
+                        .filter(p -> distanceKm(destination.latitude(), destination.longitude(), p.latitude(), p.longitude()) <= radius / 1000.0)
+                        .toList();
+                if (!found.isEmpty()) return found;
+            } catch (RuntimeException exception) {
+                log.warn("osm_search_failed city={} error={}", destination.locality(), exception.getClass().getSimpleName());
+                throw new IllegalStateException("Place search provider unavailable", exception);
+            }
+        }
+        return List.of();
+    }
+
     /** Dedicated area discovery; itinerary search and its categories are unchanged. */
     @Override
     public List<com.journy.backend.startarea.StartAreaSuggestion> searchStartAreas(ResolvedDestination destination, String search, int limit) {
@@ -206,6 +245,11 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
     }
 
     private List<ExternalPlaceCandidate> parse(ResolvedDestination destination, PlaceCategory requestedCategory, String body, int limit) {
+        return parse(destination, requestedCategory, body, limit, false);
+    }
+
+    private List<ExternalPlaceCandidate> parse(ResolvedDestination destination, PlaceCategory requestedCategory,
+            String body, int limit, boolean searchMetadata) {
         if (body == null || body.isBlank()) {
             return List.of();
         }
@@ -232,6 +276,10 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
                     continue;
                 }
                 PlaceCategory category = requestedCategory == null ? categoryFromTags(tags) : requestedCategory;
+                if (searchMetadata && requestedCategory == null
+                        && (tags.has("historic") || tags.path("amenity").asText().equals("place_of_worship"))) {
+                    category = PlaceCategory.CULTURE;
+                }
                 String id = element.path("type").asText("node") + "/" + element.path("id").asText(slug(name));
                 places.add(new ExternalPlaceCandidate(
                         name(),
@@ -249,7 +297,7 @@ public class OsmOverpassPlaceProvider implements PlaceProvider {
                         longitude,
                         tags.path("opening_hours").asText(defaultHours(category)),
                         duration(category),
-                        tags(category)
+                        tags(category) + (searchMetadata ? ",search-type:" + tags.path("tourism").asText(tags.path("leisure").asText("")) : "")
                 ));
                 if (places.size() >= limit) {
                     break;

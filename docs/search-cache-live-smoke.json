@@ -1,0 +1,105 @@
+{
+  "date": "2026-09-04",
+  "isolation": "Ephemeral H2; random loopback API and proxy ports; real OSM followed by test-only injected 504",
+  "simulatorUsed": false,
+  "checks": [
+    {
+      "status": 200,
+      "results": [
+        {
+          "id": "osm_relation_3376582",
+          "name": "Selimiye Camii",
+          "city": "Edirne",
+          "category": "CULTURE",
+          "description": "A real culture place from OpenStreetMap that can anchor a Edirne day.",
+          "priceLevel": "Mid",
+          "rating": 0.0,
+          "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Category%3ASelimiye%20Mosque?width=900",
+          "address": "Edirne local area",
+          "provider": "osm",
+          "providerPlaceId": "relation/3376582",
+          "website": null,
+          "latitude": 41.6780926,
+          "longitude": 26.5592026,
+          "openingHours": "10:00 - 18:00",
+          "estimatedVisitMinutes": 120,
+          "tags": "culture,provider:osm,real-place,search-type:"
+        },
+        {
+          "id": "osm_way_1434024096",
+          "name": "Selimiye Karakol Binası",
+          "city": "Edirne",
+          "category": "CULTURE",
+          "description": "A real culture place from OpenStreetMap that can anchor a Edirne day.",
+          "priceLevel": "Mid",
+          "rating": 0.0,
+          "imageUrl": "",
+          "address": "Çubukçular Hamam Sokak 9",
+          "provider": "osm",
+          "providerPlaceId": "way/1434024096",
+          "website": null,
+          "latitude": 41.6778629,
+          "longitude": 26.5555946,
+          "openingHours": "10:00 - 18:00",
+          "estimatedVisitMinutes": 120,
+          "tags": "culture,provider:osm,real-place,search-type:"
+        },
+        {
+          "id": "osm_relation_19688189",
+          "name": "Selimiye Külliyesi Darülhadis Medresesi",
+          "city": "Edirne",
+          "category": "CULTURE",
+          "description": "A real culture place from OpenStreetMap that can anchor a Edirne day.",
+          "priceLevel": "Mid",
+          "rating": 0.0,
+          "imageUrl": "",
+          "address": "Edirne local area",
+          "provider": "osm",
+          "providerPlaceId": "relation/19688189",
+          "website": null,
+          "latitude": 41.6779763,
+          "longitude": 26.5601215,
+          "openingHours": "10:00 - 18:00",
+          "estimatedVisitMinutes": 120,
+          "tags": "culture,provider:osm,real-place,search-type:"
+        },
+        {
+          "id": "osm_node_13188447941",
+          "name": "Selimiye Külliyesi Duvar Çeşmesi",
+          "city": "Edirne",
+          "category": "CULTURE",
+          "description": "A real culture place from OpenStreetMap that can anchor a Edirne day.",
+          "priceLevel": "Mid",
+          "rating": 0.0,
+          "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Category%3ASelimiye%20K%C3%BClliyesi%20Duvar%20%C3%87e%C5%9Fmesi?width=900",
+          "address": "Edirne local area",
+          "provider": "osm",
+          "providerPlaceId": "node/13188447941",
+          "website": null,
+          "latitude": 41.6790361,
+          "longitude": 26.5590838,
+          "openingHours": "10:00 - 18:00",
+          "estimatedVisitMinutes": 120,
+          "tags": "culture,provider:osm,real-place,search-type:"
+        }
+      ],
+      "stage": "live_provider_success"
+    },
+    {
+      "status": 200,
+      "stage": "injected_504_with_matching_cache",
+      "exactIdentityPreserved": true
+    },
+    {
+      "status": 200,
+      "providerCalls": 0,
+      "stage": "cache_hit_provider_unavailable"
+    },
+    {
+      "persistedPlaces": 0,
+      "unrelatedStatus": 503,
+      "stage": "unrelated_and_empty_cache",
+      "emptyStatus": 503
+    }
+  ]
+}

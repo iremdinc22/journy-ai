@@ -10,6 +10,11 @@ public interface PlaceProvider {
         return List.of();
     }
 
+    default List<ExternalPlaceCandidate> searchPlaces(ResolvedDestination destination,
+            com.journy.backend.explore.search.PlaceSearchQuery query, int limit) {
+        return List.of();
+    }
+
     String name();
 
     List<ExternalPlaceCandidate> search(ResolvedDestination destination, PlaceCategory category, int limit);
