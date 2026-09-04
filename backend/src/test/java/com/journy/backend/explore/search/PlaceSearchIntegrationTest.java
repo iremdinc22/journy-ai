@@ -9,6 +9,7 @@ import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -136,10 +137,22 @@ class PlaceSearchIntegrationTest {
         assertThat(queries).hasSize(2); // Existing two-radius successful no-match search.
         assertThat(places.count()).isZero();
     }
-    @Test void providerTimeoutReturns503WithoutSyntheticResults() throws Exception {
-        providerStatus = 503;
+    @ParameterizedTest @ValueSource(ints = {429, 503, 504})
+    void providerHttpFailuresReturn503WithoutSyntheticResults(int statusCode) throws Exception {
+        providerStatus = statusCode;
         search("Edirne", "Eiffel Tower").andExpect(status().isServiceUnavailable());
         assertThat(places.count()).isZero();
+    }
+    @Test void malformedProviderPayloadUsesExistingSafeEmptyBehavior() throws Exception {
+        payload = "not-json";
+        search("Edirne", "Eiffel Tower").andExpect(status().isOk()).andExpect(content().json("[]"));
+        assertThat(places.count()).isZero();
+    }
+    @Test void wayIdentityIsPreserved() throws Exception {
+        fixture("Edirne", "Central Way", "\"tourism\":\"museum\"");
+        payload = payload.replace("\"type\":\"node\"", "\"type\":\"way\"");
+        search("Edirne", "Central").andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value("osm_way_123456"));
     }
     @Test void unrelatedCacheDoesNotSuppressNamedDiscoveryAndSearchWritesNoFeedback() throws Exception {
         var p = com.journy.backend.support.VerifiedPlaceFixtures.place("unrelated", "Other cafe", "Amsterdam",

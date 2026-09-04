@@ -160,6 +160,31 @@ class PlaceSearchReliabilityIntegrationTest {
         verify(provider, times(2)).searchPlaces(any(), any(), anyInt());
     }
 
+    @Test void duplicateProviderRowsProduceOneCanonicalPlace() throws Exception {
+        doReturn(List.of(discovered(), discovered())).when(provider).searchPlaces(any(), any(), anyInt());
+        search("Edirne", "Selimiye").andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        assertThat(places.count()).isEqualTo(1);
+    }
+
+    @Test void simultaneousDifferentQueriesDoNotCreateDuplicateCanonicalIdentity() throws Exception {
+        var entered = new CountDownLatch(2);
+        var release = new CountDownLatch(1);
+        doAnswer(call -> {
+            entered.countDown();
+            if (!release.await(10, TimeUnit.SECONDS)) throw new AssertionError("Provider release timeout");
+            return List.of(discovered());
+        }).when(provider).searchPlaces(any(), any(), anyInt());
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var name = executor.submit(() -> search("Edirne", "Selimiye"));
+            var category = executor.submit(() -> search("Edirne", "culture"));
+            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+            release.countDown();
+            name.get(10, TimeUnit.SECONDS).andExpect(status().isOk());
+            category.get(10, TimeUnit.SECONDS).andExpect(status().isOk());
+            assertThat(places.findAll()).extracting(Place::getId).containsExactly("osm_relation_3376582");
+        } finally { release.countDown(); }
+    }
+
     private void concurrentDiscovery(boolean fail) throws Exception {
         var entered = new CountDownLatch(1);
         var release = new CountDownLatch(1);
@@ -170,22 +195,18 @@ class PlaceSearchReliabilityIntegrationTest {
             if (fail) throw timeout();
             return List.of(discovered());
         }).when(provider).searchPlaces(any(), any(), anyInt());
-        try (var executor = Executors.newFixedThreadPool(2)) {
+        try (var executor = Executors.newFixedThreadPool(5)) {
             var first = executor.submit(() -> search("Edirne", "Selimiye"));
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
-            var secondThread = new java.util.concurrent.atomic.AtomicReference<Thread>();
-            var second = executor.submit(() -> {
-                secondThread.set(Thread.currentThread());
-                return search("Edirne", "Selimiye");
-            });
+            var others = new ArrayList<Future<org.springframework.test.web.servlet.ResultActions>>();
+            for (int i = 0; i < 4; i++) others.add(executor.submit(() -> search("Edirne", "Selimiye")));
             try {
-                org.awaitility.Awaitility.await().atMost(java.time.Duration.ofSeconds(5)).until(() ->
-                        calls.get() > 1 || (secondThread.get() != null && Arrays.stream(secondThread.get().getStackTrace())
-                                .anyMatch(frame -> frame.getClassName().equals(CompletableFuture.class.getName()))));
+                Thread.sleep(150);
             } finally { release.countDown(); }
             int callsBeforeRelease = calls.get();
             first.get(10, TimeUnit.SECONDS).andExpect(fail ? status().isServiceUnavailable() : status().isOk());
-            second.get(10, TimeUnit.SECONDS).andExpect(fail ? status().isServiceUnavailable() : status().isOk());
+            for (var other : others) other.get(10, TimeUnit.SECONDS)
+                    .andExpect(fail ? status().isServiceUnavailable() : status().isOk());
             assertThat(callsBeforeRelease).isEqualTo(1);
             assertThat(calls.get()).isEqualTo(1);
         } finally { release.countDown(); }

@@ -36,6 +36,8 @@ public class PlaceProviderService {
     private final int cacheMinimumForYou;
     private final int cacheMinimumCategory;
     private final Map<String, Object> enrichmentLocks = new ConcurrentHashMap<>();
+    private final Object[] canonicalUpsertLocks = java.util.stream.IntStream.range(0, 64)
+            .mapToObj(ignored -> new Object()).toArray(Object[]::new);
     // In-flight work only, removed on success/failure. Place remains the only result cache.
     private final Map<SearchRequest, CompletableFuture<List<Place>>> searchesInFlight = new ConcurrentHashMap<>();
 
@@ -349,26 +351,29 @@ public class PlaceProviderService {
     }
 
     private void upsert(ExternalPlaceCandidate candidate) {
-        Place place = existingPlace(candidate).orElseGet(Place::new);
-        place.setId(place.getId() == null ? idFor(candidate) : place.getId());
-        place.setProvider(candidate.provider());
-        place.setProviderPlaceId(candidate.providerPlaceId());
-        place.setName(candidate.name());
-        place.setCity(candidate.city());
-        place.setCategory(candidate.category());
-        place.setDescription(candidate.description());
-        place.setPriceLevel(candidate.priceLevel());
-        place.setRating(candidate.rating());
-        place.setImageUrl(candidate.imageUrl());
-        place.setAddress(candidate.address());
-        place.setWebsite(candidate.website());
-        place.setLatitude(candidate.latitude());
-        place.setLongitude(candidate.longitude());
-        place.setOpeningHours(candidate.openingHours());
-        place.setEstimatedVisitMinutes(candidate.estimatedVisitMinutes());
-        place.setTags(candidate.tags());
-        place.setProviderFetchedAt(Instant.now());
-        placeRepository.save(place);
+        Object lock = canonicalUpsertLocks[Math.floorMod(identityFor(candidate).hashCode(), canonicalUpsertLocks.length)];
+        synchronized (lock) {
+            Place place = existingPlace(candidate).orElseGet(Place::new);
+            place.setId(place.getId() == null ? idFor(candidate) : place.getId());
+            place.setProvider(candidate.provider());
+            place.setProviderPlaceId(candidate.providerPlaceId());
+            place.setName(candidate.name());
+            place.setCity(candidate.city());
+            place.setCategory(candidate.category());
+            place.setDescription(candidate.description());
+            place.setPriceLevel(candidate.priceLevel());
+            place.setRating(candidate.rating());
+            place.setImageUrl(candidate.imageUrl());
+            place.setAddress(candidate.address());
+            place.setWebsite(candidate.website());
+            place.setLatitude(candidate.latitude());
+            place.setLongitude(candidate.longitude());
+            place.setOpeningHours(candidate.openingHours());
+            place.setEstimatedVisitMinutes(candidate.estimatedVisitMinutes());
+            place.setTags(candidate.tags());
+            place.setProviderFetchedAt(Instant.now());
+            placeRepository.save(place);
+        }
     }
 
     private java.util.Optional<Place> existingPlace(ExternalPlaceCandidate candidate) {
