@@ -1,0 +1,16 @@
+{
+  "status": 422,
+  "body": {
+    "timestamp": "2026-09-03T23:30:48.431496Z",
+    "status": 422,
+    "error": "INSUFFICIENT_DESTINATION_DATA",
+    "message": "We couldn't find enough reliable places for this destination yet. Please try again or choose a shorter trip.",
+    "path": "/api/trips",
+    "details": [
+      "requiredPlaces=80",
+      "availablePlaces=20"
+    ]
+  },
+  "currentTripBefore": "trip_36dfd036-c769-4e54-9731-ffe67eec51ea",
+  "currentTripAfter": "trip_36dfd036-c769-4e54-9731-ffe67eec51ea"
+}

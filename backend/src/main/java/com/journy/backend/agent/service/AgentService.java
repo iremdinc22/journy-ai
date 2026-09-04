@@ -109,12 +109,9 @@ public class AgentService {
         boolean Turkish = isTurkish(request.language());
 
         switch (intent) {
-            case MAKE_DAY_LIGHTER -> applyMakeDayLighter(day, Turkish);
-            case ADD_FOOD_STOP -> applyAddFoodStop(trip, day, Turkish);
-            case REPLACE_STOP -> applyReplaceStop(trip, day, Turkish);
-            case BUDGET_OPTIMIZE -> applyBudgetOptimize(trip, day, Turkish);
-            case RAIN_REPLAN -> applyRainReplan(trip, day, Turkish);
-            case GENERAL_GUIDANCE -> applyMakeDayLighter(day, Turkish);
+            case MAKE_DAY_LIGHTER, GENERAL_GUIDANCE -> applyMakeDayLighter(day, Turkish);
+            case ADD_FOOD_STOP, REPLACE_STOP, BUDGET_OPTIMIZE, RAIN_REPLAN ->
+                    throw new com.journy.backend.common.exception.InsufficientDestinationDataException(1, 0);
         }
 
         normalizeStopOrder(day);
@@ -409,95 +406,6 @@ public class AgentService {
                 : "Journy removed " + removable.getTitle() + " to make the day lighter while keeping the strongest route anchors.");
     }
 
-    private void applyAddFoodStop(Trip trip, ItineraryDay day, boolean Turkish) {
-        int insertOrder = Math.min(day.getStops().size() + 1, 3);
-        shiftStopsFrom(day, insertOrder);
-        ItineraryStop anchor = day.getStops().stream()
-                .filter(stop -> stop.getStopOrder() == Math.max(1, insertOrder - 1))
-                .findFirst()
-                .orElseGet(() -> day.getStops().isEmpty() ? null : day.getStops().getFirst());
-        ItineraryStop stop = new ItineraryStop(
-                insertOrder,
-                foodBreakTitle(trip),
-                "FOOD",
-                "13:00",
-                Turkish
-                        ? "Journy AI mevcut rota aralığına yerel bir yemek molası ekledi."
-                        : "Added by Journy AI as a local food break inside the existing route window.",
-                anchor == null ? 0 : anchor.getLatitude() + 0.002,
-                anchor == null ? 0 : anchor.getLongitude() + 0.002
-        );
-        day.addStop(stop);
-        day.setWalkKm(round(day.getWalkKm() + 0.4));
-        day.setSummary(Turkish
-                ? "Mevcut rotaya yakın yemek molası eklendi; gün belirgin ağırlaşmadan daha yerel hissettirir."
-                : "Journy added a food break near the current route so the day feels more local without becoming much heavier.");
-    }
-
-    private void applyReplaceStop(Trip trip, ItineraryDay day, boolean Turkish) {
-        ItineraryStop target = weakestFlexibleStop(day);
-        target.setTitle(replacementTitle(trip, target));
-        target.setCategory(replacementCategory(target));
-        target.setNote(Turkish
-                ? "Journy AI rotana, tempoya ve zevk profiline daha iyi uyması için değiştirdi."
-                : "Replaced by Journy AI to better match your route, pace and taste profile.");
-        target.setTimeWindow(replacementTimeWindow(target));
-        target.setOptionalStop(false);
-        day.setWalkKm(Math.max(1.2, round(day.getWalkKm() - 0.2)));
-        day.setSummary(Turkish
-                ? "En zayıf uyumlu durak aynı rota aralığı korunarak değiştirildi."
-                : "Journy replaced the weakest-fit stop while preserving the same route window.");
-    }
-
-    private void applyBudgetOptimize(Trip trip, ItineraryDay day, boolean Turkish) {
-        ItineraryStop target = day.getStops().stream()
-                .filter(this::isFoodOrCoffee)
-                .max(Comparator.comparingInt(ItineraryStop::getStopOrder))
-                .orElseGet(() -> weakestFlexibleStop(day));
-        target.setTitle(budgetTitle(trip, target));
-        target.setCategory(target.getCategory().equalsIgnoreCase("COFFEE") ? "COFFEE" : "FOOD");
-        target.setNote(Turkish
-                ? "Journy AI mevcut rotaya yakın daha ekonomik yerel bir seçenekle düzenledi."
-                : "Adjusted by Journy AI toward a lower-cost local option near the existing route.");
-        day.setWalkKm(Math.max(1.2, round(day.getWalkKm() - 0.1)));
-        day.setSummary(Turkish
-                ? "Ana duraklar korundu; esnek yemek aralığı bütçeye daha uygun hale getirildi."
-                : "Journy kept the main anchors and made the flexible food window more budget-friendly.");
-    }
-
-    private void applyRainReplan(Trip trip, ItineraryDay day, boolean Turkish) {
-        ItineraryStop target = day.getStops().stream()
-                .filter(this::isOutdoor)
-                .max(Comparator.comparingInt(ItineraryStop::getStopOrder))
-                .orElseGet(() -> weakestFlexibleStop(day));
-        target.setTitle(indoorTitle(trip));
-        target.setCategory("CULTURE");
-        target.setTimeWindow("14:00");
-        target.setNote(Turkish
-                ? "Journy AI yağmura göre düzenledi: öğleden sonrayı kapalı mekana uygun durakla korudu."
-                : "Rain-aware adjustment from Journy AI: protected the afternoon with an indoor-friendly stop.");
-        target.setOptionalStop(false);
-        day.setWalkKm(Math.max(1.2, round(day.getWalkKm() - 0.5)));
-        day.setSummary(Turkish
-                ? "Yağmurlu saatler rotayı bozmasın diye gün kapalı kültür aralığına kaydırıldı."
-                : "Journy moved the day toward an indoor culture window so rainy hours do not break the route.");
-    }
-
-    private ItineraryStop weakestFlexibleStop(ItineraryDay day) {
-        return day.getStops().stream()
-                .filter(ItineraryStop::isOptionalStop)
-                .findFirst()
-                .orElseGet(() -> day.getStops().stream()
-                        .max(Comparator.comparingInt(ItineraryStop::getStopOrder))
-                        .orElseThrow(() -> new ResourceNotFoundException("Itinerary stop was not found")));
-    }
-
-    private void shiftStopsFrom(ItineraryDay day, int order) {
-        day.getStops().stream()
-                .filter(stop -> stop.getStopOrder() >= order)
-                .forEach(stop -> stop.setStopOrder(stop.getStopOrder() + 1));
-    }
-
     private void normalizeStopOrder(ItineraryDay day) {
         day.getStops().sort(Comparator.comparingInt(ItineraryStop::getStopOrder));
         for (int index = 0; index < day.getStops().size(); index++) {
@@ -543,51 +451,6 @@ public class AgentService {
             return 0.6;
         }
         return 1.0;
-    }
-
-    private String foodBreakTitle(Trip trip) {
-        return trip.getDestination() + " Local Lunch Break";
-    }
-
-    private String replacementTitle(Trip trip, ItineraryStop target) {
-        String category = normalize(target.getCategory());
-        if (category.contains("CULTURE")) {
-            return trip.getDestination() + " Compact Culture Stop";
-        }
-        if (category.contains("COFFEE")) {
-            return trip.getDestination() + " Quiet Coffee Window";
-        }
-        if (category.contains("FOOD")) {
-            return trip.getDestination() + " Local Food Window";
-        }
-        return trip.getDestination() + " Easier Route Window";
-    }
-
-    private String replacementCategory(ItineraryStop target) {
-        String category = normalize(target.getCategory());
-        if (category.contains("COFFEE")) return "COFFEE";
-        if (category.contains("FOOD")) return "FOOD";
-        if (category.contains("CULTURE")) return "CULTURE";
-        return "WALKING";
-    }
-
-    private String replacementTimeWindow(ItineraryStop target) {
-        String category = normalize(target.getCategory());
-        if (category.contains("COFFEE")) return "11:30";
-        if (category.contains("FOOD")) return "13:00";
-        if (category.contains("CULTURE")) return "14:00";
-        return "16:00";
-    }
-
-    private String budgetTitle(Trip trip, ItineraryStop target) {
-        if (target.getCategory().equalsIgnoreCase("COFFEE")) {
-            return trip.getDestination() + " Low-Cost Coffee Break";
-        }
-        return trip.getDestination() + " Local Market Bite";
-    }
-
-    private String indoorTitle(Trip trip) {
-        return trip.getDestination() + " Indoor Culture Window";
     }
 
     private String normalize(String value) {

@@ -9,7 +9,6 @@ import type { ItineraryDay, ItineraryResponse, ItineraryTimelineItem, WeatherAdj
 import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { InlineError, InlineLoading } from '../components/StateViews';
-import { cityCoordinates } from '../utils/destinationVisuals';
 import { localizeDynamicList, localizeDynamicText } from '../utils/localizedDynamicText';
 
 export default function ItineraryScreen() {
@@ -78,7 +77,7 @@ export default function ItineraryScreen() {
 
   const fallbackDestination = session.getCurrentTrip()?.destination ?? t('home.yourTrip');
   const destination = itinerary?.destination ?? fallbackDestination;
-  const visibleDays = itinerary?.days ?? previewDays(destination, session.getCurrentTrip()?.days ?? 1);
+  const visibleDays = itinerary?.days ?? [];
   const tripId = itinerary?.tripId ?? session.getCurrentTrip()?.id ?? 'preview-trip';
   const totalWalk = visibleDays.reduce((sum, day) => sum + day.walkKm, 0);
   const totalStops = visibleDays.reduce((sum, day) => sum + day.stopCount, 0);
@@ -481,50 +480,6 @@ export default function ItineraryScreen() {
 type Theme = ReturnType<typeof useAppTheme>['theme'];
 type ItineraryStyles = ReturnType<typeof createStyles>;
 type Translate = ReturnType<typeof useTranslation>;
-
-function previewDays(destination: string, dayCount: number): ItineraryDay[] {
-  const base = cityCoordinates(destination);
-  const count = Math.max(1, Math.min(dayCount || 1, 5));
-  const themes = [
-    { title: 'City Core & Coffee Loop', categories: ['WALKING', 'COFFEE', 'CULTURE', 'FOOD'] },
-    { title: 'Culture Morning, Local Dinner', categories: ['CULTURE', 'WALKING', 'COFFEE', 'FOOD'] },
-    { title: 'Food Streets & Local Corners', categories: ['FOOD', 'WALKING', 'CULTURE', 'COFFEE'] },
-    { title: 'Neighborhood Walk & Dinner', categories: ['WALKING', 'CULTURE', 'COFFEE', 'FOOD'] },
-    { title: 'Slow Design & Market Route', categories: ['CULTURE', 'COFFEE', 'WALKING', 'FOOD'] },
-  ];
-
-  return Array.from({ length: count }, (_, index) => {
-    const dayNumber = index + 1;
-    const theme = themes[index % themes.length];
-    const stops = theme.categories.map((category, stopIndex) => ({
-      id: `preview-${destination}-${dayNumber}-${stopIndex + 1}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      order: stopIndex + 1,
-      title: previewStopTitle(destination, category, stopIndex),
-      category,
-      timeWindow: ['Morning', 'Late morning', 'Afternoon', 'Evening'][stopIndex] ?? 'Flexible',
-      note: `${destination} preview stop shaped around your selected city until the live itinerary loads.`,
-      optional: false,
-      latitude: base.latitude + (dayNumber * 0.004) + (stopIndex * 0.003),
-      longitude: base.longitude + (dayNumber * 0.004) - (stopIndex * 0.003),
-    }));
-
-    return {
-      dayNumber,
-      title: theme.title,
-      summary: `A city-aware preview for ${destination} with local breaks and compact walking until Journy loads the live plan.`,
-      walkKm: 4.4 + (index % 3) * 0.6,
-      stopCount: stops.length,
-      stops,
-    };
-  });
-}
-
-function previewStopTitle(destination: string, category: string, index: number) {
-  if (category === 'COFFEE') return `${destination} coffee pause`;
-  if (category === 'FOOD') return `${destination} local food stop`;
-  if (category === 'CULTURE') return `${destination} culture window`;
-  return index === 0 ? `${destination} first walk` : `${destination} neighborhood walk`;
-}
 
 function OverviewStat({ label, value, styles }: { label: string; value: string; styles: ItineraryStyles }) {
   return (

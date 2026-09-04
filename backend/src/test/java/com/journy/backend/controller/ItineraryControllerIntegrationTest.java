@@ -21,7 +21,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = {"journy.places.osm.enabled=false",
+        "spring.datasource.url=jdbc:h2:mem:phase10_add;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class ItineraryControllerIntegrationTest {
@@ -30,15 +31,21 @@ class ItineraryControllerIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired private com.journy.backend.explore.repository.PlaceRepository placeRepository;
+
     @Test
     void addPlaceToDayAddsStopToGeneratedItinerary() throws Exception {
+        for (int i = 0; i < 20; i++) placeRepository.save(com.journy.backend.support.VerifiedPlaceFixtures.place(
+                "add_" + i, "Verified " + i, "Amsterdam", com.journy.backend.place.enums.PlaceCategory.CULTURE));
         String token = registerAndGetToken("itinerary-" + System.nanoTime() + "@journy.app");
         String tripId = createTripAndGetId(token);
         generatePlan(token, tripId);
 
+        placeRepository.save(com.journy.backend.support.VerifiedPlaceFixtures.place("plc_test_cafe", "Quiet Test Cafe", "Amsterdam",
+                com.journy.backend.place.enums.PlaceCategory.COFFEE));
         AddPlaceToPlanRequest request = new AddPlaceToPlanRequest(
                 "plc_test_cafe",
-                "Quiet Test Cafe",
+                "Untrusted request name",
                 "Amsterdam",
                 "COFFEE",
                 "A calm coffee stop added from Explore.",
@@ -58,7 +65,9 @@ class ItineraryControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.stopCount").value(5))
-                .andExpect(jsonPath("$.stops[*].title", hasItem("Quiet Test Cafe")));
+                .andExpect(jsonPath("$.stops[*].title", hasItem("Quiet Test Cafe")))
+                .andExpect(jsonPath("$.stops[4].placeId").value("plc_test_cafe"))
+                .andExpect(jsonPath("$.stops[4].source").value("provider:osm"));
     }
 
     private String registerAndGetToken(String email) throws Exception {

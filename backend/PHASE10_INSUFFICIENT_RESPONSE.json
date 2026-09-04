@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-09-03T21:51:45.017145Z",
+  "status": 422,
+  "error": "INSUFFICIENT_DESTINATION_DATA",
+  "message": "We couldn't find enough reliable places for this destination yet. Please try again or choose a shorter trip.",
+  "path": "/api/trips",
+  "details": [
+    "requiredPlaces=80",
+    "availablePlaces=20"
+  ]
+}

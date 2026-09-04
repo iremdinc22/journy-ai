@@ -31,10 +31,12 @@ type RequestOptions = {
 
 export class ApiError extends Error {
   status: number;
+  code?: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -92,8 +94,8 @@ async function sendRequest<T>(path: string, options: RequestOptions, allowRefres
         return sendRequest<T>(path, options, false);
       }
     }
-    const message = await readErrorMessage(response);
-    throw new ApiError(response.status, message || `Request failed with status ${response.status}`);
+    const failure = await readErrorMessage(response);
+    throw new ApiError(response.status, failure.message || `Request failed with status ${response.status}`, failure.code);
   }
 
   if (response.status === 204 || response.headers.get('content-length') === '0') {
@@ -181,12 +183,12 @@ function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = REQUEST
 
 async function readErrorMessage(response: Response) {
   const text = await response.text();
-  if (!text) return '';
+  if (!text) return { message: '', code: undefined };
 
   try {
     const parsed = JSON.parse(text) as { message?: string; error?: string; details?: string[] };
-    return parsed.message ?? parsed.error ?? parsed.details?.join('\n') ?? text;
+    return { message: parsed.message ?? parsed.error ?? parsed.details?.join('\n') ?? text, code: parsed.error };
   } catch {
-    return text;
+    return { message: text, code: undefined };
   }
 }

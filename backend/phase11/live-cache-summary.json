@@ -1,0 +1,44 @@
+[
+  {
+    "city": "Las Vegas",
+    "persistedRows": 17,
+    "timestampedRows": 17,
+    "maxDistanceKm": 4.441
+  },
+  {
+    "city": "Tallinn",
+    "persistedRows": 20,
+    "timestampedRows": 20,
+    "maxDistanceKm": 2.185
+  },
+  {
+    "city": "Bologna",
+    "persistedRows": 20,
+    "timestampedRows": 20,
+    "maxDistanceKm": 4.353
+  },
+  {
+    "city": "Brugge",
+    "persistedRows": 19,
+    "timestampedRows": 19,
+    "maxDistanceKm": 1.486
+  },
+  {
+    "city": "Antalya",
+    "persistedRows": 20,
+    "timestampedRows": 20,
+    "maxDistanceKm": 2.645
+  },
+  {
+    "city": "Sarajevo",
+    "persistedRows": 20,
+    "timestampedRows": 20,
+    "maxDistanceKm": 3.227
+  },
+  {
+    "city": "Copenhagen",
+    "persistedRows": 20,
+    "timestampedRows": 20,
+    "maxDistanceKm": 3.98
+  }
+]

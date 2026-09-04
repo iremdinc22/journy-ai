@@ -1,7 +1,8 @@
 package com.journy.backend.itinerary.service;
 
 import com.journy.backend.common.exception.ResourceNotFoundException;
-import com.journy.backend.destination.provider.DestinationCoordinateResolver;
+import com.journy.backend.common.exception.InsufficientDestinationDataException;
+import com.journy.backend.explore.repository.PlaceRepository;
 import com.journy.backend.feedback.model.TasteFeedbackAction;
 import com.journy.backend.feedback.service.TasteFeedbackService;
 import com.journy.backend.itinerary.dto.AddPlaceToPlanRequest;
@@ -38,7 +39,7 @@ public class ItineraryService {
     private final ItineraryDayRepository itineraryDayRepository;
     private final ItineraryMapper itineraryMapper;
     private final CurrentUserService currentUserService;
-    private final DestinationCoordinateResolver destinationCoordinateResolver;
+    private final PlaceRepository placeRepository;
     private final WeatherForecastService weatherForecastService;
     private final TasteFeedbackService tasteFeedbackService;
     private final ZoneId appZone = ZoneId.of("Europe/Istanbul");
@@ -48,7 +49,7 @@ public class ItineraryService {
             ItineraryDayRepository itineraryDayRepository,
             ItineraryMapper itineraryMapper,
             CurrentUserService currentUserService,
-            DestinationCoordinateResolver destinationCoordinateResolver,
+            PlaceRepository placeRepository,
             WeatherForecastService weatherForecastService,
             TasteFeedbackService tasteFeedbackService
     ) {
@@ -56,7 +57,7 @@ public class ItineraryService {
         this.itineraryDayRepository = itineraryDayRepository;
         this.itineraryMapper = itineraryMapper;
         this.currentUserService = currentUserService;
-        this.destinationCoordinateResolver = destinationCoordinateResolver;
+        this.placeRepository = placeRepository;
         this.weatherForecastService = weatherForecastService;
         this.tasteFeedbackService = tasteFeedbackService;
     }
@@ -259,22 +260,22 @@ public class ItineraryService {
         Trip trip = ownedTrip(tripId);
         ItineraryDay day = dayFor(trip, dayNumber);
 
-        boolean alreadyAdded = day.getStops().stream()
-                .anyMatch(stop -> stop.getTitle().equalsIgnoreCase(request.name()));
+        var place = placeRepository.findById(request.placeId())
+                .filter(PlannerPlaceContract::verified)
+                .filter(candidate -> PlannerPlaceContract.inDestination(candidate, trip.getDestination()))
+                .orElseThrow(() -> new InsufficientDestinationDataException(1, 0));
+        boolean alreadyAdded = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(tripId).stream()
+                .flatMap(existingDay -> existingDay.getStops().stream())
+                .anyMatch(stop -> place.getId().equals(stop.getPlaceId()));
         if (!alreadyAdded) {
             int nextOrder = day.getStops().size() + 1;
-            ItineraryStop stop = new ItineraryStop(
-                    nextOrder,
-                    request.name(),
-                    normalizeCategory(request.category()),
-                    timeWindowFor(request.category(), nextOrder),
-                    noteFor(request),
-                    request.latitude() == null ? fallbackLatitude(trip.getDestination(), nextOrder) : request.latitude(),
-                    request.longitude() == null ? fallbackLongitude(trip.getDestination(), nextOrder) : request.longitude()
-            );
-            day.addStop(stop);
-            day.setSummary(summaryWithAddedPlace(day.getSummary(), request.name()));
-            day.setWalkKm(Math.round((day.getWalkKm() + walkDeltaFor(request.category())) * 10.0) / 10.0);
+            String category = place.getCategory().name();
+            day.addStop(new ItineraryStop(nextOrder, place.getName(), category,
+                    timeWindowFor(category, nextOrder), place.getId(), "provider:" + place.getProvider(),
+                    place.getDescription(), place.getLatitude(), place.getLongitude()));
+            day.setTitle(DayTitleGenerator.title(day.getStops(), "en"));
+            day.setSummary(summaryWithAddedPlace(day.getSummary(), place.getName()));
+            day.setWalkKm(Math.round((day.getWalkKm() + walkDeltaFor(category)) * 10.0) / 10.0);
         }
 
         ItineraryDay savedDay = itineraryDayRepository.save(day);
@@ -503,10 +504,6 @@ public class ItineraryService {
         return order >= 4 ? "17:00" : "12:00";
     }
 
-    private String noteFor(AddPlaceToPlanRequest request) {
-        return "Added from Explore because it fits the route: " + request.description();
-    }
-
     private String summaryWithAddedPlace(String summary, String placeName) {
         if (summary.contains(placeName)) {
             return summary;
@@ -523,14 +520,6 @@ public class ItineraryService {
             return 0.6;
         }
         return 0.5;
-    }
-
-    private double fallbackLatitude(String city, int order) {
-        return destinationCoordinateResolver.latitudeFor(city, order);
-    }
-
-    private double fallbackLongitude(String city, int order) {
-        return destinationCoordinateResolver.longitudeFor(city, order);
     }
 
     private int weatherSensitivityScore(ItineraryDay day) {

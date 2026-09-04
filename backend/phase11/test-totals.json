@@ -1,0 +1,84 @@
+{
+  "backend": {
+    "tests": 95,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "suites": [
+    {
+      "name": "com.journy.backend.BackendApplicationTests",
+      "tests": 1
+    },
+    {
+      "name": "com.journy.backend.controller.ItineraryControllerIntegrationTest",
+      "tests": 1
+    },
+    {
+      "name": "com.journy.backend.itinerary.ItineraryGenerationServiceTest",
+      "tests": 1
+    },
+    {
+      "name": "com.journy.backend.destination.DestinationResolutionServiceTest",
+      "tests": 18
+    },
+    {
+      "name": "com.journy.backend.controller.UniversalDestinationPipelineIntegrationTest",
+      "tests": 9
+    },
+    {
+      "name": "com.journy.backend.auth.AuthServiceTest",
+      "tests": 2
+    },
+    {
+      "name": "com.journy.backend.controller.ProfileControllerIntegrationTest",
+      "tests": 1
+    },
+    {
+      "name": "com.journy.backend.itinerary.PlannerPlaceContractTest",
+      "tests": 4
+    },
+    {
+      "name": "com.journy.backend.explore.provider.PlaceProviderServiceTest",
+      "tests": 27
+    },
+    {
+      "name": "com.journy.backend.controller.AuthControllerIntegrationTest",
+      "tests": 2
+    },
+    {
+      "name": "com.journy.backend.ai.AiServiceTest",
+      "tests": 1
+    },
+    {
+      "name": "com.journy.backend.explore.provider.OsmTransportRegressionTest",
+      "tests": 3
+    },
+    {
+      "name": "com.journy.backend.itinerary.PlannerCacheIntegrationTest",
+      "tests": 1
+    },
+    {
+      "name": "com.journy.backend.controller.InsufficientDataIntegrationTest",
+      "tests": 3
+    },
+    {
+      "name": "com.journy.backend.itinerary.ItineraryGenerationServiceUnitTest",
+      "tests": 12
+    },
+    {
+      "name": "com.journy.backend.itinerary.DayTitleGeneratorTest",
+      "tests": 6
+    },
+    {
+      "name": "com.journy.backend.explore.provider.OsmOverpassPlaceProviderTest",
+      "tests": 3
+    }
+  ],
+  "mobile": {
+    "tests": 6,
+    "failures": 0
+  },
+  "compile": "PASS",
+  "typescript": "PASS"
+}

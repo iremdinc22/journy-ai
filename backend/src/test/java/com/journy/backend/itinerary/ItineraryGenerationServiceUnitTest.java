@@ -31,7 +31,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
+import com.journy.backend.common.exception.InsufficientDestinationDataException;
 
 class ItineraryGenerationServiceUnitTest {
 
@@ -64,61 +65,34 @@ class ItineraryGenerationServiceUnitTest {
     }
 
     @Test
-    void repositoryPlacesAreNotMixedInWhenVerifiedCandidatesExist() {
-        InMemoryItineraryDayRepository dayRepository = new InMemoryItineraryDayRepository();
-        InMemoryPlaceRepository placeRepository = new InMemoryPlaceRepository();
-        placeRepository.saved.add(seedPlace("repo_d", "Unverified Repo D", "Edinburgh", PlaceCategory.CULTURE));
-        List<Place> verifiedPlaces = List.of(
-                verifiedPlace("osm_a", "Calton Hill", "Edinburgh", PlaceCategory.WALKING, 55.9555, -3.1828, 4.9),
-                verifiedPlace("osm_c", "The Milkman", "Edinburgh", PlaceCategory.COFFEE, 55.9508, -3.1888, 4.8)
-        );
-        ItineraryGenerationService service = service(dayRepository, placeRepository, fakePlaceProviderService(verifiedPlaces));
-
-        service.generateIfMissing(trip("Edinburgh", 1));
-
-        List<ItineraryStop> stops = savedStops(dayRepository);
-        assertThat(stops).extracting(ItineraryStop::getTitle)
-                .contains("Calton Hill", "The Milkman")
-                .doesNotContain("Unverified Repo D");
-        assertThat(stops.stream().filter(stop -> stop.getSource().startsWith("provider:"))).hasSize(2);
-        assertThat(stops.stream().filter(stop -> stop.getSource().equals("planned_fallback"))).hasSize(2);
+    void legacyRepositoryCannotFillPartialVerifiedSupply() {
+        var days = new InMemoryItineraryDayRepository();
+        var repository = new InMemoryPlaceRepository();
+        repository.saved.add(seedPlace("D", "Legacy filler", "Edinburgh", PlaceCategory.CULTURE));
+        var candidates = List.of(verifiedPlace("A", "Calton Hill", "Edinburgh", PlaceCategory.WALKING, 55.95, -3.18, 4.9));
+        assertThatThrownBy(() -> service(days, repository, fakePlaceProviderService(candidates)).generateIfMissing(trip("Edinburgh", 1)))
+                .isInstanceOf(InsufficientDestinationDataException.class);
+        assertThat(days.saved).isEmpty();
     }
 
     @Test
-    void invalidProviderSelectionsAreIgnoredAndDoNotBecomeVerifiedStops() {
-        InMemoryItineraryDayRepository dayRepository = new InMemoryItineraryDayRepository();
-        InMemoryPlaceRepository placeRepository = new InMemoryPlaceRepository();
-        Place invalid = seedPlace("not_verified", "Unknown Planner Choice", "Tallinn", PlaceCategory.CULTURE);
-        invalid.setProvider(null);
-        invalid.setProviderFetchedAt(null);
-        ItineraryGenerationService service = service(dayRepository, placeRepository, fakePlaceProviderService(List.of(invalid)));
-
-        service.generateIfMissing(trip("Tallinn", 1));
-
-        List<ItineraryStop> stops = savedStops(dayRepository);
-        assertThat(stops).extracting(ItineraryStop::getTitle).doesNotContain("Unknown Planner Choice");
-        assertThat(stops).allSatisfy(stop -> {
-            assertThat(stop.getPlaceId()).isNull();
-            assertThat(stop.getSource()).isEqualTo("planned_fallback");
-        });
+    void invalidProviderSelectionsProduceControlledFailure() {
+        var days = new InMemoryItineraryDayRepository();
+        Place invalid = seedPlace("D", "Unknown", "Tallinn", PlaceCategory.CULTURE);
+        assertThatThrownBy(() -> service(days, new InMemoryPlaceRepository(), fakePlaceProviderService(List.of(invalid)))
+                .generateIfMissing(trip("Tallinn", 1))).isInstanceOf(InsufficientDestinationDataException.class);
+        assertThat(days.saved).isEmpty();
     }
 
     @Test
-    void noVerifiedCandidatesKeepsExistingPlannedFallbackBehavior() {
-        InMemoryItineraryDayRepository dayRepository = new InMemoryItineraryDayRepository();
-        InMemoryPlaceRepository placeRepository = new InMemoryPlaceRepository();
-        ItineraryGenerationService service = service(dayRepository, placeRepository, fakePlaceProviderService(List.of()));
-
-        service.generateIfMissing(trip("Bologna", 1));
-
-        List<ItineraryStop> stops = savedStops(dayRepository);
-        assertThat(stops).hasSize(4);
-        assertThat(stops).allSatisfy(stop -> {
-            assertThat(stop.getPlaceId()).isNull();
-            assertThat(stop.getSource()).isEqualTo("planned_fallback");
-            assertThat(stop.getLatitude()).isNotZero();
-            assertThat(stop.getLongitude()).isNotZero();
-        });
+    void zeroCandidatesFailsWithoutPersistingAnyDaysOrStops() {
+        var days = new InMemoryItineraryDayRepository();
+        assertThatThrownBy(() -> service(days, new InMemoryPlaceRepository(), fakePlaceProviderService(List.of()))
+                .generateIfMissing(trip("Bologna", 1)))
+                .isInstanceOfSatisfying(InsufficientDestinationDataException.class, error -> {
+                    assertThat(error.required()).isEqualTo(4); assertThat(error.available()).isZero();
+                });
+        assertThat(days.saved).isEmpty();
     }
 
     @Test
@@ -161,12 +135,16 @@ class ItineraryGenerationServiceUnitTest {
                 verifiedPlace("sarajevo_a", "Zmajevac", "Sarajevo", PlaceCategory.WALKING, 43.86, 18.44, 4.9),
                 verifiedPlace("sarajevo_b", "Muzej Alije Izetbegovića", "Sarajevo", PlaceCategory.CULTURE, 43.86, 18.43, 4.8),
                 verifiedPlace("tallinn_a", "Maiasmokk", "Tallinn", PlaceCategory.COFFEE, 59.43, 24.74, 4.9),
-                verifiedPlace("tallinn_b", "Russalka", "Tallinn", PlaceCategory.WALKING, 59.44, 24.79, 4.8));
+                verifiedPlace("tallinn_b", "Russalka", "Tallinn", PlaceCategory.WALKING, 59.44, 24.79, 4.8),
+                verifiedPlace("sarajevo_c", "Cafe", "Sarajevo", PlaceCategory.COFFEE, 43.85, 18.42, 4.7),
+                verifiedPlace("sarajevo_d", "Food", "Sarajevo", PlaceCategory.FOOD, 43.85, 18.43, 4.6),
+                verifiedPlace("tallinn_c", "Museum", "Tallinn", PlaceCategory.CULTURE, 59.43, 24.75, 4.7),
+                verifiedPlace("tallinn_d", "Food", "Tallinn", PlaceCategory.FOOD, 59.44, 24.76, 4.6));
         for (String city : List.of("Sarajevo", "Tallinn")) {
             var days = new InMemoryItineraryDayRepository();
-            service(days, new InMemoryPlaceRepository(), fakePlaceProviderService(mixed)).generateIfMissing(trip(city, 2));
+            service(days, new InMemoryPlaceRepository(), fakePlaceProviderService(mixed)).generateIfMissing(trip(city, 1));
             var real = savedStops(days).stream().filter(stop -> stop.getSource().startsWith("provider:")).toList();
-            assertThat(real).hasSize(2).allSatisfy(stop -> {
+            assertThat(real).hasSize(4).allSatisfy(stop -> {
                 Place selected = mixed.stream().filter(place -> place.getId().equals(stop.getPlaceId())).findFirst().orElseThrow();
                 assertThat(selected.getCity()).isEqualTo(city);
                 assertThat(stop.getTitle()).isEqualTo(selected.getName());
@@ -177,18 +155,18 @@ class ItineraryGenerationServiceUnitTest {
     }
 
     @Test
-    void duplicateIdsAreUsedOnceAcrossTheWholeItineraryAndExhaustionStaysUnverified() {
+    void duplicateIdsDoNotInflateSupplyAndExhaustionFailsDeterministically() {
         var days = new InMemoryItineraryDayRepository();
         Place a = verifiedPlace("A", "Museum", "Sarajevo", PlaceCategory.CULTURE, 43.86, 18.43, 4.9);
         Place b = verifiedPlace("B", "Cafe", "Sarajevo", PlaceCategory.COFFEE, 43.85, 18.42, 4.8);
-        service(days, new InMemoryPlaceRepository(), fakePlaceProviderService(List.of(a, a, b, b)))
-                .generateIfMissing(trip("Sarajevo", 3));
-        var stops = savedStops(days);
-        assertThat(stops).hasSize(12);
-        assertThat(stops.stream().filter(stop -> stop.getSource().startsWith("provider:")))
-                .extracting(ItineraryStop::getPlaceId).containsExactlyInAnyOrder("A", "B");
-        assertThat(stops.stream().filter(stop -> stop.getSource().equals("planned_fallback")))
-                .hasSize(10).allSatisfy(stop -> assertThat(stop.getPlaceId()).isNull());
+        var generator = service(days, new InMemoryPlaceRepository(), fakePlaceProviderService(List.of(a, a, b, b)));
+        for (int attempt = 0; attempt < 2; attempt++) {
+            assertThatThrownBy(() -> generator.generateIfMissing(trip("Sarajevo", 3)))
+                    .isInstanceOfSatisfying(InsufficientDestinationDataException.class, error -> {
+                        assertThat(error.required()).isEqualTo(12); assertThat(error.available()).isEqualTo(2);
+                    });
+        }
+        assertThat(days.saved).isEmpty();
     }
 
     @Test
@@ -205,11 +183,9 @@ class ItineraryGenerationServiceUnitTest {
         invalid.get(7).setName("");
         invalid.get(8).setProvider("planned_fallback");
         var days = new InMemoryItineraryDayRepository();
-        service(days, new InMemoryPlaceRepository(), fakePlaceProviderService(invalid)).generateIfMissing(trip("Sarajevo", 1));
-        assertThat(savedStops(days)).allSatisfy(stop -> {
-            assertThat(stop.getSource()).isEqualTo("planned_fallback");
-            assertThat(stop.getPlaceId()).isNull();
-        });
+        assertThatThrownBy(() -> service(days, new InMemoryPlaceRepository(), fakePlaceProviderService(invalid))
+                .generateIfMissing(trip("Sarajevo", 1))).isInstanceOf(InsufficientDestinationDataException.class);
+        assertThat(days.saved).isEmpty();
     }
 
     @Test
@@ -217,11 +193,9 @@ class ItineraryGenerationServiceUnitTest {
         var days = new InMemoryItineraryDayRepository();
         var repository = new InMemoryPlaceRepository();
         repository.saved.add(verifiedPlace("D", "Not in candidate pool", "Sarajevo", PlaceCategory.CULTURE, 43.86, 18.43, 4.9));
-        service(days, repository, fakePlaceProviderService(List.of())).generateIfMissing(trip("Sarajevo", 1));
-        assertThat(savedStops(days)).allSatisfy(stop -> {
-            assertThat(stop.getPlaceId()).isNull();
-            assertThat(stop.getSource()).isEqualTo("planned_fallback");
-        });
+        assertThatThrownBy(() -> service(days, repository, fakePlaceProviderService(List.of()))
+                .generateIfMissing(trip("Sarajevo", 1))).isInstanceOf(InsufficientDestinationDataException.class);
+        assertThat(days.saved).isEmpty();
     }
 
     @Test
@@ -231,17 +205,58 @@ class ItineraryGenerationServiceUnitTest {
         var historical = new ItineraryDay(trip, 1, "Historical title", "Historical summary", 2);
         historical.addStop(new ItineraryStop(1, "Historical stop", "CULTURE", "09:30", null, null, "", 43.8, 18.4));
         days.saved.add(historical);
+        historical.addStop(new ItineraryStop(2, "Historical fallback", "WALKING", "11:30", null, "planned_fallback", "", 43.8, 18.4));
         var provider = fakePlaceProviderService(List.of());
         service(days, new InMemoryPlaceRepository(), provider).generateIfMissing(trip);
         var response = new com.journy.backend.itinerary.mapper.ItineraryMapper().toDayResponse(historical);
         assertThat(days.saved).containsExactly(historical);
         assertThat(response.title()).isEqualTo("Historical title");
         assertThat(response.titleTranslations()).isEmpty();
-        assertThat(response.stops()).singleElement().satisfies(stop -> {
+        assertThat(response.stops()).hasSize(2);
+        assertThat(response.stops().getFirst()).satisfies(stop -> {
             assertThat(stop.placeId()).isNull();
             assertThat(stop.source()).isNull();
             assertThat(stop.title()).isEqualTo("Historical stop");
         });
+    }
+
+    @Test
+    void staleUsableCacheSurvivesProviderFailureButEmptyCacheFails() {
+        for (boolean cached : List.of(true, false)) {
+            var days = new InMemoryItineraryDayRepository();
+            var repository = new InMemoryPlaceRepository();
+            if (cached) {
+                for (int i = 0; i < 4; i++) {
+                    Place place = verifiedPlace("stale" + i, "Cached " + i, "Copenhagen", PlaceCategory.CULTURE, 55.68, 12.59, 4.8);
+                    place.setProviderFetchedAt(Instant.now().minus(Duration.ofDays(3)));
+                    repository.saved.add(place);
+                }
+            }
+            var provider = new CountingPlaceProvider();
+            var loader = new PlaceProviderService(List.of(provider), repository.proxy(), destinationResolutionService(), 20, Duration.ofDays(1), 2, 2);
+            var generator = service(days, repository, loader);
+            if (cached) {
+                generator.generateIfMissing(trip("Copenhagen", 1));
+                assertThat(savedStops(days)).hasSize(4).allSatisfy(stop -> assertThat(stop.getSource()).isEqualTo("provider:osm"));
+            } else {
+                assertThatThrownBy(() -> generator.generateIfMissing(trip("Copenhagen", 1)))
+                        .isInstanceOf(InsufficientDestinationDataException.class);
+                assertThat(days.saved).isEmpty();
+            }
+            assertThat(provider.calls).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void failedRegenerationKeepsExistingHistoricalRows() {
+        var days = new InMemoryItineraryDayRepository();
+        Trip trip = trip("Sarajevo", 1);
+        var historical = new ItineraryDay(trip, 1, "Historical", "", 2);
+        historical.addStop(new ItineraryStop(1, "Old Town Walk", "WALKING", "09:30", null, "planned_fallback", "", 43.8, 18.4));
+        days.saved.add(historical);
+        assertThatThrownBy(() -> service(days, new InMemoryPlaceRepository(), fakePlaceProviderService(List.of())).regenerate(trip))
+                .isInstanceOf(InsufficientDestinationDataException.class);
+        assertThat(days.saved).containsExactly(historical);
     }
 
     private ItineraryGenerationService service(
@@ -251,8 +266,6 @@ class ItineraryGenerationServiceUnitTest {
     ) {
         return new ItineraryGenerationService(
                 dayRepository.proxy(),
-                placeRepository.proxy(),
-                new DestinationCoordinateResolver(List.of()),
                 placeProviderService
         );
     }
@@ -431,7 +444,7 @@ class ItineraryGenerationServiceUnitTest {
         @Override
         public List<ExternalPlaceCandidate> search(ResolvedDestination destination, PlaceCategory category, int limit) {
             calls++;
-            return List.of();
+            throw new IllegalStateException("provider unavailable");
         }
     }
 }

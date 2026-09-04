@@ -15,6 +15,13 @@ import java.util.List;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(InsufficientDestinationDataException.class)
+    ResponseEntity<ApiErrorResponse> handleInsufficientData(InsufficientDestinationDataException exception, HttpServletRequest request) {
+        return ResponseEntity.unprocessableEntity().body(new ApiErrorResponse(
+                Instant.now(), 422, InsufficientDestinationDataException.CODE, exception.getMessage(),
+                request.getRequestURI(), List.of("requiredPlaces=" + exception.required(), "availablePlaces=" + exception.available())));
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     ResponseEntity<ApiErrorResponse> handleBadCredentials(BadCredentialsException exception, HttpServletRequest request) {
         return error(HttpStatus.UNAUTHORIZED, "Invalid email or password", request, List.of());

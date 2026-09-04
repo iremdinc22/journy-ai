@@ -1,0 +1,10 @@
+mobile/src/utils/destinationVisuals.ts:21:  antalya: 'https://commons.wikimedia.org/wiki/Special:FilePath/Kaleici_Antalya.jpg?width=900',
+mobile/src/utils/destinationVisuals.ts:28:  antalya: citySearchImage('Antalya'),
+mobile/src/utils/destinationVisuals.ts:104:  if (normalized === 'antalya') return 'Old town - beaches - historic walks';
+mobile/src/utils/destinationVisuals.ts:129:    antalya: { latitude: 36.8969, longitude: 30.7133 },
+backend/src/main/java/com/journy/backend/destination/service/DestinationService.java:122:            case "antalya" -> "Old town - beaches - historic walks";
+backend/src/main/java/com/journy/backend/destination/service/DestinationResolutionService.java:114:            case "antalya" -> "Antalya";
+backend/src/main/java/com/journy/backend/destination/service/DestinationResolutionService.java:133:            case "istanbul", "canakkale", "edirne", "bursa", "eskisehir", "ankara", "izmir", "antalya" -> "Turkey";
+mobile/src/screens/TripSetupScreen.tsx:927:    antalya: ['Kaleici', 'Konyaalti', 'Lara', 'Muratpasa'],
+backend/src/main/java/com/journy/backend/destination/provider/DestinationImageResolver.java:89:            case "antalya" -> "https://commons.wikimedia.org/wiki/Special:FilePath/Kaleici_Antalya.jpg?width=900";
+backend/src/main/java/com/journy/backend/destination/provider/DestinationCoordinateResolver.java:85:            case "antalya" -> new DestinationCoordinates(36.8969, 30.7133);

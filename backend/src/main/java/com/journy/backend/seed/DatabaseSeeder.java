@@ -4,9 +4,6 @@ import com.journy.backend.destination.model.Destination;
 import com.journy.backend.destination.repository.DestinationRepository;
 import com.journy.backend.explore.model.Place;
 import com.journy.backend.explore.repository.PlaceRepository;
-import com.journy.backend.itinerary.model.ItineraryDay;
-import com.journy.backend.itinerary.model.ItineraryStop;
-import com.journy.backend.itinerary.repository.ItineraryDayRepository;
 import com.journy.backend.notification.model.AppNotification;
 import com.journy.backend.notification.repository.AppNotificationRepository;
 import com.journy.backend.place.enums.PlaceCategory;
@@ -34,7 +31,6 @@ import java.util.Set;
 public class DatabaseSeeder implements CommandLineRunner {
     private final UserAccountRepository userAccountRepository;
     private final TripRepository tripRepository;
-    private final ItineraryDayRepository itineraryDayRepository;
     private final PlaceRepository placeRepository;
     private final DestinationRepository destinationRepository;
     private final AppNotificationRepository appNotificationRepository;
@@ -43,7 +39,6 @@ public class DatabaseSeeder implements CommandLineRunner {
     public DatabaseSeeder(
             UserAccountRepository userAccountRepository,
             TripRepository tripRepository,
-            ItineraryDayRepository itineraryDayRepository,
             PlaceRepository placeRepository,
             DestinationRepository destinationRepository,
             AppNotificationRepository appNotificationRepository,
@@ -51,7 +46,6 @@ public class DatabaseSeeder implements CommandLineRunner {
     ) {
         this.userAccountRepository = userAccountRepository;
         this.tripRepository = tripRepository;
-        this.itineraryDayRepository = itineraryDayRepository;
         this.placeRepository = placeRepository;
         this.destinationRepository = destinationRepository;
         this.appNotificationRepository = appNotificationRepository;
@@ -87,9 +81,9 @@ public class DatabaseSeeder implements CommandLineRunner {
                 Set.of(TravelInterest.COFFEE, TravelInterest.MUSEUMS, TravelInterest.LOCAL_FOOD, TravelInterest.WALKING)
         );
         amsterdam.setCurrentTrip(true);
-        amsterdam.setTotalStops(18);
-        amsterdam.setFoodPicks(7);
-        amsterdam.setAverageWalkKm(6.2);
+        amsterdam.setTotalStops(0);
+        amsterdam.setFoodPicks(0);
+        amsterdam.setAverageWalkKm(0);
         tripRepository.save(amsterdam);
 
         Trip rome = new Trip(
@@ -104,12 +98,11 @@ public class DatabaseSeeder implements CommandLineRunner {
                 Set.of(TravelInterest.LOCAL_FOOD, TravelInterest.CULTURE, TravelInterest.WALKING)
         );
         rome.setCurrentTrip(false);
-        rome.setTotalStops(12);
-        rome.setFoodPicks(8);
-        rome.setAverageWalkKm(4.9);
+        rome.setTotalStops(0);
+        rome.setFoodPicks(0);
+        rome.setAverageWalkKm(0);
         tripRepository.save(rome);
 
-        seedItinerary(amsterdam);
         seedNotifications(user);
     }
 
@@ -325,34 +318,6 @@ public class DatabaseSeeder implements CommandLineRunner {
         destination.setAvailable(seed.isAvailable());
         destination.setPopular(seed.isPopular());
         destinationRepository.save(destination);
-    }
-
-    private void seedItinerary(Trip trip) {
-        ItineraryDay dayOne = new ItineraryDay(
-                trip,
-                1,
-                "Canals & Museums",
-                "A calm first day with a museum window, canal walk and low-effort dinner area.",
-                6.4
-        );
-        dayOne.addStop(new ItineraryStop(1, "Museumplein", "Culture", "09:30", "Start with the strongest anchor stop.", 52.3584, 4.8811));
-        dayOne.addStop(new ItineraryStop(2, "Morning coffee", "Coffee", "11:30", "A quiet break before walking.", 52.3568, 4.8897));
-        dayOne.addStop(new ItineraryStop(3, "Canal loop", "Walking", "14:00", "Scenic route with flexible pacing.", 52.3676, 4.9041));
-        dayOne.addStop(new ItineraryStop(4, "De Pijp dinner", "Food", "19:00", "Local dinner area with easy transit back.", 52.3542, 4.8975));
-
-        ItineraryDay dayTwo = new ItineraryDay(
-                trip,
-                2,
-                "Historic Center",
-                "Culture and food grouped tightly so the day feels rich without becoming exhausting.",
-                4.8
-        );
-        dayTwo.addStop(new ItineraryStop(1, "Morning piazza", "Walking", "10:00", "Start central and keep transfers short.", 52.3731, 4.8922));
-        dayTwo.addStop(new ItineraryStop(2, "Local bakery", "Food", "11:15", "Small food stop before the busiest part.", 52.3712, 4.8951));
-        dayTwo.addStop(new ItineraryStop(3, "Gallery window", "Culture", "13:00", "A compact indoor culture stop.", 52.3698, 4.9010));
-        dayTwo.addStop(new ItineraryStop(4, "Dinner canal edge", "Food", "19:00", "Stay close to the final walking area.", 52.3702, 4.8992));
-
-        itineraryDayRepository.saveAll(List.of(dayOne, dayTwo));
     }
 
     private void seedPlaces() {

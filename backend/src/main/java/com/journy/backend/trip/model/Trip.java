@@ -45,6 +45,14 @@ public class Trip {
     @Column(nullable = false)
     private String destination;
 
+    // Preserve disambiguation (for example a region) without changing the display locality.
+    @Column
+    private String destinationQuery;
+
+    public String destinationLookupQuery() {
+        return destinationQuery == null || destinationQuery.isBlank() ? destination : destinationQuery;
+    }
+
     @Column
     private String startingArea;
 

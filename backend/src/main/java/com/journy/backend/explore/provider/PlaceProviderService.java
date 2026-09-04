@@ -99,7 +99,7 @@ public class PlaceProviderService {
             try {
                 int minimum = cacheMinimum(category, forYou, limit);
                 Instant cutoff = Instant.now().minus(cacheTtl);
-                List<Place> freshCache = cachedPlaces(destination.locality(), category, forYou, cutoff);
+                List<Place> freshCache = cachedPlaces(destination, category, forYou, cutoff);
                 if (freshCache.size() >= minimum) {
                     log.info(
                             "place_cache hit city={} category={} fresh={} minimum={}",
@@ -111,7 +111,7 @@ public class PlaceProviderService {
                     return freshCache.stream().limit(limit).toList();
                 }
 
-                List<Place> usableCache = cachedPlaces(destination.locality(), category, forYou, null);
+                List<Place> usableCache = cachedPlaces(destination, category, forYou, null);
                 log.info(
                         "place_cache {} city={} category={} fresh={} usable={} minimum={}",
                         usableCache.isEmpty() ? "miss" : "stale_or_insufficient",
@@ -123,7 +123,7 @@ public class PlaceProviderService {
                 );
 
                 int saved = refreshDestination(destination, category, limit);
-                List<Place> refreshed = cachedPlaces(destination.locality(), category, forYou, null);
+                List<Place> refreshed = cachedPlaces(destination, category, forYou, null);
                 if (saved == 0 && !usableCache.isEmpty()) {
                     log.info(
                             "place_cache stale_returned city={} category={} usable={} refreshed=0",
@@ -195,15 +195,23 @@ public class PlaceProviderService {
         return saved;
     }
 
-    private List<Place> cachedPlaces(String city, PlaceCategory category, boolean forYou, Instant cutoff) {
+    private List<Place> cachedPlaces(ResolvedDestination destination, PlaceCategory category, boolean forYou, Instant cutoff) {
+        String city = destination.locality();
+        List<Place> cached;
         if (cutoff == null) {
-            return forYou
+            cached = forYou
                     ? placeRepository.findProviderCachedByCity(city)
                     : placeRepository.findProviderCachedByCityAndCategory(city, category);
+        } else {
+            cached = forYou
+                    ? placeRepository.findFreshProviderCachedByCity(city, cutoff)
+                    : placeRepository.findFreshProviderCachedByCityAndCategory(city, category, cutoff);
         }
-        return forYou
-                ? placeRepository.findFreshProviderCachedByCity(city, cutoff)
-                : placeRepository.findFreshProviderCachedByCityAndCategory(city, category, cutoff);
+        // Locality names are not globally unique; apply discovery's geographic boundary to cache hits too.
+        return cached.stream().filter(place -> place.getLatitude() != null && place.getLongitude() != null
+                && Double.isFinite(place.getLatitude()) && Double.isFinite(place.getLongitude())
+                && distanceKm(destination.latitude(), destination.longitude(), place.getLatitude(), place.getLongitude()) <= maxDistanceKm)
+                .toList();
     }
 
     private int cacheMinimum(PlaceCategory category, boolean forYou, int limit) {

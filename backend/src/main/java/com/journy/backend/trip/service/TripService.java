@@ -150,6 +150,7 @@ public class TripService {
                 request.pace(),
                 request.interests()
         );
+        trip.setDestinationQuery(request.destination().trim());
         trip.setCurrentTrip(true);
         trip.setTotalStops(0);
         trip.setFoodPicks(0);
@@ -168,7 +169,7 @@ public class TripService {
                 .orElseGet(() -> tripRepository.findFirstByUserEmailIgnoreCaseAndCurrentTripTrueOrderByCreatedAtDesc(user.getEmail())
                         .orElseThrow(() -> new ResourceNotFoundException("Trip was not found")));
 
-        ResolvedDestination resolvedDestination = resolveDestinationOrFail(trip.getDestination());
+        ResolvedDestination resolvedDestination = resolveDestinationOrFail(trip.destinationLookupQuery());
         trip.setDestination(resolvedDestination.locality());
         itineraryGenerationService.regenerate(trip);
         return tripMapper.toResponse(tripRepository.save(trip));

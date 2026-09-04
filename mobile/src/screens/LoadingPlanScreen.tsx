@@ -7,7 +7,7 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { tripApi } from '../api/journyApi';
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
-import { ApiError } from '../api/client';
+import { loadingPlanErrorMessage } from '../utils/loadingPlanErrorMessage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LoadingPlan'>;
 
@@ -33,7 +33,7 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
       await tripApi.create(route.params.tripDraft);
       navigation.replace('MainTabs', { screen: 'Itinerary' });
     } catch (requestError) {
-      setErrorMessage(messageForError(requestError, t));
+      setErrorMessage(loadingPlanErrorMessage(requestError, t));
       setError(true);
     } finally {
       setCreating(false);
@@ -52,7 +52,7 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
         }
       } catch (requestError) {
         if (!cancelled) {
-          setErrorMessage(messageForError(requestError, t));
+          setErrorMessage(loadingPlanErrorMessage(requestError, t));
           setError(true);
         }
       } finally {
@@ -118,21 +118,6 @@ export default function LoadingPlanScreen({ navigation, route }: Props) {
       </View>
     </SafeAreaView>
   );
-}
-
-type Translate = ReturnType<typeof useTranslation>;
-
-function messageForError(error: unknown, t: Translate) {
-  if (error instanceof ApiError && error.status === 401) {
-    return t('loading.sessionExpired');
-  }
-  if (error instanceof ApiError && error.status === 403) {
-    return t('loading.freshSignIn');
-  }
-  if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
-    return error.message || t('loading.checkDetails');
-  }
-  return t('loading.networkError');
 }
 
 type Theme = ReturnType<typeof useAppTheme>['theme'];

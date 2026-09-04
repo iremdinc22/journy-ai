@@ -1,0 +1,7 @@
+backend/src/main/java/com/journy/backend/itinerary/service/ItineraryGenerationService.java
+backend/src/main/java/com/journy/backend/trip/model/Trip.java
+backend/src/main/java/com/journy/backend/trip/service/TripService.java
+backend/src/main/java/com/journy/backend/explore/provider/PlaceProviderService.java
+backend/src/main/resources/db/migration/V3__retain_trip_destination_query.sql
+mobile/src/screens/ItineraryScreen.tsx
+mobile/src/i18n/translations.ts

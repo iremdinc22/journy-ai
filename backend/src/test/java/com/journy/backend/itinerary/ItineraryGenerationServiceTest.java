@@ -27,7 +27,8 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+@SpringBootTest(properties = {"journy.places.osm.enabled=false",
+        "spring.datasource.url=jdbc:h2:mem:phase10_generation;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"})
 @ActiveProfiles("test")
 class ItineraryGenerationServiceTest {
     @Autowired
@@ -43,6 +44,14 @@ class ItineraryGenerationServiceTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @org.springframework.test.context.transaction.BeforeTransaction
+    void committedVerifiedCache() {
+        for (int i = 0; i < 12; i++) {
+            placeRepository.save(com.journy.backend.support.VerifiedPlaceFixtures.place(
+                    "gen_" + i, "Verified " + i, "Amsterdam", PlaceCategory.CULTURE));
+        }
+    }
+
     @Test
     @Transactional
     void generateIfMissingCreatesDaysBasedOnTripLengthAndPlaces() {
@@ -51,11 +60,6 @@ class ItineraryGenerationServiceTest {
                 "plan-" + System.nanoTime() + "@journy.app",
                 passwordEncoder.encode("secret"),
                 "Balanced traveler"
-        ));
-        placeRepository.saveAll(List.of(
-                new Place("Culture Place", "Amsterdam", PlaceCategory.CULTURE, "Culture stop", "Lean", 4.7, ""),
-                new Place("Food Place", "Amsterdam", PlaceCategory.FOOD, "Food stop", "Mid", 4.8, ""),
-                new Place("Coffee Place", "Amsterdam", PlaceCategory.COFFEE, "Coffee stop", "Lean", 4.6, "")
         ));
         Trip trip = tripRepository.save(new Trip(
                 user,
@@ -74,7 +78,8 @@ class ItineraryGenerationServiceTest {
         List<ItineraryDay> days = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId());
         assertThat(days).hasSize(3);
         assertThat(days.getFirst().getStops()).isNotEmpty();
-        assertThat(trip.getTotalStops()).isGreaterThan(0);
+        assertThat(trip.getTotalStops()).isEqualTo(12);
+        assertThat(days.stream().flatMap(day -> day.getStops().stream())).allSatisfy(stop -> assertThat(stop.getSource()).isEqualTo("provider:osm"));
         assertThat(trip.getAverageWalkKm()).isGreaterThan(0);
     }
 }

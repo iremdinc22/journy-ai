@@ -21,7 +21,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = {"journy.places.osm.enabled=false",
+        "spring.datasource.url=jdbc:h2:mem:phase10_profile;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE"})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class ProfileControllerIntegrationTest {
@@ -30,8 +31,12 @@ class ProfileControllerIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired private com.journy.backend.explore.repository.PlaceRepository placeRepository;
+
     @Test
     void updatePreferencesPersistsUserDefaults() throws Exception {
+        for (int i = 0; i < 16; i++) placeRepository.save(com.journy.backend.support.VerifiedPlaceFixtures.place(
+                "profile_" + i, "Verified " + i, "Amsterdam", com.journy.backend.place.enums.PlaceCategory.CULTURE));
         String email = "profile-" + System.nanoTime() + "@journy.app";
         String token = registerAndGetToken(email);
         createCurrentTrip(token);

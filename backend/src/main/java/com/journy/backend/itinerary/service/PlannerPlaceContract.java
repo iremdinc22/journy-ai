@@ -44,7 +44,9 @@ public final class PlannerPlaceContract {
                 if (stop.getPlaceId() != null && !usedIds.add(stop.getPlaceId())) {
                     throw new IllegalStateException("Duplicate itinerary Place ID: " + stop.getPlaceId());
                 }
-                if (stop.getSource() == null || !stop.getSource().startsWith("provider:")) continue;
+                if (stop.getSource() == null || !stop.getSource().startsWith("provider:")) {
+                    throw new IllegalStateException("New itinerary stops must be provider-backed");
+                }
                 Identity identity = stop.getPlaceId() == null ? null : candidates.get(stop.getPlaceId());
                 if (identity == null || !Objects.equals(identity.name(), stop.getTitle())
                         || !Objects.equals(identity.source(), stop.getSource())

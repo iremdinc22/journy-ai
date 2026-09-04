@@ -1,0 +1,1 @@
+select id,name,city,provider,provider_place_id,provider_fetched_at,latitude,longitude from places where lower(city) in ('las vegas','tallinn','bologna','brugge','antalya','sarajevo','copenhagen') and provider is not null order by city,id;

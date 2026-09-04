@@ -1,0 +1,14 @@
+mobile/tests/itineraryFailure.test.cjs:28:  const days = [{title: 'Legacy', stops: [{placeId: null, source: 'planned_fallback', title: 'Old stop'}]}];
+backend/src/main/java/com/journy/backend/itinerary/service/PlannerPlaceContract.java:24:        return provider.matches("[a-z0-9_-]+") && !List.of("seed", "starter", "planned_fallback").contains(provider)
+mobile/tests/itineraryDayTitle.test.cjs:23:  const day = { title: 'Old Town Walk & Coffee Break', titleTranslations: {
+mobile/tests/itineraryDayTitle.test.cjs:34:  assert.equal(typeof itineraryDayTitle({ title: 'Old Town Walk & Coffee Break' }, 'tr'), 'string');
+mobile/src/utils/localizedDynamicText.ts:423:    [/\bGarden Route\b/gi, 'Bahçe rotası'],
+backend/src/main/java/com/journy/backend/seed/DatabaseSeeder.java:342:                new Place("Central Espresso Bar", "Rome", PlaceCategory.COFFEE, "A short espresso break between historic anchors.", "Lean", 4.6, "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=700&q=85"),
+backend/src/test/java/com/journy/backend/itinerary/PlannerPlaceContractTest.java:54:        for (String source : new String[]{null, "planned_fallback", "repository:seed"}) {
+backend/src/test/java/com/journy/backend/itinerary/DayTitleGeneratorTest.java:30:    void unknownMixUsesNeutralFallbackAndPlannedStopsCannotSupplyThemeOrAnchor() {
+backend/src/test/java/com/journy/backend/itinerary/DayTitleGeneratorTest.java:32:        fallback.setSource("planned_fallback"); fallback.setPlaceId(null);
+backend/src/test/java/com/journy/backend/itinerary/ItineraryGenerationServiceUnitTest.java:184:        invalid.get(8).setProvider("planned_fallback");
+backend/src/test/java/com/journy/backend/itinerary/ItineraryGenerationServiceUnitTest.java:208:        historical.addStop(new ItineraryStop(2, "Historical fallback", "WALKING", "11:30", null, "planned_fallback", "", 43.8, 18.4));
+backend/src/test/java/com/journy/backend/itinerary/ItineraryGenerationServiceUnitTest.java:255:        historical.addStop(new ItineraryStop(1, "Old Town Walk", "WALKING", "09:30", null, "planned_fallback", "", 43.8, 18.4));
+backend/src/main/java/com/journy/backend/trip/service/TripService.java:75:        int days = previewDays(request);
+backend/src/main/java/com/journy/backend/trip/service/TripService.java:224:    private int previewDays(TripPreviewRequest request) {

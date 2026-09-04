@@ -48,6 +48,17 @@ class PlannerPlaceContractTest {
         assertThat(PlannerPlaceContract.snapshot(List.of(place()), "Tallinn")).isEmpty();
     }
 
+    @Test
+    void newlyGeneratedUnverifiedStopsAreRejectedEvenIfTheyHaveAnId() {
+        var pool = PlannerPlaceContract.snapshot(List.of(place()), "Sarajevo");
+        for (String source : new String[]{null, "planned_fallback", "repository:seed"}) {
+            var day = day();
+            day.getStops().getFirst().setSource(source);
+            assertThatThrownBy(() -> PlannerPlaceContract.validate(List.of(day), pool))
+                    .isInstanceOf(IllegalStateException.class).hasMessageContaining("provider-backed");
+        }
+    }
+
     private Place place() {
         Place place = new Place();
         place.setId("A"); place.setName("Museum"); place.setCity("Sarajevo");
