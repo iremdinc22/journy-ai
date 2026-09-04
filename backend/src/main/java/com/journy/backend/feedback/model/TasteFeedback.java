@@ -1,5 +1,7 @@
 package com.journy.backend.feedback.model;
 
+import jakarta.persistence.UniqueConstraint;
+
 import com.journy.backend.user.model.UserAccount;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -18,7 +20,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "taste_feedback")
+@Table(name = "taste_feedback", uniqueConstraints = @UniqueConstraint(
+        name = "uk_feedback_user_event", columnNames = {"user_id", "event_key"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -46,6 +49,13 @@ public class TasteFeedback {
     private int weight;
 
     private String reason;
+
+    // Null on historical rows: their mixed identity has not been reverified.
+    private Boolean identityVerified;
+    private String source;
+    private String contextId;
+    @Column(name = "event_key")
+    private String eventKey;
 
     @Column(nullable = false)
     private Instant createdAt;

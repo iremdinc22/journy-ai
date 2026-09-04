@@ -200,6 +200,7 @@ public class ItineraryService {
 
     @Transactional
     public ItineraryResponse.ItineraryDayResponse addPlaceToDay(String tripId, int dayNumber, AddPlaceToPlanRequest request) {
+        currentUserService.currentUserForUpdate();
         Trip trip = ownedTrip(tripId);
         ItineraryDay day = dayFor(trip, dayNumber);
 
@@ -213,9 +214,11 @@ public class ItineraryService {
         if (!alreadyAdded) {
             int nextOrder = day.getStops().size() + 1;
             String category = place.getCategory().name();
-            day.addStop(new ItineraryStop(nextOrder, place.getName(), category,
+            var addedStop = new ItineraryStop(nextOrder, place.getName(), category,
                     timeWindowFor(category, nextOrder), place.getId(), "provider:" + place.getProvider(),
-                    place.getDescription(), place.getLatitude(), place.getLongitude()));
+                    place.getDescription(), place.getLatitude(), place.getLongitude());
+            day.addStop(addedStop);
+            tasteFeedbackService.recordTransition(place.getId(), TasteFeedbackAction.ADDED_TO_TRIP, "Added to itinerary", "ITINERARY", addedStop.getId());
             day.setTitle(DayTitleGenerator.title(day.getStops(), "en"));
             day.setSummary(summaryWithAddedPlace(day.getSummary(), place.getName()));
             day.setWalkKm(Math.round((day.getWalkKm() + walkDeltaFor(category)) * 10.0) / 10.0);
@@ -228,10 +231,11 @@ public class ItineraryService {
 
     @Transactional
     public ItineraryResponse.ItineraryDayResponse removeStop(String tripId, int dayNumber, String stopId) {
+        currentUserService.currentUserForUpdate();
         Trip trip = ownedTrip(tripId);
         ItineraryDay day = dayFor(trip, dayNumber);
         ItineraryStop stop = stopFor(day, stopId);
-        tasteFeedbackService.record(trip.getUser(), stop.getId(), stop.getTitle(), stop.getCategory(), TasteFeedbackAction.REMOVED, "Removed from itinerary");
+        tasteFeedbackService.recordTransition(stop.getPlaceId(), TasteFeedbackAction.REMOVED_FROM_TRIP, "Removed from itinerary", "ITINERARY", stop.getId());
         day.getStops().remove(stop);
         normalizeStopOrder(day);
         refreshDayAfterManualChange(day, "Removed " + stop.getTitle() + " from this day.");
@@ -254,9 +258,11 @@ public class ItineraryService {
 
     @Transactional
     public ItineraryResponse.ItineraryDayResponse updateStopStatus(String tripId, int dayNumber, String stopId, UpdateStopStatusRequest request) {
+        currentUserService.currentUserForUpdate();
         Trip trip = ownedTrip(tripId);
         ItineraryDay day = dayFor(trip, dayNumber);
         ItineraryStop stop = stopFor(day, stopId);
+        if (stop.getStatus() == request.status()) return itineraryMapper.toDayResponse(day);
         Instant now = Instant.now();
         stop.setStatus(request.status());
         if (request.status() == StopVisitStatus.ARRIVED && stop.getArrivedAt() == null) {
@@ -267,11 +273,11 @@ public class ItineraryService {
                 stop.setArrivedAt(now);
             }
             stop.setCompletedAt(now);
-            tasteFeedbackService.record(trip.getUser(), stop.getId(), stop.getTitle(), stop.getCategory(), TasteFeedbackAction.VISITED, "Completed itinerary stop");
+            tasteFeedbackService.recordTransition(stop.getPlaceId(), TasteFeedbackAction.VISITED, "Completed itinerary stop", "ITINERARY", stop.getId());
         }
         if (request.status() == StopVisitStatus.SKIPPED) {
             stop.setCompletedAt(now);
-            tasteFeedbackService.record(trip.getUser(), stop.getId(), stop.getTitle(), stop.getCategory(), TasteFeedbackAction.SKIPPED, "Skipped itinerary stop");
+            tasteFeedbackService.recordTransition(stop.getPlaceId(), TasteFeedbackAction.SKIPPED, "Skipped itinerary stop", "ITINERARY", stop.getId());
         }
         if (request.status() == StopVisitStatus.PLANNED) {
             stop.setArrivedAt(null);

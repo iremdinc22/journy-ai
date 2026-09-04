@@ -15,6 +15,14 @@ public class CurrentUserService {
         this.userAccountRepository = userAccountRepository;
     }
 
+    // Call only inside the state-changing transaction, before reading mutable state.
+    public UserAccount currentUserForUpdate() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) throw new ResourceNotFoundException("Authenticated user was not found");
+        return userAccountRepository.findForUpdateByEmail(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user was not found"));
+    }
+
     public UserAccount currentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {

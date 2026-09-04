@@ -50,11 +50,11 @@ public class SavedPlaceService {
 
     @Transactional
     public SavedPlaceResponse save(SavedPlaceRequest request) {
-        UserAccount user = currentUserService.currentUser();
+        UserAccount user = currentUserService.currentUserForUpdate();
         SavedPlace place = savedPlaceRepository.findByUserEmailIgnoreCaseAndPlaceId(user.getEmail(), request.placeId())
                 .orElseGet(() -> {
                     SavedPlace saved = savedPlaceRepository.save(savedPlaceMapper.toEntity(user, request));
-                    tasteFeedbackService.record(user, request.placeId(), request.name(), request.category(), TasteFeedbackAction.SAVED, "Saved place");
+                    tasteFeedbackService.recordTransition(request.placeId(), TasteFeedbackAction.SAVED, "Saved place", "SAVED_PLACE", saved.getId());
                     return saved;
                 });
         return savedPlaceMapper.toResponse(place);
@@ -62,10 +62,10 @@ public class SavedPlaceService {
 
     @Transactional
     public void remove(String placeId) {
-        UserAccount user = currentUserService.currentUser();
+        UserAccount user = currentUserService.currentUserForUpdate();
         savedPlaceRepository.findByUserEmailIgnoreCaseAndPlaceId(user.getEmail(), placeId)
                 .ifPresent(place -> {
-                    tasteFeedbackService.record(user, place.getPlaceId(), place.getName(), place.getCategory(), TasteFeedbackAction.REMOVED, "Removed saved place");
+                    tasteFeedbackService.recordTransition(place.getPlaceId(), TasteFeedbackAction.UNSAVED, "Removed saved place", "SAVED_PLACE", place.getId());
                     savedPlaceRepository.delete(place);
                 });
     }
