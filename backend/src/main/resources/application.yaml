@@ -28,6 +28,9 @@ app:
 
 journy:
   weather:
+    rain-probability-threshold: 60
+    rain-amount-threshold-mm: 1.0
+    cache-ttl: PT15M
     open-meteo:
       enabled: ${OPEN_METEO_ENABLED:true}
       endpoint: ${OPEN_METEO_ENDPOINT:https://api.open-meteo.com/v1/forecast}

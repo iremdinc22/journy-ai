@@ -1,0 +1,12 @@
+{
+  "retrievedOn": "2026-09-04",
+  "attribution": "© OpenStreetMap contributors, ODbL 1.0",
+  "sources": [
+    "https://api.openstreetmap.org/api/0.6/node/1801477226.json",
+    "https://api.openstreetmap.org/api/0.6/node/2181137651.json"
+  ],
+  "elements": [
+    {"type":"node","id":1801477226,"lat":41.6592439,"lon":26.5377829,"version":2,"timestamp":"2013-11-30T14:13:11Z","tags":{"historic":"monument","name":"Balkan Savaşı Şehitleri Anıtı"}},
+    {"type":"node","id":2181137651,"lat":41.6788940,"lon":26.5607674,"version":8,"timestamp":"2024-12-14T10:04:14Z","tags":{"name":"Edirne Müzesi","tourism":"museum","wikidata":"Q28220963","wikimedia_commons":"Category:Edirne Museum","wikipedia":"en:Edirne Museum"}}
+  ]
+}

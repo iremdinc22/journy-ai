@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { meaningfulWeatherAdjustment } from '../utils/weatherAdjustment';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
   Platform,
@@ -14,7 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { agentApi, tripApi } from '../api/journyApi';
 import { session } from '../api/session';
-import type { AgentActionPreview, AgentIntent, ItineraryDay, ItineraryResponse, TripResponse } from '../api/types';
+import type { AgentActionPreview, AgentIntent, ItineraryDay, ItineraryResponse, TripResponse, WeatherAdjustmentResponse } from '../api/types';
 import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { localizeDynamicText } from '../utils/localizedDynamicText';
@@ -62,13 +64,7 @@ const defaultQuickPrompts: QuickPrompt[] = [
     answer:
       'For dinner, stay near the final neighborhood instead of crossing the city. A small local bistro around the evening area fits the route and keeps the night relaxed.',
   },
-  {
-    label: 'Rain backup',
-    icon: 'rainy-outline',
-    prompt: 'Rebuild the plan if it rains.',
-    answer:
-      'If it rains, move the outdoor canal walk to tomorrow morning and keep today focused on one museum, a covered food stop, and a longer cafe window.',
-  },
+
 ];
 
 const initialMessages: Message[] = [
@@ -102,8 +98,9 @@ export default function AssistantScreen() {
     () => itinerary?.days.find((day) => day.dayNumber === activeDayNumber) ?? itinerary?.days[0],
     [activeDayNumber, itinerary?.days],
   );
-  const quickPrompts = useMemo(() => buildQuickPrompts(currentTrip ?? undefined, currentDay, t), [currentDay, currentTrip, t]);
-  const hasWeatherRisk = useMemo(() => currentDay?.stops.some(isWeatherSensitiveStop) ?? false, [currentDay]);
+  const [weatherSignal, setWeatherSignal] = useState<WeatherAdjustmentResponse | null>(null);
+  const hasWeatherRisk = meaningfulWeatherAdjustment(weatherSignal) && weatherSignal.dayNumber === currentDay?.dayNumber;
+  const quickPrompts = useMemo(() => buildQuickPrompts(currentTrip ?? undefined, currentDay, t, hasWeatherRisk), [currentDay, currentTrip, t, hasWeatherRisk]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -120,19 +117,24 @@ export default function AssistantScreen() {
     };
   }, []);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let mounted = true;
+    setWeatherSignal(null);
+    setItinerary(null);
 
     const loadContext = async () => {
       try {
         await session.restore();
         const trip = session.getCurrentTrip() ?? await tripApi.current();
+        if (!mounted) return;
         session.setCurrentTrip(trip);
         const response = await tripApi.itinerary(trip.id);
         if (mounted) {
           setCurrentTrip(trip);
           setItinerary(response);
         }
+        const weather = await tripApi.weatherAdjustment(trip.id).catch(() => null);
+        if (mounted && session.getCurrentTrip()?.id === trip.id) setWeatherSignal(meaningfulWeatherAdjustment(weather) ? weather : null);
       } catch {
         if (mounted) {
           setCurrentTrip(session.getCurrentTrip() ?? null);
@@ -144,8 +146,9 @@ export default function AssistantScreen() {
 
     return () => {
       mounted = false;
+      setWeatherSignal(null);
     };
-  }, []);
+  }, []));
 
   const sendPrompt = async (prompt: string, fallbackAnswer?: string) => {
     const cleanPrompt = prompt.trim();
@@ -180,7 +183,7 @@ export default function AssistantScreen() {
         {
           id: `${timestamp}-ai`,
           role: 'ai',
-          text: fallbackAnswer ?? buildAnswer(cleanPrompt),
+          text: intent === 'RAIN_REPLAN' ? weatherUnavailableMessage : fallbackAnswer ?? buildAnswer(cleanPrompt),
           time: 'Offline preview',
           intent,
           preview: offlinePreview(intent, cleanPrompt),
@@ -286,7 +289,7 @@ export default function AssistantScreen() {
                 <TouchableOpacity
                   style={styles.weatherAgentCard}
                   activeOpacity={0.86}
-                  onPress={() => sendPrompt('Make an indoor plan for today.', 'I would protect the weather-sensitive parts of today by moving outdoor time earlier and keeping indoor culture, cafe or food stops for the rain window.')}
+                  onPress={() => sendPrompt('Make an indoor plan for today.', weatherUnavailableMessage)}
                 >
                   <View style={styles.weatherAgentIcon}>
                     <Ionicons name="rainy-outline" size={17} color={colors.teal} />
@@ -496,7 +499,7 @@ function buildAnswer(prompt: string) {
     return 'I would place dinner near your last stop, then keep the evening open. That avoids a long transfer after the busiest part of the day.';
   }
   if (lower.includes('rain') || lower.includes('weather')) {
-    return 'I can switch the afternoon to indoor stops and move the canal walk to a clearer window. The day stays balanced without rushing.';
+    return weatherUnavailableMessage;
   }
   if (lower.includes('easy') || lower.includes('light') || lower.includes('short')) {
     return 'I would remove one optional stop and add a longer break after lunch. You still keep the main experience, but the day feels lighter.';
@@ -514,7 +517,7 @@ function formatEnum(value: string) {
 
 type Translate = ReturnType<typeof useTranslation>;
 
-function buildQuickPrompts(trip?: TripResponse, day?: ItineraryDay, t?: Translate): QuickPrompt[] {
+function buildQuickPrompts(trip?: TripResponse, day?: ItineraryDay, t?: Translate, weatherEligible = false): QuickPrompt[] {
   if (!trip) {
     return t ? defaultQuickPrompts.map((prompt) => ({ ...prompt, label: quickLabel(prompt.label, t) })) : defaultQuickPrompts;
   }
@@ -563,11 +566,11 @@ function buildQuickPrompts(trip?: TripResponse, day?: ItineraryDay, t?: Translat
     });
   }
 
-  addPrompt({
+  if (weatherEligible) addPrompt({
     label: t ? t('assistant.quickIndoor') : 'Indoor plan',
     icon: 'rainy-outline',
     prompt: 'Make an indoor plan for today.',
-    answer: 'I would look for outdoor-heavy parts of the day and swap them into indoor culture, cafe, or covered local stops.',
+    answer: weatherUnavailableMessage,
   });
 
   addPrompt({
@@ -604,13 +607,16 @@ function intentFromSuggestion(value: string): AgentIntent {
   return 'GENERAL_GUIDANCE';
 }
 
+const weatherUnavailableMessage = 'Weather is unavailable here. Check Plan for a verified forecast preview. No changes have been applied.';
+
 function offlinePreview(intent: AgentIntent, prompt: string): AgentActionPreview {
+  if (intent === 'RAIN_REPLAN') return { intent: 'GENERAL_GUIDANCE', title: 'Weather unavailable', message: weatherUnavailableMessage, suggestedAction: 'Check forecast in Plan', minutesSaved: null, affectedStops: [], routeSummary: 'Existing itinerary retained.', reasons: ['No validated forecast'], requiresConfirmation: false };
   const title = {
     MAKE_DAY_LIGHTER: 'Make today lighter',
     ADD_FOOD_STOP: 'Add a better food break',
     REPLACE_STOP: 'Replace one flexible stop',
     BUDGET_OPTIMIZE: 'Optimize for budget',
-    RAIN_REPLAN: 'Rebuild around rain',
+    RAIN_REPLAN: 'Weather forecast required',
     GENERAL_GUIDANCE: 'Journy can adjust your route',
   }[intent];
   const requiresConfirmation = intent !== 'GENERAL_GUIDANCE';
@@ -624,10 +630,10 @@ function offlinePreview(intent: AgentIntent, prompt: string): AgentActionPreview
       ADD_FOOD_STOP: 'Add food or coffee stop near route',
       REPLACE_STOP: 'Swap one stop in the same area',
       BUDGET_OPTIMIZE: 'Replace expensive flexible stop',
-      RAIN_REPLAN: 'Move route toward indoor stops',
+      RAIN_REPLAN: 'Check forecast in Plan',
       GENERAL_GUIDANCE: 'Ask for a route adjustment',
     }[intent],
-    minutesSaved: intent === 'MAKE_DAY_LIGHTER' ? 22 : intent === 'RAIN_REPLAN' ? 12 : null,
+    minutesSaved: intent === 'MAKE_DAY_LIGHTER' ? 22 : null,
     affectedStops: [],
     routeSummary: requiresConfirmation
       ? 'Backend needed to apply this preview.'
@@ -648,7 +654,7 @@ function previewImpactLabel(preview: AgentActionPreview) {
     return 'Better break';
   }
   if (preview.intent === 'RAIN_REPLAN') {
-    return 'Indoor-ready';
+    return 'Forecast required';
   }
   if (preview.intent === 'BUDGET_OPTIMIZE') {
     return 'Lower cost';
@@ -678,22 +684,10 @@ function afterStopCount(day: ItineraryDay, preview: AgentActionPreview) {
 
 function afterWalkKm(day: ItineraryDay, preview: AgentActionPreview) {
   if (preview.intent === 'MAKE_DAY_LIGHTER') return Math.max(1.2, day.walkKm - 1.1);
-  if (preview.intent === 'RAIN_REPLAN') return Math.max(1.2, day.walkKm - 0.4);
+  if (preview.intent === 'RAIN_REPLAN') return day.walkKm;
   if (preview.intent === 'ADD_FOOD_STOP') return day.walkKm + 0.3;
   if (preview.intent === 'BUDGET_OPTIMIZE') return Math.max(1.2, day.walkKm - 0.2);
   return day.walkKm;
-}
-
-function isWeatherSensitiveStop(stop: ItineraryDay['stops'][number]) {
-  const category = stop.category.toUpperCase();
-  const title = stop.title.toUpperCase();
-  return category.includes('WALKING')
-    || category.includes('FREE')
-    || title.includes('WALK')
-    || title.includes('PARK')
-    || title.includes('GARDEN')
-    || title.includes('WATERFRONT')
-    || title.includes('VIEW');
 }
 
 function ContextStat({
@@ -764,7 +758,7 @@ function buildApplyResultMessage(intent: AgentIntent, updatedDay: ItineraryDay) 
     return `Done. I added a local break to the route. ${base}`;
   }
   if (intent === 'RAIN_REPLAN') {
-    return `Done. I made the day more rain-ready with an indoor-friendly adjustment. ${base}`;
+    return `Review weather changes in Plan. ${base}`;
   }
   if (intent === 'BUDGET_OPTIMIZE') {
     return `Done. I switched one flexible part of the route toward a lower-cost local option. ${base}`;

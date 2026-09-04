@@ -24,7 +24,8 @@ const FALLBACK_API_BASE_URLS = fallbackBaseUrls();
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-  body?: unknown;
+  // Callers supply structured bodies; this client owns JSON serialization.
+  body?: object;
   auth?: boolean;
   timeoutMs?: number;
 };

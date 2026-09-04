@@ -36,6 +36,7 @@ public class AgentService {
     private final PythonAgentClient pythonAgentClient;
     private final AgentContextBuilder agentContextBuilder;
     private final ItineraryMapper itineraryMapper;
+    private final com.journy.backend.weather.WeatherAdjustmentService weather;
 
     public AgentService(
             CurrentUserService currentUserService,
@@ -44,7 +45,8 @@ public class AgentService {
             AiService aiService,
             PythonAgentClient pythonAgentClient,
             AgentContextBuilder agentContextBuilder,
-            ItineraryMapper itineraryMapper
+            ItineraryMapper itineraryMapper,
+            com.journy.backend.weather.WeatherAdjustmentService weather
     ) {
         this.currentUserService = currentUserService;
         this.tripRepository = tripRepository;
@@ -53,6 +55,7 @@ public class AgentService {
         this.pythonAgentClient = pythonAgentClient;
         this.agentContextBuilder = agentContextBuilder;
         this.itineraryMapper = itineraryMapper;
+        this.weather = weather;
     }
 
     @Transactional(readOnly = true)
@@ -75,6 +78,11 @@ public class AgentService {
         }
 
         AgentMessageResponse pythonResponse = pythonAgentClient.message(request.message(), context, request.language()).orElse(null);
+        if (pythonResponse != null && (pythonResponse.intent() == AgentIntent.RAIN_REPLAN
+                || (pythonResponse.preview() != null && pythonResponse.preview().intent() == AgentIntent.RAIN_REPLAN))) {
+            var preview = rainPreview(trip, day, context, Turkish);
+            return new AgentMessageResponse("agent_" + trip.getId(), preview.message(), AgentIntent.GENERAL_GUIDANCE, preview);
+        }
         if (pythonResponse != null) {
             return new AgentMessageResponse(
                     "agent_" + trip.getId(),
@@ -176,26 +184,11 @@ public class AgentService {
     }
 
     private AgentActionPreview rainPreview(Trip trip, ItineraryDay day, AgentContext context, boolean Turkish) {
-        List<String> outdoorStops = day.getStops().stream()
-                .filter(stop -> stop.getCategory().equalsIgnoreCase("WALKING") || stop.getCategory().equalsIgnoreCase("FREE"))
-                .map(ItineraryStop::getTitle)
-                .limit(2)
-                .toList();
-        return new AgentActionPreview(
-                AgentIntent.RAIN_REPLAN,
-                Turkish ? day.getDayNumber() + ". günü yağmura göre düzenle" : "Rebuild Day " + day.getDayNumber() + " around rain",
-                Turkish ? "Riskli açık hava durağını kapalı mekana uygun bir zaman aralığına taşırım." : "Move the risky outdoor stop to an indoor-friendly window.",
-                Turkish ? "Kapalı mekana uygun durak kullan" : "Use an indoor-friendly stop",
-                12,
-                outdoorStops,
-                Turkish ? day.getDayNumber() + ". gün yağmura daha hazır hale gelir." : "Day " + day.getDayNumber() + " becomes rain-ready.",
-                List.of(
-                        Turkish ? "Açık hava durağı bulundu" : "Outdoor stop found",
-                        personalizationReason(context, Turkish),
-                        Turkish ? "Aynı bölge" : "Same area"
-                ).stream().distinct().limit(2).toList(),
-                true
-        );
+        var result = weather.preview(trip, List.of(day));
+        return new AgentActionPreview(AgentIntent.GENERAL_GUIDANCE, result.title(),
+                result.message() + " Review any available forecast-backed changes in Plan.",
+                "Check forecast in Plan", null, result.stopChanges().stream().map(change -> change.name()).toList(),
+                "No change has been applied.", result.reasons(), false);
     }
 
     private AgentActionPreview guidancePreview(Trip trip, ItineraryDay day, AgentContext context, boolean Turkish) {
@@ -239,7 +232,7 @@ public class AgentService {
                 case ADD_FOOD_STOP -> "Rotanın yakınına yerel bir mola ekleyebilirim.";
                 case REPLACE_STOP -> "Aynı bölgede zayıf uyumlu bir durağı değiştirebilirim.";
                 case BUDGET_OPTIMIZE -> "Bu günü bütçe açısından daha rahat hale getirebilirim.";
-                case RAIN_REPLAN -> "Günü kapalı mekana daha uygun hale getirebilirim.";
+                case RAIN_REPLAN -> preview.message();
                 case GENERAL_GUIDANCE -> preview.message();
             };
         }
@@ -250,7 +243,7 @@ public class AgentService {
             case ADD_FOOD_STOP -> "I can add a local break near the route.";
             case REPLACE_STOP -> "I can swap one weak-fit stop in the same area.";
             case BUDGET_OPTIMIZE -> "I can make this day easier on budget.";
-            case RAIN_REPLAN -> "I can move the day toward indoor-friendly stops.";
+            case RAIN_REPLAN -> preview.message();
             case GENERAL_GUIDANCE -> preview.message();
         };
     }

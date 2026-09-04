@@ -37,6 +37,13 @@ public class ItineraryController {
         return itineraryService.weatherAdjustment(tripId);
     }
 
+    public record ApplyWeatherRequest(@jakarta.validation.constraints.NotBlank String previewId) {}
+
+    @PostMapping("/weather-adjustment/apply")
+    public ItineraryResponse.ItineraryDayResponse applyWeather(@PathVariable String tripId, @Valid @RequestBody ApplyWeatherRequest request) {
+        return itineraryService.applyWeatherAdjustment(tripId, request.previewId());
+    }
+
     @GetMapping("/right-now")
     public RightNowResponse rightNow(@PathVariable String tripId) {
         return itineraryService.rightNow(tripId);

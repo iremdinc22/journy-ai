@@ -1,0 +1,9 @@
+{
+  "expo": {
+    "name": "Journy · DEV Rain Fixture",
+    "slug": "journy-dev-rain-fixture",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic"
+  }
+}

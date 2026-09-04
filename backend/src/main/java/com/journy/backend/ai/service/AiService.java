@@ -62,6 +62,11 @@ public class AiService {
 
         String action = request.action().toLowerCase();
         boolean Turkish = isTurkish(request.language());
+        if (action.contains("rain") || action.contains("weather")) {
+            return new AiItinerarySuggestionResponse("Weather forecast required",
+                    "Check Plan for a destination/date-specific weather preview. No change has been applied.",
+                    "Check forecast in Plan", null, List.of(), "Existing itinerary retained.");
+        }
         if (action.contains("food")) {
             return buildFoodSuggestion(day, trip, Turkish);
         }
@@ -126,9 +131,9 @@ public class AiService {
         }
         if (text.contains("rain") || text.contains("weather")) {
             return new AiDecision(
-                    "For " + context.destination() + ", I would move outdoor walking to the clearest window and keep the day around indoor culture, coffee and food stops. That protects the plan without rebuilding everything.",
-                    "Rebuild around rain",
-                    18
+                    "Check Plan for a destination/date-specific weather preview. No change has been applied.",
+                    "Check forecast in Plan",
+                    0
             );
         }
         if (text.contains("dinner") || text.contains("food")) {

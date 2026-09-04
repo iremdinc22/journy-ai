@@ -41,6 +41,7 @@ public class ItineraryService {
     private final CurrentUserService currentUserService;
     private final PlaceRepository placeRepository;
     private final WeatherForecastService weatherForecastService;
+    private final com.journy.backend.weather.WeatherAdjustmentService weatherAdjustments;
     private final TasteFeedbackService tasteFeedbackService;
     private final ZoneId appZone = ZoneId.of("Europe/Istanbul");
 
@@ -51,6 +52,7 @@ public class ItineraryService {
             CurrentUserService currentUserService,
             PlaceRepository placeRepository,
             WeatherForecastService weatherForecastService,
+            com.journy.backend.weather.WeatherAdjustmentService weatherAdjustments,
             TasteFeedbackService tasteFeedbackService
     ) {
         this.tripRepository = tripRepository;
@@ -59,6 +61,7 @@ public class ItineraryService {
         this.currentUserService = currentUserService;
         this.placeRepository = placeRepository;
         this.weatherForecastService = weatherForecastService;
+        this.weatherAdjustments = weatherAdjustments;
         this.tasteFeedbackService = tasteFeedbackService;
     }
 
@@ -77,75 +80,15 @@ public class ItineraryService {
     public WeatherAdjustmentResponse weatherAdjustment(String tripId) {
         Trip trip = ownedTrip(tripId);
         List<ItineraryDay> days = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId());
-        ItineraryDay targetDay = days.stream()
-                .filter(day -> day.getStops().stream().anyMatch(this::isWeatherSensitive))
-                .max(Comparator.comparingInt(this::weatherSensitivityScore))
-                .orElse(null);
+        return weatherAdjustments.preview(trip, days);
+    }
 
-        if (targetDay == null) {
-            return new WeatherAdjustmentResponse(
-                    false,
-                    1,
-                    null,
-                    "No weather adjustment needed",
-                    "This itinerary is already mostly indoor-friendly.",
-                    null,
-                    null,
-                    0,
-                    0,
-                    0,
-                    0,
-                    List.of(),
-                    List.of("No outdoor-heavy stop was found")
-            );
-        }
-
-        ItineraryStop affectedStop = targetDay.getStops().stream()
-                .filter(this::isWeatherSensitive)
-                .max(Comparator.comparingInt(ItineraryStop::getStopOrder))
-                .orElse(targetDay.getStops().getFirst());
-        ItineraryStop indoorStop = targetDay.getStops().stream()
-                .filter(stop -> !isWeatherSensitive(stop))
-                .findFirst()
-                .orElse(null);
-        String indoorAlternative = indoorStop == null
-                ? trip.getDestination() + " Indoor Culture Window"
-                : indoorStop.getTitle();
-        double afterWalkKm = Math.max(1.2, round(targetDay.getWalkKm() - weatherWalkReduction(affectedStop)));
-        Optional<WeatherForecastService.RainForecast> forecast = weatherForecastService.rainForecastFor(trip, targetDay.getDayNumber());
-        String rainWindow = forecast.map(WeatherForecastService.RainForecast::rainWindow)
-                .orElseGet(() -> rainWindowFor(trip, targetDay));
-        String sourceReason = forecast
-                .map(value -> value.source() + " forecast shows " + value.precipitationProbability() + "% precipitation risk")
-                .orElse("Forecast provider was unavailable, so Journy used the route weather-risk fallback");
-
-        return new WeatherAdjustmentResponse(
-                true,
-                targetDay.getDayNumber(),
-                rainWindow,
-                forecast.isPresent()
-                        ? "Rain risk around Day " + targetDay.getDayNumber() + " at " + rainWindow
-                        : "Weather-sensitive route around Day " + targetDay.getDayNumber(),
-                "Journy can protect the wettest window by moving " + affectedStop.getTitle()
-                        + " earlier and using " + indoorAlternative + " as the safer afternoon anchor.",
-                affectedStop.getTitle(),
-                indoorAlternative,
-                targetDay.getStops().size(),
-                targetDay.getWalkKm(),
-                targetDay.getStops().size(),
-                afterWalkKm,
-                List.of(
-                        "Move " + affectedStop.getTitle() + " out of the rain window",
-                        "Keep culture, cafe or food stops for " + rainWindow,
-                        "Preserve the day rhythm before applying changes"
-                ),
-                List.of(
-                        sourceReason,
-                        affectedStop.getTitle() + " is weather-sensitive",
-                        "Day " + targetDay.getDayNumber() + " has " + targetDay.getWalkKm() + " km of walking",
-                        "Indoor-friendly stops reduce route risk without rebuilding the whole trip"
-                ).stream().limit(3).toList()
-        );
+    @Transactional
+    public ItineraryResponse.ItineraryDayResponse applyWeatherAdjustment(String tripId, String previewId) {
+        Trip trip = ownedTrip(tripId);
+        var days = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(trip.getId());
+        var day = weatherAdjustments.apply(trip, days, previewId);
+        return itineraryMapper.toDayResponse(itineraryDayRepository.save(day));
     }
 
     @Transactional(readOnly = true)
@@ -453,7 +396,7 @@ public class ItineraryService {
         String time = Instant.now().atZone(appZone).toLocalTime().truncatedTo(ChronoUnit.MINUTES).toString();
         String weather = forecast
                 .map(value -> "Rain risk " + value.rainWindow())
-                .orElse("Weather clear enough");
+                .orElse("No verified rain alert");
         long finishedStops = day.getStops().stream().filter(this::isFinished).count();
         String progress = finishedStops + "/" + day.getStops().size() + " stops done";
         String timing = delay >= 30 ? delay + " min behind" : "On schedule";
@@ -520,32 +463,6 @@ public class ItineraryService {
             return 0.6;
         }
         return 0.5;
-    }
-
-    private int weatherSensitivityScore(ItineraryDay day) {
-        return day.getStops().stream().mapToInt(stop -> isWeatherSensitive(stop) ? 2 : 0).sum()
-                + (day.getWalkKm() >= 5 ? 2 : day.getWalkKm() >= 4 ? 1 : 0);
-    }
-
-    private boolean isWeatherSensitive(ItineraryStop stop) {
-        String category = normalizeCategory(stop.getCategory());
-        String title = normalizeCategory(stop.getTitle());
-        return category.contains("WALKING")
-                || category.contains("FREE")
-                || title.contains("WALK")
-                || title.contains("PARK")
-                || title.contains("GARDEN")
-                || title.contains("WATERFRONT")
-                || title.contains("VIEW");
-    }
-
-    private double weatherWalkReduction(ItineraryStop stop) {
-        return isWeatherSensitive(stop) ? 0.8 : 0.4;
-    }
-
-    private String rainWindowFor(Trip trip, ItineraryDay day) {
-        int seed = Math.abs((trip.getDestination() + trip.getStartDate() + day.getDayNumber()).hashCode());
-        return seed % 2 == 0 ? "14:00 - 17:00" : "15:00 - 18:00";
     }
 
     private double round(double value) {

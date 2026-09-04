@@ -1,0 +1,19 @@
+{
+  "backendLatestReports": {
+    "tests": 120,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "backendMethod": "Full regression plus focused weather rerun after required fixture-field correction",
+  "mobile": {
+    "tests": 15,
+    "failures": 0
+  },
+  "python": {
+    "tests": 2,
+    "failures": 0
+  },
+  "typescript": "PASS",
+  "manualSimulator": "NOT EXECUTED; no booted simulator and native interaction unavailable"
+}

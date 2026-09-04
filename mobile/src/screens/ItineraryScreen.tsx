@@ -1,9 +1,10 @@
+import { meaningfulWeatherAdjustment } from '../utils/weatherAdjustment';
 import { itineraryDayTitle } from '../utils/itineraryDayTitle';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useRef, useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { agentApi, tripApi } from '../api/journyApi';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { tripApi } from '../api/journyApi';
 import { session } from '../api/session';
 import type { ItineraryDay, ItineraryResponse, ItineraryTimelineItem, WeatherAdjustmentResponse } from '../api/types';
 import { useLanguage, useTranslation } from '../i18n/LanguageContext';
@@ -27,53 +28,37 @@ export default function ItineraryScreen() {
   const [weatherApplied, setWeatherApplied] = useState(false);
   const [weatherSignal, setWeatherSignal] = useState<WeatherAdjustmentResponse | null>(null);
 
+  const requestVersion = useRef(0);
   const loadItinerary = useCallback(async () => {
+    const version = ++requestVersion.current;
     setLoading(true);
     setError(false);
+    setWeatherSignal(null);
+    setWeatherPreviewOpen(false);
+    setWeatherApplied(false);
+    setWeatherApplying(false);
     try {
       const current = session.getCurrentTrip() ?? await tripApi.current();
+      if (version !== requestVersion.current) return;
       session.setCurrentTrip(current);
       const response = await tripApi.itinerary(current.id);
-      const weather = await tripApi.weatherAdjustment(current.id).catch(() => null);
+      if (version !== requestVersion.current) return;
       setItinerary(response);
-      setWeatherSignal(weather?.available ? weather : null);
-    } catch {
-      setError(true);
-    } finally {
       setLoading(false);
+      const weather = await tripApi.weatherAdjustment(current.id).catch(() => null);
+      if (version === requestVersion.current && session.getCurrentTrip()?.id === current.id) {
+        setWeatherSignal(meaningfulWeatherAdjustment(weather) ? weather : null);
+      }
+    } catch {
+      if (version === requestVersion.current) setError(true);
+    } finally {
+      if (version === requestVersion.current) setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
-      try {
-        const current = session.getCurrentTrip() ?? await tripApi.current();
-        session.setCurrentTrip(current);
-        const response = await tripApi.itinerary(current.id);
-        const weather = await tripApi.weatherAdjustment(current.id).catch(() => null);
-        if (mounted) {
-          setItinerary(response);
-          setWeatherSignal(weather?.available ? weather : null);
-        }
-      } catch {
-        if (mounted) {
-          setError(true);
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    load();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  useFocusEffect(useCallback(() => {
+    void loadItinerary();
+    return () => { requestVersion.current++; setWeatherSignal(null); };
+  }, [loadItinerary]));
 
   const fallbackDestination = session.getCurrentTrip()?.destination ?? t('home.yourTrip');
   const destination = itinerary?.destination ?? fallbackDestination;
@@ -92,13 +77,15 @@ export default function ItineraryScreen() {
   };
 
   const applyWeatherAdjustment = async () => {
-    if (!weatherTargetDay || tripId === 'preview-trip') {
+    if (!weatherTargetDay || !weatherSignal?.previewId || tripId === 'preview-trip') {
       Alert.alert(t('itinerary.livePlanRequiredTitle'), t('itinerary.livePlanWeather'));
       return;
     }
+    const version = requestVersion.current;
     setWeatherApplying(true);
     try {
-      const updatedDay = await agentApi.apply(tripId, weatherTargetDay.dayNumber, 'RAIN_REPLAN', language);
+      const updatedDay = await tripApi.applyWeatherAdjustment(tripId, weatherSignal.previewId);
+      if (version !== requestVersion.current) return;
       updateDay(updatedDay);
       setWeatherApplied(true);
       setWeatherSignal((current) => current ? { ...current, available: false } : current);

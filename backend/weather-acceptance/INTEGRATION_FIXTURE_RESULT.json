@@ -1,0 +1,402 @@
+{
+  "date": "2026-09-05",
+  "preview": {
+    "available": true,
+    "dayNumber": 1,
+    "rainWindow": "14:00 - 15:00",
+    "title": "Rain risk on 2026-09-05 at 14:00 - 15:00",
+    "message": "Move Balkan Savaşı Şehitleri Anıtı to 16:00 and use the lower-exposure stop Edirne Müzesi at 14:00.",
+    "affectedStop": "Balkan Savaşı Şehitleri Anıtı",
+    "indoorAlternative": "Edirne Müzesi",
+    "beforeStopCount": 2,
+    "beforeWalkKm": 3.4,
+    "afterStopCount": 2,
+    "afterWalkKm": 3.4,
+    "changes": [
+      "Balkan Savaşı Şehitleri Anıtı: 14:00 → 16:00",
+      "Edirne Müzesi: 16:00 → 14:00"
+    ],
+    "reasons": [
+      "Forecast overlaps this planned visit in Europe/Istanbul",
+      "The other slot is below both rain thresholds",
+      "Existing verified stops only; no distance savings assumed"
+    ],
+    "weatherStatus": "AVAILABLE",
+    "previewId": "2811da42-97fa-3f4b-9442-df6b8fe1da1e",
+    "stopChanges": [
+      {
+        "stopId": "stop_7766296a-727f-4a19-b882-30df0364a12f",
+        "placeId": "osm_node_1801477226",
+        "name": "Balkan Savaşı Şehitleri Anıtı",
+        "fromTime": "14:00",
+        "toTime": "16:00"
+      },
+      {
+        "stopId": "stop_42ceaae1-95b6-4966-a315-30be5ebd3244",
+        "placeId": "osm_node_2181137651",
+        "name": "Edirne Müzesi",
+        "fromTime": "16:00",
+        "toTime": "14:00"
+      }
+    ],
+    "forecast": {
+      "status": "AVAILABLE",
+      "reason": "FORECAST_AVAILABLE",
+      "source": "Open-Meteo",
+      "latitude": 41.6771,
+      "longitude": 26.5557,
+      "timezone": "Europe/Istanbul",
+      "startDate": "2026-09-05",
+      "endDate": "2026-09-05",
+      "hours": [
+        {
+          "time": "2026-09-05T00:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T01:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T02:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T03:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T04:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T05:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T06:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T07:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T08:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T09:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T10:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T11:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T12:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T13:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T14:00:00",
+          "precipitationProbability": 90,
+          "precipitationAmount": 2,
+          "weatherCode": 63
+        },
+        {
+          "time": "2026-09-05T15:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T16:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T17:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T18:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T19:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T20:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T21:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T22:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        },
+        {
+          "time": "2026-09-05T23:00:00",
+          "precipitationProbability": 0,
+          "precipitationAmount": 0,
+          "weatherCode": 0
+        }
+      ]
+    }
+  },
+  "before": {
+    "tripId": "weather-simulator-trip",
+    "destination": "Edirne",
+    "days": [
+      {
+        "dayNumber": 1,
+        "title": "DEV ONLY · Positive rain",
+        "summary": "Recorded OSM places; synthetic weather in isolated memory database.",
+        "walkKm": 3.4,
+        "stopCount": 2,
+        "stops": [
+          {
+            "id": "stop_7766296a-727f-4a19-b882-30df0364a12f",
+            "order": 1,
+            "title": "Balkan Savaşı Şehitleri Anıtı",
+            "category": "WALKING",
+            "timeWindow": "14:00",
+            "placeId": "osm_node_1801477226",
+            "source": "provider:osm",
+            "note": "DEV ONLY scenario · recorded OSM identity",
+            "optional": false,
+            "status": "PLANNED",
+            "arrivedAt": null,
+            "completedAt": null,
+            "latitude": 41.6592439,
+            "longitude": 26.5377829
+          },
+          {
+            "id": "stop_42ceaae1-95b6-4966-a315-30be5ebd3244",
+            "order": 2,
+            "title": "Edirne Müzesi",
+            "category": "CULTURE",
+            "timeWindow": "16:00",
+            "placeId": "osm_node_2181137651",
+            "source": "provider:osm",
+            "note": "DEV ONLY scenario · recorded OSM identity",
+            "optional": false,
+            "status": "PLANNED",
+            "arrivedAt": null,
+            "completedAt": null,
+            "latitude": 41.678894,
+            "longitude": 26.5607674
+          }
+        ],
+        "timeline": [
+          {
+            "id": "stop_7766296a-727f-4a19-b882-30df0364a12f",
+            "type": "STOP",
+            "title": "Balkan Savaşı Şehitleri Anıtı",
+            "startTime": "14:00",
+            "endTime": "15:00",
+            "durationMinutes": 60,
+            "distanceKm": null,
+            "fromStopId": null,
+            "toStopId": null,
+            "category": "WALKING",
+            "note": "DEV ONLY scenario · recorded OSM identity",
+            "constraintStatus": "OK",
+            "constraintWarning": null
+          },
+          {
+            "id": "travel_stop_7766296a-727f-4a19-b882-30df0364a12f_stop_42ceaae1-95b6-4966-a315-30be5ebd3244",
+            "type": "TRAVEL",
+            "title": "49 min walk",
+            "startTime": "15:00",
+            "endTime": "15:49",
+            "durationMinutes": 49,
+            "distanceKm": 2.9,
+            "fromStopId": "stop_7766296a-727f-4a19-b882-30df0364a12f",
+            "toStopId": "stop_42ceaae1-95b6-4966-a315-30be5ebd3244",
+            "category": "WALKING",
+            "note": "Walking transfer between itinerary stops.",
+            "constraintStatus": "OK",
+            "constraintWarning": null
+          },
+          {
+            "id": "stop_42ceaae1-95b6-4966-a315-30be5ebd3244",
+            "type": "STOP",
+            "title": "Edirne Müzesi",
+            "startTime": "16:00",
+            "endTime": "18:00",
+            "durationMinutes": 120,
+            "distanceKm": null,
+            "fromStopId": null,
+            "toStopId": null,
+            "category": "CULTURE",
+            "note": "DEV ONLY scenario · recorded OSM identity",
+            "constraintStatus": "OK",
+            "constraintWarning": null
+          }
+        ],
+        "titleTranslations": {
+          "tr": "Yürüyüş ve Kültür Rotası",
+          "en": "Walks & Culture Route"
+        }
+      }
+    ]
+  },
+  "after": {
+    "tripId": "weather-simulator-trip",
+    "destination": "Edirne",
+    "days": [
+      {
+        "dayNumber": 1,
+        "title": "DEV ONLY · Positive rain",
+        "summary": "Recorded OSM places; synthetic weather in isolated memory database.",
+        "walkKm": 3.4,
+        "stopCount": 2,
+        "stops": [
+          {
+            "id": "stop_42ceaae1-95b6-4966-a315-30be5ebd3244",
+            "order": 1,
+            "title": "Edirne Müzesi",
+            "category": "CULTURE",
+            "timeWindow": "14:00",
+            "placeId": "osm_node_2181137651",
+            "source": "provider:osm",
+            "note": "DEV ONLY scenario · recorded OSM identity",
+            "optional": false,
+            "status": "PLANNED",
+            "arrivedAt": null,
+            "completedAt": null,
+            "latitude": 41.678894,
+            "longitude": 26.5607674
+          },
+          {
+            "id": "stop_7766296a-727f-4a19-b882-30df0364a12f",
+            "order": 2,
+            "title": "Balkan Savaşı Şehitleri Anıtı",
+            "category": "WALKING",
+            "timeWindow": "16:00",
+            "placeId": "osm_node_1801477226",
+            "source": "provider:osm",
+            "note": "DEV ONLY scenario · recorded OSM identity",
+            "optional": false,
+            "status": "PLANNED",
+            "arrivedAt": null,
+            "completedAt": null,
+            "latitude": 41.6592439,
+            "longitude": 26.5377829
+          }
+        ],
+        "timeline": [
+          {
+            "id": "stop_42ceaae1-95b6-4966-a315-30be5ebd3244",
+            "type": "STOP",
+            "title": "Edirne Müzesi",
+            "startTime": "14:00",
+            "endTime": "16:00",
+            "durationMinutes": 120,
+            "distanceKm": null,
+            "fromStopId": null,
+            "toStopId": null,
+            "category": "CULTURE",
+            "note": "DEV ONLY scenario · recorded OSM identity",
+            "constraintStatus": "OK",
+            "constraintWarning": null
+          },
+          {
+            "id": "travel_stop_42ceaae1-95b6-4966-a315-30be5ebd3244_stop_7766296a-727f-4a19-b882-30df0364a12f",
+            "type": "TRAVEL",
+            "title": "49 min walk",
+            "startTime": "16:00",
+            "endTime": "16:49",
+            "durationMinutes": 49,
+            "distanceKm": 2.9,
+            "fromStopId": "stop_42ceaae1-95b6-4966-a315-30be5ebd3244",
+            "toStopId": "stop_7766296a-727f-4a19-b882-30df0364a12f",
+            "category": "WALKING",
+            "note": "Walking transfer between itinerary stops.",
+            "constraintStatus": "OK",
+            "constraintWarning": null
+          },
+          {
+            "id": "stop_7766296a-727f-4a19-b882-30df0364a12f",
+            "type": "STOP",
+            "title": "Balkan Savaşı Şehitleri Anıtı",
+            "startTime": "16:00",
+            "endTime": "17:00",
+            "durationMinutes": 60,
+            "distanceKm": null,
+            "fromStopId": null,
+            "toStopId": null,
+            "category": "WALKING",
+            "note": "DEV ONLY scenario · recorded OSM identity",
+            "constraintStatus": "OK",
+            "constraintWarning": null
+          }
+        ],
+        "titleTranslations": {
+          "tr": "Edirne Müzesi: Kültür ve Yürüyüş",
+          "en": "Edirne Müzesi: Culture & Walks"
+        }
+      }
+    ]
+  },
+  "actualWireBody": "{\"previewId\":\"2811da42-97fa-3f4b-9442-df6b8fe1da1e\"}",
+  "productionHandlerSucceeded": true,
+  "previewReadOnly": true,
+  "onlyTimeAndOrderChanged": true,
+  "timelineMatchesStoredSlots": true,
+  "walkingEstimateUnchanged": true,
+  "finalWeatherAvailable": false
+}

@@ -113,6 +113,9 @@ export const tripApi = {
     return apiRequest<ItineraryResponse>(`/api/trips/${tripId}/itinerary`);
   },
 
+  applyWeatherAdjustment(tripId: string, previewId: string) {
+    return apiRequest<ItineraryDay>(`/api/trips/${tripId}/itinerary/weather-adjustment/apply`, { method: "POST", body: { previewId } });
+  },
   weatherAdjustment(tripId: string) {
     return apiRequest<WeatherAdjustmentResponse>(`/api/trips/${tripId}/itinerary/weather-adjustment`);
   },

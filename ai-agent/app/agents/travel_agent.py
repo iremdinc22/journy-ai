@@ -58,12 +58,12 @@ class TravelAgent:
                             "You are Journy's travel planning agent. "
                             "Analyze the active day and the full multi-day trip context before deciding. "
                             "Use userProfile tasteSignals, savedCategorySignals and savedPlaces to personalize reasons. "
-                            "Use tripAnalysis to notice the busiest day, missing food breaks and weather-heavy days. "
+                            "Use tripAnalysis to notice the busiest day, missing food breaks. "
                             f"Respond in {response_language}. "
                             "All user-facing strings inside message and preview must use that language. "
                             "If the user asks for an easier/lighter/less tiring day, use MAKE_DAY_LIGHTER. "
                             "If the user asks for food, dinner, coffee or a cafe, use ADD_FOOD_STOP. "
-                            "If the user mentions rain or weather, use RAIN_REPLAN. "
+                            "No validated forecast is supplied. Never claim rain or propose weather changes. "
                             "Prefer safe previews that preserve anchor stops and explain why. "
                             "Return only valid JSON matching this shape: "
                             "{message:string,intent:string,preview:{intent:string,title:string,message:string,"
@@ -91,6 +91,9 @@ class TravelAgent:
         request: AgentMessageRequest,
         analysis: DayAnalysis,
     ) -> AgentMessageResponse:
+        if response.intent == AgentIntent.RAIN_REPLAN or response.preview.intent == AgentIntent.RAIN_REPLAN:
+            preview = self.weather_agent.build_rain_replan_preview(request, analysis)
+            return AgentMessageResponse(message=preview.message, intent=preview.intent, preview=preview)
         if response.intent in {
             AgentIntent.MAKE_DAY_LIGHTER,
             AgentIntent.ADD_FOOD_STOP,
@@ -112,6 +115,8 @@ class TravelAgent:
     ) -> AgentMessageResponse:
         intent = forced_intent or self._detect_intent(request.message)
         preview = self._preview_for(intent, request, analysis)
+        if intent == AgentIntent.RAIN_REPLAN:
+            return AgentMessageResponse(message=preview.message, intent=preview.intent, preview=preview)
         return AgentMessageResponse(
             message=self._message_for(intent, request, analysis, trip_analysis),
             intent=intent,
@@ -177,13 +182,6 @@ class TravelAgent:
                 "action": self._text(request, "Replace flexible stop with budget-friendly option", "Esnek durağı bütçe dostu seçenekle değiştir"),
                 "minutes": 8,
                 "summary": self._text(request, f"{trip.destination} Day {day.dayNumber} becomes easier on budget without losing the main route.", f"{trip.destination} {day.dayNumber}. gün ana rotayı kaybetmeden bütçeye daha uygun hale gelir."),
-            },
-            AgentIntent.RAIN_REPLAN: {
-                "title": self._text(request, f"Rebuild Day {day.dayNumber} around rain", f"{day.dayNumber}. günü yağmura göre düzenle"),
-                "message": self._text(request, "I can swap weather-sensitive outdoor time for an indoor culture or cafe window.", "Hava durumuna hassas açık hava zamanını kapalı kültür veya kafe aralığıyla değiştirebilirim."),
-                "action": self._text(request, "Replace outdoor stop with indoor-friendly option", "Açık hava durağını kapalı mekana uygun seçenekle değiştir"),
-                "minutes": 12,
-                "summary": self._text(request, f"{trip.destination} Day {day.dayNumber} keeps its rhythm with less weather risk.", f"{trip.destination} {day.dayNumber}. gün daha az hava riskiyle ritmini korur."),
             },
             AgentIntent.GENERAL_GUIDANCE: {
                 "title": self._text(request, "I can adjust this day", "Bu günü düzenleyebilirim"),
@@ -264,21 +262,7 @@ class TravelAgent:
                 f"{food_note} {self._saved_place_note(request)}"
             )
         if intent == AgentIntent.RAIN_REPLAN:
-            if self._is_turkish(request):
-                weather_note = " Bu gün açık hava ağırlıklı, bu yüzden yağmur yedeği işe yarar." if request.day.dayNumber in trip_analysis.outdoor_heavy_day_numbers else ""
-                return (
-                    f"{request.day.dayNumber}. günü hava durumuna hassas duraklar için kontrol ettim. "
-                    "Planı değiştirmeden önce yağmura hazır bir önizleme hazırladım."
-                    f"{weather_note}"
-                )
-            weather_note = ""
-            if request.day.dayNumber in trip_analysis.outdoor_heavy_day_numbers:
-                weather_note = " This day is outdoor-heavy, so a rain backup is useful."
-            return (
-                f"I checked Day {request.day.dayNumber} for weather-sensitive stops. "
-                "I prepared a rain-ready preview before changing the plan."
-                f"{weather_note}"
-            )
+            return self.weather_agent.build_rain_replan_preview(request, analysis).message
         if self._is_turkish(request):
             return f"{request.day.dayNumber}. günü kontrol ettim. Uygulamadan önce bu değişikliği önizleme olarak hazırlayabilirim. {self._profile_note(request)}"
         return f"I checked Day {request.day.dayNumber}. I can prepare this change as a preview before applying it. {self._profile_note(request)}"
@@ -293,8 +277,7 @@ class TravelAgent:
             food = [stop.title for stop in stops if stop.category.upper() in {"FOOD", "COFFEE"}]
             return food[:1] or [stops[min(1, len(stops) - 1)].title]
         if intent == AgentIntent.RAIN_REPLAN:
-            outdoor = [stop.title for stop in stops if stop.category.upper() in {"WALKING", "FREE"}]
-            return outdoor[:2]
+            return []
         return [stops[min(1, len(stops) - 1)].title]
 
     def _reasons_for(
@@ -322,12 +305,7 @@ class TravelAgent:
                 "The route can stay close to the existing cluster",
             ]
         if intent == AgentIntent.RAIN_REPLAN:
-            return [
-                "Outdoor stops are the most weather-sensitive",
-                self._profile_reason(request),
-                "Indoor culture and cafe windows preserve the experience",
-                "Keeping the same area avoids extra transfers",
-            ]
+            return ["No validated forecast in agent context"]
         return [
             f"This matches your {trip.pace.lower()} pace",
             self._saved_place_reason(request),

@@ -65,7 +65,8 @@ public class ItineraryMapper {
         for (int index = 0; index < stops.size(); index++) {
             ItineraryStop stop = stops.get(index);
             int visitDuration = visitDurationMinutes(stop);
-            int stopStart = cursor;
+            // Explicit persisted slots are authoritative; derive only missing/invalid legacy slots.
+            int stopStart = parseTime(stop.getTimeWindow(), cursor);
             int stopEnd = stopStart + visitDuration;
             ConstraintCheck constraint = validateOpeningHours(stop, stopStart, stopEnd);
 
@@ -200,7 +201,7 @@ public class ItineraryMapper {
         String[] parts = value.split(":");
         int hour = Integer.parseInt(parts[0]);
         int minute = Integer.parseInt(parts[1]);
-        return hour * 60 + minute;
+        return hour < 24 && minute < 60 ? hour * 60 + minute : fallback;
     }
 
     private String formatTime(int minuteOfDay) {

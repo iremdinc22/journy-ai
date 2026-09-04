@@ -146,6 +146,9 @@ export type RightNowResponse = {
 };
 
 export type WeatherAdjustmentResponse = {
+  weatherStatus: "AVAILABLE" | "UNAVAILABLE";
+  previewId: string | null;
+  stopChanges: { stopId: string; placeId: string; name: string; fromTime: string; toTime: string }[];
   available: boolean;
   dayNumber: number;
   rainWindow?: string | null;

@@ -1,0 +1,1703 @@
+[
+  {
+    "city": "Edirne",
+    "tripStatus": 200,
+    "trip": {
+      "id": "trip_725ecff4-cc3e-4455-827b-1b83e10456b2",
+      "destination": "Edirne",
+      "startingArea": "",
+      "startDate": "2026-09-05",
+      "endDate": "2026-09-06",
+      "days": 1,
+      "travelerType": "SOLO",
+      "budget": "BALANCED",
+      "pace": "BALANCED",
+      "interests": [
+        "CULTURE",
+        "COFFEE",
+        "WALKING",
+        "LOCAL_FOOD"
+      ],
+      "stats": {
+        "stops": 4,
+        "foodPicks": 2,
+        "averageWalkKm": 5.5
+      },
+      "startingAreaSelection": null
+    },
+    "weatherHttpStatus": 200,
+    "weather": {
+      "available": false,
+      "dayNumber": 0,
+      "rainWindow": null,
+      "title": "No weather adjustment available",
+      "message": "NO_MEANINGFUL_WEATHER_CHANGE",
+      "affectedStop": null,
+      "indoorAlternative": null,
+      "beforeStopCount": 0,
+      "beforeWalkKm": 0.0,
+      "afterStopCount": 0,
+      "afterWalkKm": 0.0,
+      "changes": [],
+      "reasons": [
+        "NO_MEANINGFUL_WEATHER_CHANGE"
+      ],
+      "weatherStatus": "AVAILABLE",
+      "previewId": null,
+      "stopChanges": [],
+      "forecast": {
+        "status": "AVAILABLE",
+        "reason": "FORECAST_AVAILABLE",
+        "source": "Open-Meteo",
+        "latitude": 41.6771,
+        "longitude": 26.5557,
+        "timezone": "Europe/Istanbul",
+        "startDate": "2026-09-05",
+        "endDate": "2026-09-05",
+        "hours": [
+          {
+            "time": "2026-09-05T00:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T01:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T02:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T03:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T04:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T05:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T06:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T07:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T08:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T09:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T10:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T11:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T12:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T13:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T14:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T15:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T16:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T17:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T18:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T19:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T20:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T21:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T22:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T23:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          }
+        ]
+      }
+    },
+    "previewDidNotMutate": true,
+    "itinerary": {
+      "tripId": "trip_725ecff4-cc3e-4455-827b-1b83e10456b2",
+      "destination": "Edirne",
+      "days": [
+        {
+          "dayNumber": 1,
+          "title": "Walks & Coffee Route",
+          "summary": "Balkan Savaşı Şehitleri Anıtı, Yesil Sera and Edirne Müzesi.",
+          "walkKm": 5.5,
+          "stopCount": 4,
+          "stops": [
+            {
+              "id": "stop_5ae4f520-af55-4f32-b95f-39b1ac550a81",
+              "order": 1,
+              "title": "Balkan Savaşı Şehitleri Anıtı",
+              "category": "WALKING",
+              "timeWindow": "09:30",
+              "placeId": "osm_node_1801477226",
+              "source": "provider:osm",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Edirne route. Suggested visit: 60 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 41.6592439,
+              "longitude": 26.5377829
+            },
+            {
+              "id": "stop_f4cde4b3-7d73-4200-8aaa-dda969c9e7fb",
+              "order": 2,
+              "title": "Yesil Sera",
+              "category": "COFFEE",
+              "timeWindow": "11:30",
+              "placeId": "osm_node_1801477240",
+              "source": "provider:osm",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Edirne route. Suggested visit: 45 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 41.6578631,
+              "longitude": 26.5332945
+            },
+            {
+              "id": "stop_16f48dec-ae54-4302-ab19-1a2dc3abf7de",
+              "order": 3,
+              "title": "Edirne Müzesi",
+              "category": "CULTURE",
+              "timeWindow": "14:00",
+              "placeId": "osm_node_2181137651",
+              "source": "provider:osm",
+              "note": "A real culture place from OpenStreetMap that can anchor a Edirne day. Suggested visit: 120 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 41.678894,
+              "longitude": 26.5607674
+            },
+            {
+              "id": "stop_cc2bb38e-c4cf-420f-9c1a-0ffc4e0fb20f",
+              "order": 4,
+              "title": "Hanedan Restaurant",
+              "category": "FOOD",
+              "timeWindow": "17:00",
+              "placeId": "osm_node_1801477173",
+              "source": "provider:osm",
+              "note": "A real food stop candidate from OpenStreetMap for your Edirne plan. Suggested visit: 90 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 41.6672304,
+              "longitude": 26.553684
+            }
+          ],
+          "timeline": [
+            {
+              "id": "stop_5ae4f520-af55-4f32-b95f-39b1ac550a81",
+              "type": "STOP",
+              "title": "Balkan Savaşı Şehitleri Anıtı",
+              "startTime": "09:30",
+              "endTime": "10:30",
+              "durationMinutes": 60,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "WALKING",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Edirne route. Suggested visit: 60 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_5ae4f520-af55-4f32-b95f-39b1ac550a81_stop_f4cde4b3-7d73-4200-8aaa-dda969c9e7fb",
+              "type": "TRAVEL",
+              "title": "7 min walk",
+              "startTime": "10:30",
+              "endTime": "10:37",
+              "durationMinutes": 7,
+              "distanceKm": 0.4,
+              "fromStopId": "stop_5ae4f520-af55-4f32-b95f-39b1ac550a81",
+              "toStopId": "stop_f4cde4b3-7d73-4200-8aaa-dda969c9e7fb",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_f4cde4b3-7d73-4200-8aaa-dda969c9e7fb",
+              "type": "STOP",
+              "title": "Yesil Sera",
+              "startTime": "10:40",
+              "endTime": "11:25",
+              "durationMinutes": 45,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "COFFEE",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Edirne route. Suggested visit: 45 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_f4cde4b3-7d73-4200-8aaa-dda969c9e7fb_stop_16f48dec-ae54-4302-ab19-1a2dc3abf7de",
+              "type": "TRAVEL",
+              "title": "55 min walk",
+              "startTime": "11:25",
+              "endTime": "12:20",
+              "durationMinutes": 55,
+              "distanceKm": 3.3,
+              "fromStopId": "stop_f4cde4b3-7d73-4200-8aaa-dda969c9e7fb",
+              "toStopId": "stop_16f48dec-ae54-4302-ab19-1a2dc3abf7de",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_16f48dec-ae54-4302-ab19-1a2dc3abf7de",
+              "type": "STOP",
+              "title": "Edirne Müzesi",
+              "startTime": "12:25",
+              "endTime": "14:25",
+              "durationMinutes": 120,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "CULTURE",
+              "note": "A real culture place from OpenStreetMap that can anchor a Edirne day. Suggested visit: 120 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_16f48dec-ae54-4302-ab19-1a2dc3abf7de_stop_cc2bb38e-c4cf-420f-9c1a-0ffc4e0fb20f",
+              "type": "TRAVEL",
+              "title": "24 min walk",
+              "startTime": "14:25",
+              "endTime": "14:49",
+              "durationMinutes": 24,
+              "distanceKm": 1.4,
+              "fromStopId": "stop_16f48dec-ae54-4302-ab19-1a2dc3abf7de",
+              "toStopId": "stop_cc2bb38e-c4cf-420f-9c1a-0ffc4e0fb20f",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_cc2bb38e-c4cf-420f-9c1a-0ffc4e0fb20f",
+              "type": "STOP",
+              "title": "Hanedan Restaurant",
+              "startTime": "14:55",
+              "endTime": "16:25",
+              "durationMinutes": 90,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "FOOD",
+              "note": "A real food stop candidate from OpenStreetMap for your Edirne plan. Suggested visit: 90 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            }
+          ],
+          "titleTranslations": {
+            "en": "Walks & Coffee Route",
+            "tr": "Yürüyüş ve Kahve Rotası"
+          }
+        }
+      ]
+    },
+    "summary": {
+      "coordinates": [
+        41.6771,
+        26.5557
+      ],
+      "timezone": "Europe/Istanbul",
+      "dates": [
+        "2026-09-05",
+        "2026-09-05"
+      ],
+      "status": "AVAILABLE",
+      "probabilities": [
+        0.0
+      ],
+      "amounts": [
+        0.0
+      ],
+      "codes": [
+        0
+      ],
+      "available": false,
+      "reason": [
+        "NO_MEANINGFUL_WEATHER_CHANGE"
+      ]
+    }
+  },
+  {
+    "city": "Las Vegas",
+    "tripStatus": 200,
+    "trip": {
+      "id": "trip_2d2a0f9d-6fae-49da-a1c7-fa92a92cd16b",
+      "destination": "Las Vegas",
+      "startingArea": "",
+      "startDate": "2026-09-05",
+      "endDate": "2026-09-06",
+      "days": 1,
+      "travelerType": "SOLO",
+      "budget": "BALANCED",
+      "pace": "BALANCED",
+      "interests": [
+        "CULTURE",
+        "COFFEE",
+        "WALKING",
+        "LOCAL_FOOD"
+      ],
+      "stats": {
+        "stops": 4,
+        "foodPicks": 1,
+        "averageWalkKm": 5.8
+      },
+      "startingAreaSelection": null
+    },
+    "weatherHttpStatus": 200,
+    "weather": {
+      "available": false,
+      "dayNumber": 0,
+      "rainWindow": null,
+      "title": "No weather adjustment available",
+      "message": "NO_MEANINGFUL_WEATHER_CHANGE",
+      "affectedStop": null,
+      "indoorAlternative": null,
+      "beforeStopCount": 0,
+      "beforeWalkKm": 0.0,
+      "afterStopCount": 0,
+      "afterWalkKm": 0.0,
+      "changes": [],
+      "reasons": [
+        "NO_MEANINGFUL_WEATHER_CHANGE"
+      ],
+      "weatherStatus": "AVAILABLE",
+      "previewId": null,
+      "stopChanges": [],
+      "forecast": {
+        "status": "AVAILABLE",
+        "reason": "FORECAST_AVAILABLE",
+        "source": "Open-Meteo",
+        "latitude": 36.1674263,
+        "longitude": -115.1484131,
+        "timezone": "America/Los_Angeles",
+        "startDate": "2026-09-05",
+        "endDate": "2026-09-05",
+        "hours": [
+          {
+            "time": "2026-09-05T00:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T01:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T02:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T03:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T04:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T05:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T06:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T07:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T08:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T09:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T10:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T11:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T12:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T13:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T14:00:00",
+            "precipitationProbability": 1.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T15:00:00",
+            "precipitationProbability": 1.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T16:00:00",
+            "precipitationProbability": 1.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T17:00:00",
+            "precipitationProbability": 1.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T18:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T19:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T20:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T21:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T22:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T23:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          }
+        ]
+      }
+    },
+    "previewDidNotMutate": true,
+    "itinerary": {
+      "tripId": "trip_2d2a0f9d-6fae-49da-a1c7-fa92a92cd16b",
+      "destination": "Las Vegas",
+      "days": [
+        {
+          "dayNumber": 1,
+          "title": "Highland Valley Park: Walks & Culture",
+          "summary": "Highland Valley Park, Salon De Belleza and Sinatra.",
+          "walkKm": 5.8,
+          "stopCount": 4,
+          "stops": [
+            {
+              "id": "stop_b7c553ee-7111-4813-8842-dd966752ae2c",
+              "order": 1,
+              "title": "Highland Valley Park",
+              "category": "WALKING",
+              "timeWindow": "09:30",
+              "placeId": "osm_node_357553144",
+              "source": "provider:osm",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Las Vegas route. Suggested visit: 60 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 36.204136,
+              "longitude": -115.1597246
+            },
+            {
+              "id": "stop_f1cac8c2-9c67-4440-bb71-c15f6ccf7a97",
+              "order": 2,
+              "title": "Salon De Belleza",
+              "category": "CULTURE",
+              "timeWindow": "11:30",
+              "placeId": "osm_node_1941739670",
+              "source": "provider:osm",
+              "note": "A real culture place from OpenStreetMap that can anchor a Las Vegas day. Suggested visit: 120 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 36.1526396,
+              "longitude": -115.1541438
+            },
+            {
+              "id": "stop_f144beaf-2f63-4ae3-85a9-74cd3890e7ac",
+              "order": 3,
+              "title": "Sinatra",
+              "category": "FOOD",
+              "timeWindow": "14:00",
+              "placeId": "osm_node_1563585298",
+              "source": "provider:osm",
+              "note": "A real food stop candidate from OpenStreetMap for your Las Vegas plan. Suggested visit: 90 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 36.1299181,
+              "longitude": -115.1654118
+            },
+            {
+              "id": "stop_52c4d517-1950-4e26-baed-27879bdf3f3f",
+              "order": 4,
+              "title": "Las Vegas Race Track",
+              "category": "WALKING",
+              "timeWindow": "17:00",
+              "placeId": "osm_node_357554205",
+              "source": "provider:osm",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Las Vegas route. Suggested visit: 60 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 36.1349713,
+              "longitude": -115.1474996
+            }
+          ],
+          "timeline": [
+            {
+              "id": "stop_b7c553ee-7111-4813-8842-dd966752ae2c",
+              "type": "STOP",
+              "title": "Highland Valley Park",
+              "startTime": "09:30",
+              "endTime": "10:30",
+              "durationMinutes": 60,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "WALKING",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Las Vegas route. Suggested visit: 60 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_b7c553ee-7111-4813-8842-dd966752ae2c_stop_f1cac8c2-9c67-4440-bb71-c15f6ccf7a97",
+              "type": "TRAVEL",
+              "title": "96 min walk",
+              "startTime": "10:30",
+              "endTime": "12:06",
+              "durationMinutes": 96,
+              "distanceKm": 5.7,
+              "fromStopId": "stop_b7c553ee-7111-4813-8842-dd966752ae2c",
+              "toStopId": "stop_f1cac8c2-9c67-4440-bb71-c15f6ccf7a97",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_f1cac8c2-9c67-4440-bb71-c15f6ccf7a97",
+              "type": "STOP",
+              "title": "Salon De Belleza",
+              "startTime": "12:10",
+              "endTime": "14:10",
+              "durationMinutes": 120,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "CULTURE",
+              "note": "A real culture place from OpenStreetMap that can anchor a Las Vegas day. Suggested visit: 120 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_f1cac8c2-9c67-4440-bb71-c15f6ccf7a97_stop_f144beaf-2f63-4ae3-85a9-74cd3890e7ac",
+              "type": "TRAVEL",
+              "title": "46 min walk",
+              "startTime": "14:10",
+              "endTime": "14:56",
+              "durationMinutes": 46,
+              "distanceKm": 2.7,
+              "fromStopId": "stop_f1cac8c2-9c67-4440-bb71-c15f6ccf7a97",
+              "toStopId": "stop_f144beaf-2f63-4ae3-85a9-74cd3890e7ac",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_f144beaf-2f63-4ae3-85a9-74cd3890e7ac",
+              "type": "STOP",
+              "title": "Sinatra",
+              "startTime": "15:00",
+              "endTime": "16:30",
+              "durationMinutes": 90,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "FOOD",
+              "note": "A real food stop candidate from OpenStreetMap for your Las Vegas plan. Suggested visit: 90 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_f144beaf-2f63-4ae3-85a9-74cd3890e7ac_stop_52c4d517-1950-4e26-baed-27879bdf3f3f",
+              "type": "TRAVEL",
+              "title": "29 min walk",
+              "startTime": "16:30",
+              "endTime": "16:59",
+              "durationMinutes": 29,
+              "distanceKm": 1.7,
+              "fromStopId": "stop_f144beaf-2f63-4ae3-85a9-74cd3890e7ac",
+              "toStopId": "stop_52c4d517-1950-4e26-baed-27879bdf3f3f",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_52c4d517-1950-4e26-baed-27879bdf3f3f",
+              "type": "STOP",
+              "title": "Las Vegas Race Track",
+              "startTime": "17:05",
+              "endTime": "18:05",
+              "durationMinutes": 60,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "WALKING",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Las Vegas route. Suggested visit: 60 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            }
+          ],
+          "titleTranslations": {
+            "en": "Highland Valley Park: Walks & Culture",
+            "tr": "Highland Valley Park: Yürüyüş ve Kültür"
+          }
+        }
+      ]
+    },
+    "summary": {
+      "coordinates": [
+        36.1674263,
+        -115.1484131
+      ],
+      "timezone": "America/Los_Angeles",
+      "dates": [
+        "2026-09-05",
+        "2026-09-05"
+      ],
+      "status": "AVAILABLE",
+      "probabilities": [
+        0.0,
+        1.0
+      ],
+      "amounts": [
+        0.0
+      ],
+      "codes": [
+        0
+      ],
+      "available": false,
+      "reason": [
+        "NO_MEANINGFUL_WEATHER_CHANGE"
+      ]
+    }
+  },
+  {
+    "city": "Sarajevo",
+    "tripStatus": 200,
+    "trip": {
+      "id": "trip_fb90be9c-da29-426a-ac07-62f82cfb2f99",
+      "destination": "Sarajevo",
+      "startingArea": "",
+      "startDate": "2026-09-05",
+      "endDate": "2026-09-06",
+      "days": 1,
+      "travelerType": "SOLO",
+      "budget": "BALANCED",
+      "pace": "BALANCED",
+      "interests": [
+        "CULTURE",
+        "COFFEE",
+        "WALKING",
+        "LOCAL_FOOD"
+      ],
+      "stats": {
+        "stops": 4,
+        "foodPicks": 2,
+        "averageWalkKm": 5.5
+      },
+      "startingAreaSelection": null
+    },
+    "weatherHttpStatus": 200,
+    "weather": {
+      "available": false,
+      "dayNumber": 0,
+      "rainWindow": null,
+      "title": "No weather adjustment available",
+      "message": "NO_MEANINGFUL_WEATHER_CHANGE",
+      "affectedStop": null,
+      "indoorAlternative": null,
+      "beforeStopCount": 0,
+      "beforeWalkKm": 0.0,
+      "afterStopCount": 0,
+      "afterWalkKm": 0.0,
+      "changes": [],
+      "reasons": [
+        "NO_MEANINGFUL_WEATHER_CHANGE"
+      ],
+      "weatherStatus": "AVAILABLE",
+      "previewId": null,
+      "stopChanges": [],
+      "forecast": {
+        "status": "AVAILABLE",
+        "reason": "FORECAST_AVAILABLE",
+        "source": "Open-Meteo",
+        "latitude": 43.8570713,
+        "longitude": 18.4126147,
+        "timezone": "Europe/Sarajevo",
+        "startDate": "2026-09-05",
+        "endDate": "2026-09-05",
+        "hours": [
+          {
+            "time": "2026-09-05T00:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T01:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T02:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T03:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T04:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T05:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T06:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T07:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T08:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T09:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T10:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T11:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T12:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T13:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T14:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T15:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T16:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T17:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          },
+          {
+            "time": "2026-09-05T18:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 2
+          },
+          {
+            "time": "2026-09-05T19:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T20:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 2
+          },
+          {
+            "time": "2026-09-05T21:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 2
+          },
+          {
+            "time": "2026-09-05T22:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 1
+          },
+          {
+            "time": "2026-09-05T23:00:00",
+            "precipitationProbability": 0.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 0
+          }
+        ]
+      }
+    },
+    "previewDidNotMutate": true,
+    "itinerary": {
+      "tripId": "trip_fb90be9c-da29-426a-ac07-62f82cfb2f99",
+      "destination": "Sarajevo",
+      "days": [
+        {
+          "dayNumber": 1,
+          "title": "Zmajevac: Walks & Coffee",
+          "summary": "Zmajevac, Art and Konak.",
+          "walkKm": 5.5,
+          "stopCount": 4,
+          "stops": [
+            {
+              "id": "stop_d0fa6f7d-9ccd-42d5-bba9-cefedda7b0af",
+              "order": 1,
+              "title": "Zmajevac",
+              "category": "WALKING",
+              "timeWindow": "09:30",
+              "placeId": "osm_node_375762263",
+              "source": "provider:osm",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Sarajevo route. Suggested visit: 60 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 43.8669491,
+              "longitude": 18.4418938
+            },
+            {
+              "id": "stop_511fa9ec-235e-4c39-825d-1a3817346a9e",
+              "order": 2,
+              "title": "Art",
+              "category": "COFFEE",
+              "timeWindow": "11:30",
+              "placeId": "osm_node_492137265",
+              "source": "provider:osm",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Sarajevo route. Suggested visit: 45 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 43.867595,
+              "longitude": 18.4122772
+            },
+            {
+              "id": "stop_0ac46dba-73b5-4480-a165-c61568afbd49",
+              "order": 3,
+              "title": "Konak",
+              "category": "CULTURE",
+              "timeWindow": "14:00",
+              "placeId": "osm_node_704412254",
+              "source": "provider:osm",
+              "note": "A real culture place from OpenStreetMap that can anchor a Sarajevo day. Suggested visit: 120 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 43.8563325,
+              "longitude": 18.4307435
+            },
+            {
+              "id": "stop_b797eb18-0a8f-41c4-ba2e-4f64c38857c1",
+              "order": 4,
+              "title": "Golf club",
+              "category": "FOOD",
+              "timeWindow": "17:00",
+              "placeId": "osm_node_524782368",
+              "source": "provider:osm",
+              "note": "A real food stop candidate from OpenStreetMap for your Sarajevo plan. Suggested visit: 90 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 43.885238,
+              "longitude": 18.4093188
+            }
+          ],
+          "timeline": [
+            {
+              "id": "stop_d0fa6f7d-9ccd-42d5-bba9-cefedda7b0af",
+              "type": "STOP",
+              "title": "Zmajevac",
+              "startTime": "09:30",
+              "endTime": "10:30",
+              "durationMinutes": 60,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "WALKING",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Sarajevo route. Suggested visit: 60 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_d0fa6f7d-9ccd-42d5-bba9-cefedda7b0af_stop_511fa9ec-235e-4c39-825d-1a3817346a9e",
+              "type": "TRAVEL",
+              "title": "40 min walk",
+              "startTime": "10:30",
+              "endTime": "11:10",
+              "durationMinutes": 40,
+              "distanceKm": 2.4,
+              "fromStopId": "stop_d0fa6f7d-9ccd-42d5-bba9-cefedda7b0af",
+              "toStopId": "stop_511fa9ec-235e-4c39-825d-1a3817346a9e",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_511fa9ec-235e-4c39-825d-1a3817346a9e",
+              "type": "STOP",
+              "title": "Art",
+              "startTime": "11:15",
+              "endTime": "12:00",
+              "durationMinutes": 45,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "COFFEE",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Sarajevo route. Suggested visit: 45 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_511fa9ec-235e-4c39-825d-1a3817346a9e_stop_0ac46dba-73b5-4480-a165-c61568afbd49",
+              "type": "TRAVEL",
+              "title": "33 min walk",
+              "startTime": "12:00",
+              "endTime": "12:33",
+              "durationMinutes": 33,
+              "distanceKm": 1.9,
+              "fromStopId": "stop_511fa9ec-235e-4c39-825d-1a3817346a9e",
+              "toStopId": "stop_0ac46dba-73b5-4480-a165-c61568afbd49",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_0ac46dba-73b5-4480-a165-c61568afbd49",
+              "type": "STOP",
+              "title": "Konak",
+              "startTime": "12:40",
+              "endTime": "14:40",
+              "durationMinutes": 120,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "CULTURE",
+              "note": "A real culture place from OpenStreetMap that can anchor a Sarajevo day. Suggested visit: 120 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_0ac46dba-73b5-4480-a165-c61568afbd49_stop_b797eb18-0a8f-41c4-ba2e-4f64c38857c1",
+              "type": "TRAVEL",
+              "title": "61 min walk",
+              "startTime": "14:40",
+              "endTime": "15:41",
+              "durationMinutes": 61,
+              "distanceKm": 3.6,
+              "fromStopId": "stop_0ac46dba-73b5-4480-a165-c61568afbd49",
+              "toStopId": "stop_b797eb18-0a8f-41c4-ba2e-4f64c38857c1",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_b797eb18-0a8f-41c4-ba2e-4f64c38857c1",
+              "type": "STOP",
+              "title": "Golf club",
+              "startTime": "15:45",
+              "endTime": "17:15",
+              "durationMinutes": 90,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "FOOD",
+              "note": "A real food stop candidate from OpenStreetMap for your Sarajevo plan. Suggested visit: 90 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            }
+          ],
+          "titleTranslations": {
+            "en": "Zmajevac: Walks & Coffee",
+            "tr": "Zmajevac: Yürüyüş ve Kahve"
+          }
+        }
+      ]
+    },
+    "summary": {
+      "coordinates": [
+        43.8570713,
+        18.4126147
+      ],
+      "timezone": "Europe/Sarajevo",
+      "dates": [
+        "2026-09-05",
+        "2026-09-05"
+      ],
+      "status": "AVAILABLE",
+      "probabilities": [
+        0.0
+      ],
+      "amounts": [
+        0.0
+      ],
+      "codes": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "available": false,
+      "reason": [
+        "NO_MEANINGFUL_WEATHER_CHANGE"
+      ]
+    }
+  },
+  {
+    "city": "Tallinn",
+    "tripStatus": 200,
+    "trip": {
+      "id": "trip_1a3d5964-4f08-4c8a-93e2-18718336c0cf",
+      "destination": "Tallinn",
+      "startingArea": "",
+      "startDate": "2026-09-05",
+      "endDate": "2026-09-06",
+      "days": 1,
+      "travelerType": "SOLO",
+      "budget": "BALANCED",
+      "pace": "BALANCED",
+      "interests": [
+        "CULTURE",
+        "COFFEE",
+        "WALKING",
+        "LOCAL_FOOD"
+      ],
+      "stats": {
+        "stops": 4,
+        "foodPicks": 2,
+        "averageWalkKm": 5.5
+      },
+      "startingAreaSelection": null
+    },
+    "weatherHttpStatus": 200,
+    "weather": {
+      "available": false,
+      "dayNumber": 0,
+      "rainWindow": null,
+      "title": "No weather adjustment available",
+      "message": "NO_MEANINGFUL_WEATHER_CHANGE",
+      "affectedStop": null,
+      "indoorAlternative": null,
+      "beforeStopCount": 0,
+      "beforeWalkKm": 0.0,
+      "afterStopCount": 0,
+      "afterWalkKm": 0.0,
+      "changes": [],
+      "reasons": [
+        "NO_MEANINGFUL_WEATHER_CHANGE"
+      ],
+      "weatherStatus": "AVAILABLE",
+      "previewId": null,
+      "stopChanges": [],
+      "forecast": {
+        "status": "AVAILABLE",
+        "reason": "FORECAST_AVAILABLE",
+        "source": "Open-Meteo",
+        "latitude": 59.437242,
+        "longitude": 24.7572693,
+        "timezone": "Europe/Tallinn",
+        "startDate": "2026-09-05",
+        "endDate": "2026-09-05",
+        "hours": [
+          {
+            "time": "2026-09-05T00:00:00",
+            "precipitationProbability": 12.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T01:00:00",
+            "precipitationProbability": 15.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T02:00:00",
+            "precipitationProbability": 18.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T03:00:00",
+            "precipitationProbability": 20.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T04:00:00",
+            "precipitationProbability": 21.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T05:00:00",
+            "precipitationProbability": 21.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T06:00:00",
+            "precipitationProbability": 20.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T07:00:00",
+            "precipitationProbability": 19.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T08:00:00",
+            "precipitationProbability": 17.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T09:00:00",
+            "precipitationProbability": 16.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T10:00:00",
+            "precipitationProbability": 16.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T11:00:00",
+            "precipitationProbability": 16.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T12:00:00",
+            "precipitationProbability": 16.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T13:00:00",
+            "precipitationProbability": 17.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T14:00:00",
+            "precipitationProbability": 19.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T15:00:00",
+            "precipitationProbability": 20.0,
+            "precipitationAmount": 0.3,
+            "weatherCode": 51
+          },
+          {
+            "time": "2026-09-05T16:00:00",
+            "precipitationProbability": 18.0,
+            "precipitationAmount": 9.7,
+            "weatherCode": 65
+          },
+          {
+            "time": "2026-09-05T17:00:00",
+            "precipitationProbability": 15.0,
+            "precipitationAmount": 1.2,
+            "weatherCode": 55
+          },
+          {
+            "time": "2026-09-05T18:00:00",
+            "precipitationProbability": 12.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T19:00:00",
+            "precipitationProbability": 9.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T20:00:00",
+            "precipitationProbability": 7.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T21:00:00",
+            "precipitationProbability": 8.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T22:00:00",
+            "precipitationProbability": 16.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          },
+          {
+            "time": "2026-09-05T23:00:00",
+            "precipitationProbability": 26.0,
+            "precipitationAmount": 0.0,
+            "weatherCode": 3
+          }
+        ]
+      }
+    },
+    "previewDidNotMutate": true,
+    "itinerary": {
+      "tripId": "trip_1a3d5964-4f08-4c8a-93e2-18718336c0cf",
+      "destination": "Tallinn",
+      "days": [
+        {
+          "dayNumber": 1,
+          "title": "Piiskopi vaateplatvorm: Walks & Coffee",
+          "summary": "Piiskopi vaateplatvorm, Maiasmokk and Lastepargi kivi.",
+          "walkKm": 5.5,
+          "stopCount": 4,
+          "stops": [
+            {
+              "id": "stop_cff514f6-158d-45d0-8510-252380b91abd",
+              "order": 1,
+              "title": "Piiskopi vaateplatvorm",
+              "category": "WALKING",
+              "timeWindow": "09:30",
+              "placeId": "osm_node_60687731",
+              "source": "provider:osm",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Tallinn route. Suggested visit: 60 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 59.4372061,
+              "longitude": 24.7376154
+            },
+            {
+              "id": "stop_25601d77-2823-4245-8a4d-6609bcd3de76",
+              "order": 2,
+              "title": "Maiasmokk",
+              "category": "COFFEE",
+              "timeWindow": "11:30",
+              "placeId": "osm_node_274236812",
+              "source": "provider:osm",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Tallinn route. Suggested visit: 45 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 59.4383619,
+              "longitude": 24.7456935
+            },
+            {
+              "id": "stop_987fd96d-f437-4caf-9ed2-d0c08758f843",
+              "order": 3,
+              "title": "Lastepargi kivi",
+              "category": "CULTURE",
+              "timeWindow": "14:00",
+              "placeId": "osm_node_443102729",
+              "source": "provider:osm",
+              "note": "A real culture place from OpenStreetMap that can anchor a Tallinn day. Suggested visit: 120 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 59.4368361,
+              "longitude": 24.7894804
+            },
+            {
+              "id": "stop_efaa20d9-168f-4152-900a-59ff9c551172",
+              "order": 4,
+              "title": "Olde Estonia",
+              "category": "FOOD",
+              "timeWindow": "17:00",
+              "placeId": "osm_node_60461662",
+              "source": "provider:osm",
+              "note": "A real food stop candidate from OpenStreetMap for your Tallinn plan. Suggested visit: 90 min.",
+              "optional": false,
+              "status": "PLANNED",
+              "arrivedAt": null,
+              "completedAt": null,
+              "latitude": 59.4376481,
+              "longitude": 24.7449487
+            }
+          ],
+          "timeline": [
+            {
+              "id": "stop_cff514f6-158d-45d0-8510-252380b91abd",
+              "type": "STOP",
+              "title": "Piiskopi vaateplatvorm",
+              "startTime": "09:30",
+              "endTime": "10:30",
+              "durationMinutes": 60,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "WALKING",
+              "note": "A real walkable outdoor place from OpenStreetMap for a flexible Tallinn route. Suggested visit: 60 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_cff514f6-158d-45d0-8510-252380b91abd_stop_25601d77-2823-4245-8a4d-6609bcd3de76",
+              "type": "TRAVEL",
+              "title": "8 min walk",
+              "startTime": "10:30",
+              "endTime": "10:38",
+              "durationMinutes": 8,
+              "distanceKm": 0.5,
+              "fromStopId": "stop_cff514f6-158d-45d0-8510-252380b91abd",
+              "toStopId": "stop_25601d77-2823-4245-8a4d-6609bcd3de76",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_25601d77-2823-4245-8a4d-6609bcd3de76",
+              "type": "STOP",
+              "title": "Maiasmokk",
+              "startTime": "10:45",
+              "endTime": "11:30",
+              "durationMinutes": 45,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "COFFEE",
+              "note": "A real cafe candidate from OpenStreetMap that Journy can fit into your Tallinn route. Suggested visit: 45 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_25601d77-2823-4245-8a4d-6609bcd3de76_stop_987fd96d-f437-4caf-9ed2-d0c08758f843",
+              "type": "TRAVEL",
+              "title": "42 min walk",
+              "startTime": "11:30",
+              "endTime": "12:12",
+              "durationMinutes": 42,
+              "distanceKm": 2.5,
+              "fromStopId": "stop_25601d77-2823-4245-8a4d-6609bcd3de76",
+              "toStopId": "stop_987fd96d-f437-4caf-9ed2-d0c08758f843",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_987fd96d-f437-4caf-9ed2-d0c08758f843",
+              "type": "STOP",
+              "title": "Lastepargi kivi",
+              "startTime": "12:15",
+              "endTime": "14:15",
+              "durationMinutes": 120,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "CULTURE",
+              "note": "A real culture place from OpenStreetMap that can anchor a Tallinn day. Suggested visit: 120 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "travel_stop_987fd96d-f437-4caf-9ed2-d0c08758f843_stop_efaa20d9-168f-4152-900a-59ff9c551172",
+              "type": "TRAVEL",
+              "title": "42 min walk",
+              "startTime": "14:15",
+              "endTime": "14:57",
+              "durationMinutes": 42,
+              "distanceKm": 2.5,
+              "fromStopId": "stop_987fd96d-f437-4caf-9ed2-d0c08758f843",
+              "toStopId": "stop_efaa20d9-168f-4152-900a-59ff9c551172",
+              "category": "WALKING",
+              "note": "Walking transfer between itinerary stops.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            },
+            {
+              "id": "stop_efaa20d9-168f-4152-900a-59ff9c551172",
+              "type": "STOP",
+              "title": "Olde Estonia",
+              "startTime": "15:00",
+              "endTime": "16:30",
+              "durationMinutes": 90,
+              "distanceKm": null,
+              "fromStopId": null,
+              "toStopId": null,
+              "category": "FOOD",
+              "note": "A real food stop candidate from OpenStreetMap for your Tallinn plan. Suggested visit: 90 min.",
+              "constraintStatus": "OK",
+              "constraintWarning": null
+            }
+          ],
+          "titleTranslations": {
+            "en": "Piiskopi vaateplatvorm: Walks & Coffee",
+            "tr": "Piiskopi vaateplatvorm: Yürüyüş ve Kahve"
+          }
+        }
+      ]
+    },
+    "summary": {
+      "coordinates": [
+        59.437242,
+        24.7572693
+      ],
+      "timezone": "Europe/Tallinn",
+      "dates": [
+        "2026-09-05",
+        "2026-09-05"
+      ],
+      "status": "AVAILABLE",
+      "probabilities": [
+        7.0,
+        8.0,
+        9.0,
+        12.0,
+        15.0,
+        16.0,
+        17.0,
+        18.0,
+        19.0,
+        20.0,
+        21.0,
+        26.0
+      ],
+      "amounts": [
+        0.0,
+        0.3,
+        1.2,
+        9.7
+      ],
+      "codes": [
+        3,
+        51,
+        55,
+        65
+      ],
+      "available": false,
+      "reason": [
+        "NO_MEANINGFUL_WEATHER_CHANGE"
+      ]
+    }
+  }
+]

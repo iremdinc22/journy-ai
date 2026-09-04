@@ -1,0 +1,11 @@
+# Weather analysis before modification
+
+Current flow: trip weather-adjustment endpoint selects the most outdoor-heavy itinerary day first. WeatherForecastService calls Open-Meteo with legacy DestinationCoordinateResolver.coordinatesFor(display locality), requests today's next seven days, and returns only Optional<RainForecast>. The service's empty Optional conflates dry, missing, unsupported dates and errors. ItineraryService then invents a destination/date-hash rain window, a generic indoor alternative and a walking-distance reduction, and returns available=true. RightNow calls empty weather “clear enough.”
+
+The Plan renders available=true and applies RAIN_REPLAN through AgentService, where synthetic mutation is already blocked with 422. Assistant separately shows a rain card whenever stop categories appear outdoor, and generates rain/indoor quick prompts and offline previews. Java AgentService and Python WeatherAgent generate generic rain previews without a forecast contract. AI chat also promises rain changes/savings without evidence.
+
+Provider: existing Open-Meteo hourly API; reuse it. No weather cache exists. Dates: fetch fixed next seven days, then filter a trip date; move the selected hour into 09:00–18:00 and invent a three-hour interval. Provider timezone=auto is requested but timezone metadata is ignored. Missing numeric fields default to zero. Coordinate resolver can substitute legacy defaults and loses original query disambiguation.
+
+TripSetup, trip creation and verified itinerary generation do not depend on weather; retain that separation. Changes should be restricted to forecast normalization/cache, weather evaluation/explicit preview apply, weather API consumers, and unsafe AI weather preview paths. Reuse current Place identities and existing stop slots; do not discover or invent replacement stops or claim route-distance savings.
+
+Risks: absent data mistaken for dry/rain; incorrect trip/day/timezone; stale banners after destination changes; false indoor classification; apply differing from preview; AI bypassing backend eligibility. Validate reliable hourly evidence, conservative exposure categories, exact Place identity, future local planned windows and explicit apply with a current preview token.
