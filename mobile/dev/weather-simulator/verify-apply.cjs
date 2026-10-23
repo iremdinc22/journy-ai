@@ -82,7 +82,9 @@ async function run() {
   const evidence = { date: marker.date, preview, before, after, actualWireBody: sentBody,
     productionHandlerSucceeded: applied, previewReadOnly: true, onlyTimeAndOrderChanged: true,
     timelineMatchesStoredSlots: true, walkingEstimateUnchanged: true, finalWeatherAvailable: finalWeather.available };
-  fs.writeFileSync(path.join(root, '../backend/weather-acceptance/INTEGRATION_FIXTURE_RESULT.json'), JSON.stringify(evidence, null, 2) + '\n');
+  const evidenceDir = path.join(root, '../.dev-logs/weather-simulator');
+  fs.mkdirSync(evidenceDir, { recursive: true });
+  fs.writeFileSync(path.join(evidenceDir, 'INTEGRATION_FIXTURE_RESULT.json'), JSON.stringify(evidence, null, 2) + '\n');
   console.log('PASS: real Plan handler + shared API client; single object body; successful Apply; exact identities and slots; unchanged distance; eligibility false after Apply.');
 }
 run().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => { global.fetch = nativeFetch; });

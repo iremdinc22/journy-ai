@@ -65,3 +65,12 @@ postgres-data/
 *.zip
 *.tar
 *.tar.gz
+
+# Local development reports and acceptance artifacts
+.dev-logs/
+/backend/PHASE*
+/backend/phase[0-9]*/
+/backend/*-acceptance/
+/docs/*-phase-*.md
+/docs/*-bugfix.md
+/docs/*-live-*.json
